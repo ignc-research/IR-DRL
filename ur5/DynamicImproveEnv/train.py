@@ -109,5 +109,6 @@ if __name__=='__main__':
     model.learn(
         total_timesteps=1e10,
         n_eval_episodes=64,
-        callback=callback)
+        callback=callback,
+        reset_num_timesteps=False)
     model.save('./models/reach')

@@ -56,7 +56,7 @@ if __name__=='__main__':
         obstacle_sphere_radius=params['obstacle_sphere_radius']
         )
     # load drl model
-    model = PPO.load('./models/reach_ppo_ckp_logs/reach_3276800_steps', env=env)
+    model = PPO.load('./ur5/StaticEnv/models/reach_ppo_ckp_logs/reach_2457600_steps', env=env)
 
     while True:
         done = False
