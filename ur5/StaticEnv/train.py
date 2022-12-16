@@ -1,3 +1,4 @@
+#%%
 import os
 import sys
 import gym
@@ -14,6 +15,8 @@ from typing import Callable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import tensorboard
+from policy import CustomCombinedExtractor
 
 CURRENT_PATH = os.path.abspath(__file__)
 sys.path.insert(0,os.path.dirname(CURRENT_PATH))
@@ -33,7 +36,8 @@ params = {
     'num_obstacles' : 3,
     'prob_obstacles' : 0.8,
     'obstacle_box_size' : [0.04,0.04,0.002],
-    'obstacle_sphere_radius' : 0.04       
+    'obstacle_sphere_radius' : 0.04,
+    'camera_at_robot' : False,
 }
 
 def make_env(rank: int, seed: int = 0) -> Callable:
@@ -61,7 +65,8 @@ def make_env(rank: int, seed: int = 0) -> Callable:
             num_obstacles=params['num_obstacles'],
             prob_obstacles=params['prob_obstacles'],
             obstacle_box_size=params['obstacle_box_size'],
-            obstacle_sphere_radius=params['obstacle_sphere_radius']
+            obstacle_sphere_radius=params['obstacle_sphere_radius'],
+            camera_at_robot=params['camera_at_robot'],
             )
         env = Monitor(env)
         env.seed(seed + rank)
@@ -70,7 +75,7 @@ def make_env(rank: int, seed: int = 0) -> Callable:
     return _init
 
 if __name__=='__main__':
-
+    
     # Separate evaluation env
     eval_env = Env(
         is_render=params['is_render'],
@@ -86,11 +91,12 @@ if __name__=='__main__':
         num_obstacles=params['num_obstacles'],
         prob_obstacles=params['prob_obstacles'],
         obstacle_box_size=params['obstacle_box_size'],
-        obstacle_sphere_radius=params['obstacle_sphere_radius']
+        obstacle_sphere_radius=params['obstacle_sphere_radius'],
+        camera_at_robot=params['camera_at_robot'],
         )
     eval_env = Monitor(eval_env)
     # load env
-    env = SubprocVecEnv([make_env(i) for i in range(8)])
+    env = SubprocVecEnv([make_env(i) for i in range(4)])
     # Stops training when the model reaches the maximum number of episodes
     callback_max_episodes = StopTrainingOnMaxEpisodes(max_episodes=1e8, verbose=1)
 
@@ -104,10 +110,18 @@ if __name__=='__main__':
                                         name_prefix='reach')
     # Create the callback list
     callback = CallbackList([checkpoint_callback, callback_max_episodes, eval_callback])
-    model = PPO("MultiInputPolicy", env, batch_size=256, verbose=1, tensorboard_log='./models/reach_ppo_tf_logs/')
+
+    policy_kwargs = dict(
+    features_extractor_class=CustomCombinedExtractor,
+    features_extractor_kwargs=dict(features_dim=128),
+    )
+    model = PPO("MultiInputPolicy", env, policy_kwargs= policy_kwargs, batch_size=256, verbose=1, tensorboard_log='./models/reach_ppo_tf_logs/')
     # model = PPO.load('./models/reach_ppo_ckp_logs/reach_49152000_steps', env=env)
+    #%%
     model.learn(
         total_timesteps=1e10,
         n_eval_episodes=64,
-        callback=callback)
+        callback=callback,)
     model.save('./models/reach_ppo')
+
+# %%

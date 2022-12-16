@@ -14,7 +14,6 @@ from typing import Callable
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 CURRENT_PATH = os.path.abspath(__file__)
 sys.path.insert(0,os.path.dirname(CURRENT_PATH))
 from env import Env
@@ -33,7 +32,9 @@ params = {
     'num_obstacles' : 3,
     'prob_obstacles' : 0.8,
     'obstacle_box_size' : [0.04,0.04,0.002],
-    'obstacle_sphere_radius' : 0.04       
+    'obstacle_sphere_radius' : 0.04,
+    'camera_at_robot' : True,
+    'debug' : False,
 }
 
 
@@ -53,10 +54,13 @@ if __name__=='__main__':
         num_obstacles=params['num_obstacles'],
         prob_obstacles=params['prob_obstacles'],
         obstacle_box_size=params['obstacle_box_size'],
-        obstacle_sphere_radius=params['obstacle_sphere_radius']
+        obstacle_sphere_radius=params['obstacle_sphere_radius'],
+        camera_at_robot=params['camera_at_robot'],
+        debug=params['debug'],
         )
     # load drl model
-    model = PPO.load('./ur5/StaticEnv/models/reach_ppo_ckp_logs/reach_2457600_steps', env=env)
+    # model = PPO.load('./models/reach_ppo_ckp_logs/reach_204800_steps', env=env)
+    model = PPO.load('./ur5/StaticEnv/models/reach_ppo_ckp_logs/reach_204800_steps', env=env)
 
     while True:
         done = False
