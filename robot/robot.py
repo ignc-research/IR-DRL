@@ -62,6 +62,7 @@ class Robot(ABC):
         Method that spawns the robot into the simulation, moves its base to the desired position and orientation
         and sets its joints to the resting angles. Also populates the PyBullet variables with information.
         Does nothing if self.built is True and must set it to True if it was false.
+        # TODO: envs should reset built to false if the pybullet simulation is killed
         """
         pass
 
@@ -125,3 +126,17 @@ class Robot(ABC):
             maxNumIterations=2000,
             residualThreshold=5e-3)
         return np.float32(joints)
+
+    def move_base(self, desired_base_position: np.ndarray, desired_base_orientation: np.ndarray):
+        """
+        Moves the base of the robot towards the desired position and orientation.
+        Also resets the robot pose to its resting angles.
+
+        :param desired_base_position: Vector containing the desired xyz position of the base.
+        :param desired_base_orientation: Vector containing the desired rotation of the base.
+        """
+
+        self.base_position = desired_base_position
+        self.base_orientation = desired_base_orientation
+        pyb.resetBasePositionAndOrientation(self.id, desired_base_position.tolist(), desired_base_orientation.tolist())
+        self.moveto_joints(self.resting_pose_angles)
