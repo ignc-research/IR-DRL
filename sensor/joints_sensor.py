@@ -57,8 +57,10 @@ class JointsSensor(Sensor):
         return obs_sp_ele
 
     def get_data_for_logging(self) -> dict:
-        
         logging_dict = dict()
+
         logging_dict["joints_angles_" + self.robot_name] = self.joints_angles
         logging_dict["joints_velocities_" + self.robot_name] = self.joints_velocities
+
+        return logging_dict
 
