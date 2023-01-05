@@ -46,13 +46,14 @@ class Sensor(ABC):
         """
         Returns the sensor data in normalized format.
         """
+        pass
 
     @abstractmethod
     def get_observation_space_element(self) -> dict:
         """
         Returns a dict with gym spaces to be used as a part of the observation space of the parent gym env. Called once at the init of the gym env.
         Dict keys should contain a sensible name for the data and the name of the robot, values should be associated gym spaces.
-        Example for position sensor: "position_ur5_1": gym.space.Box(low=0, high)
+        Example for position sensor: "position_ur5_1": gym.space.Box(low=0, high=1, shape=(6,), dtype=np.float32)
         """
         pass
 
