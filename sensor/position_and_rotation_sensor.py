@@ -46,7 +46,7 @@ class PositionRotationSensor(Sensor):
             self.rotation = pyb.getEulerFromQuaternion(self.rotation)
         self.rotation = np.array(self.rotation)
         self.position_velocity = (self.position - self.position_prev) / (new_time - self.time)
-        self.time = time() - self.epoch
+        self.time = new_time
 
         return self.get_data()
 
