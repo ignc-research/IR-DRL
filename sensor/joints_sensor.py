@@ -34,6 +34,8 @@ class JointsSensor(Sensor):
         self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / (new_time - self.time)
         self.time = new_time
 
+        return self.get_data()
+
     def get_data(self) -> dict:
         if self.normalize:
             return self._normalize()
