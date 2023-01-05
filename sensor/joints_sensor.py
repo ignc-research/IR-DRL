@@ -12,7 +12,7 @@ class JointsSensor(Sensor):
         super().__init__(robot, normalize)
         
         # set output data field name
-        self.output_name = "joints_angles_" + self.robot_name
+        self.output_name = "joints_angles_" + self.robot.name
 
         # init data storage
         self.joints_dims = len(self.robot.joints_ids)
