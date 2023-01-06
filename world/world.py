@@ -19,8 +19,8 @@ class World(ABC):
         self.x_min, self.x_max, self.y_min, self.y_max, self.z_min, self.z_max = workspace_boundaries
 
         # targets for goals that need to interact with the world
-        self.positon_target = None
-        self.rotation_target = None
+        self.position_targets = None
+        self.rotation_targets = None
 
         # robot base points
         self.robot_base_positions = robot_base_positions
