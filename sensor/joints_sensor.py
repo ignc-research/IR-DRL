@@ -50,14 +50,17 @@ class JointsSensor(Sensor):
 
     def get_observation_space_element(self) -> dict:
         
-        obs_sp_ele = dict()
+        if self.add_to_observation_space:
+            obs_sp_ele = dict()
 
-        if self.normalize:
-            obs_sp_ele[self.output_name] = gym.spaces.Box(low=-1, high=1, shape=(self.joints_dims,), dtype=np.float32)
+            if self.normalize:
+                obs_sp_ele[self.output_name] = gym.spaces.Box(low=-1, high=1, shape=(self.joints_dims,), dtype=np.float32)
+            else:
+                obs_sp_ele[self.output_name] = gym.spaces.Box(low=self.robot.joints_limits_lower, high=self.robot.joints_limits_upper, shape=(self.joints_dims,), dtype=np.float32)
+
+            return obs_sp_ele
         else:
-            obs_sp_ele[self.output_name] = gym.spaces.Box(low=self.robot.joints_limits_lower, high=self.robot.joints_limits_upper, shape=(self.joints_dims,), dtype=np.float32)
-
-        return obs_sp_ele
+            return {}
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()

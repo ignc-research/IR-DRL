@@ -67,15 +67,19 @@ class PositionRotationSensor(Sensor):
 
 
     def get_observation_space_element(self):
-        obs_sp_ele = dict()
 
-        if self.quaternion:
-            obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-1, high=1, shape=(4,), dtype=np.float32)
-        else:
-            if self.normalize:
-                obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-1, high=1, shape=(3,), dtype=np.float32) 
+        if self.add_to_observation_space:
+            obs_sp_ele = dict()
+
+            if self.quaternion:
+                obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-1, high=1, shape=(4,), dtype=np.float32)
             else:
-                obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-np.pi, high=np.pi, shape=(3,), dtype=np.float32)
+                if self.normalize:
+                    obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-1, high=1, shape=(3,), dtype=np.float32) 
+                else:
+                    obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-np.pi, high=np.pi, shape=(3,), dtype=np.float32)
+        else:
+            return {}
 
     def get_secondary_data(self):
         logging_dict = dict()
