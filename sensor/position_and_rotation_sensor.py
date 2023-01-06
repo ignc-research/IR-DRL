@@ -36,7 +36,6 @@ class PositionRotationSensor(Sensor):
         self.position = None
         self.position_prev = None
         self.rotation = None
-        self.rotation
         self.position_velocity = None
 
     def update(self):

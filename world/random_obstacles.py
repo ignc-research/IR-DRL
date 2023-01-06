@@ -9,7 +9,7 @@ class RandomObstacleWorld(World):
     Depending on the configuration, some of these can be moving in various directions at various speeds
     """
 
-    def __init__(self, workspace_boundaries: list, 
+    def __init__(self, workspace_boundaries: list=[-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], 
                        num_static_obstacles: int=3, 
                        num_moving_obstacles: int=1,
                        box_measurements: list=[0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125],

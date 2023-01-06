@@ -10,7 +10,16 @@ class Robot(ABC):
     See the ur5 robot for examples.
     """
 
-    def __init__(self, name: str, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], end_effector_link_id: int, base_link_id: int):
+    def __init__(self, name: str,
+                       base_position: Union[list, np.ndarray], 
+                       base_orientation: Union[list, np.ndarray], 
+                       resting_angles: Union[list, np.ndarray], 
+                       end_effector_link_id: int, 
+                       base_link_id: int,
+                       control_joints: bool, 
+                       xyz_vel: float,
+                       rpy_vel: float,
+                       joint_vel: float):
         super().__init__()
 
         # set name
@@ -36,8 +45,25 @@ class Robot(ABC):
         self.joints_limits_upper = []
         self.joints_range = None
 
+        # wether to control xyz_rpy or joints
+        self.control_joints = control_joints
+
         # set build state
         self.built = False
+
+        # goals associated with the robot
+        self.goals = []
+
+        # sensors associated with the robot
+        self.sensors = []
+        # joint and position sensor are mandatory and thus treated separately
+        self.joints_sensor = None
+        self.position_rotation_sensor = None
+
+        # maximum deltas on movements
+        self.xyz_vel = xyz_vel
+        self.rpy_vel = rpy_vel
+        self.joint_vel = joint_vel
 
     @abstractmethod
     def get_action_space_dims(self):
@@ -46,6 +72,8 @@ class Robot(ABC):
         dimensions if the joints themselves are controlled by the network (this should just be the amount of joints)
         and as second entry the dimensions when running on inverse kinematics (usually 6).
         These numbers get used when constructing the env's action space.
+        Put something other than (6,6) if your robot is controlled in some different way, however that means you must
+        also overwrite the moveto_*** or action methods below such that they still work.
         """
         pass
 
@@ -58,6 +86,37 @@ class Robot(ABC):
         # TODO: envs should reset built to false if the pybullet simulation is killed
         """
         pass
+
+    def set_joint_sensor(self, joint_sensor):
+        """
+        Simple setter method for the joint sensor of this robot.
+        """
+        self.joint_sensor = joint_sensor
+
+    def set_position_rotation_sensor(self, position_rotation_sensor):
+        """
+        Simple setter for the position and rotation sensor of this robot.
+        """
+        self.position_rotation_sensor = position_rotation_sensor
+
+    def process_action(self, action: np.ndarray):
+        """
+        This takes an action vector as given as the output of the NN actor and applies it to the robot.
+        """
+        if self.control_joints:
+            joint_delta = action * self.joint_vel
+
+            new_joints = self.joints_sensor.joints_angles + joint_delta
+
+            self.moveto_joints(new_joints)
+        else:
+            pos_delta = action[:3] * self.xyz_vel
+            rpy_delta = action[3:] * self.rpy_vel
+
+            new_pos = self.position_rotation_sensor.position + pos_delta
+            new_rpy = pyb.getEulerFromQuaternion(self.position_rotation_sensor.rotation.tolist()) + rpy_delta
+
+            self.moveto_xyzrpy(new_pos, new_rpy)
 
     def moveto_joints(self, desired_joints_angles: np.ndarray):
         """
@@ -133,7 +192,6 @@ class Robot(ABC):
     def move_base(self, desired_base_position: np.ndarray, desired_base_orientation: np.ndarray):
         """
         Moves the base of the robot towards the desired position and orientation.
-        Also resets the robot pose to its resting angles.
 
         :param desired_base_position: Vector containing the desired xyz position of the base.
         :param desired_base_orientation: Vector containing the desired rotation of the base.
@@ -142,4 +200,3 @@ class Robot(ABC):
         self.base_position = desired_base_position
         self.base_orientation = desired_base_orientation
         pyb.resetBasePositionAndOrientation(self.id, desired_base_position.tolist(), desired_base_orientation.tolist())
-        self.moveto_joints(self.resting_pose_angles)
