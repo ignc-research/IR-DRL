@@ -9,7 +9,10 @@ class PositionRotationSensor(Sensor):
 
     def __init__(self, robot: Robot, normalize: bool, link_id: int, quaternion: bool=True):
 
-        super().__init__(robot, normalize)
+        super().__init__(normalize)
+
+        # set associated robot
+        self.robot = robot
 
         # set output data field names
         self.output_name_rotation = "rotation_link_" + str(link_id) + "_" + self.robot.name

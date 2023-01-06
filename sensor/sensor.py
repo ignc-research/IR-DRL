@@ -1,7 +1,4 @@
 from abc import ABC, abstractmethod
-import gym
-import numpy as np
-from robot.robot import Robot
 from time import time
 
 class Sensor(ABC):
@@ -10,12 +7,9 @@ class Sensor(ABC):
     See the joint or position sensor for examples.
     """
 
-    def __init__(self, robot: Robot, normalize: bool, add_to_observation_space: bool=True):
+    def __init__(self, normalize: bool, add_to_observation_space: bool=True):
         
         super().__init__()
-        
-        # robot (object of robot class) that is associated with this sensor
-        self.robot = robot
         
         # determines whether the output of the sensor is normalized to be between -1 and 1 (or alternatively between 0 and 1, if that makes more sense for a particular type of sensor)
         # note: class variables as well as the logging output should still be unnormalized, only the output of get_data() should be changed by this

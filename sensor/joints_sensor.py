@@ -9,8 +9,11 @@ class JointsSensor(Sensor):
 
     def __init__(self, robot: Robot, normalize: bool):
 
-        super().__init__(robot, normalize)
+        super().__init__(normalize)
         
+        # set associated robot
+        self.robot = robot
+
         # set output data field name
         self.output_name = "joints_angles_" + self.robot.name
 

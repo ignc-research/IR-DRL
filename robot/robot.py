@@ -36,13 +36,6 @@ class Robot(ABC):
         self.joints_limits_upper = []
         self.joints_range = None
 
-        self.joints_ids = [1,2,3,4,5]
-        self.name = "ur5_1"
-        self.joints_limits_lower = np.array([0,0,0,0,0])
-        self.joints_limits_upper = np.array([np.pi, np.pi, np.pi, np.pi, np.pi])
-        self.joints_range = self.joints_limits_upper - self.joints_limits_lower
-        self.id = 0
-
         # set build state
         self.built = False
 
@@ -100,12 +93,22 @@ class Robot(ABC):
         Moves the robot such that end effector is in the desired xyz position and quat orientation.
 
         :param desired_xyz: Vector containing the desired new xyz position of the end effector.
-        :param desired_rpy: Vector containing the desired new quaternion orientation of the end effector.
+        :param desired_quat: Vector containing the desired new quaternion orientation of the end effector.
         """
         joints = self._solve_ik(desired_xyz, desired_quat)
         self.moveto_joints(joints)
 
-    def _solve_ik(self, xyz: np.ndarray, quat:np.ndarray):
+    def moveto_xyz(self, desired_xyz: np.ndarray):
+        """
+        Moves the robot such that end effector is in the desired xyz position.
+        Orientation will not be controlled.
+
+        :param desired_xyz: Vector containing the desired new xyz position of the end effector.
+        """
+        joints = self._solve_ik(desired_xyz, None)
+        self.moveto_joints(joints)
+
+    def _solve_ik(self, xyz: np.ndarray, quat:Union[np.ndarray, None]):
         """
         Solves the robot's inverse kinematics for the desired pose.
         Returns the joint angles required
@@ -123,8 +126,8 @@ class Robot(ABC):
             upperLimits=self.joints_limits_upper.tolist(),
             jointRanges=self.joints_range.tolist(),
             restPoses=self.resting_pose_angles.tolist(),
-            maxNumIterations=2000,
-            residualThreshold=5e-3)
+            maxNumIterations=100,
+            residualThreshold=.01)
         return np.float32(joints)
 
     def move_base(self, desired_base_position: np.ndarray, desired_base_orientation: np.ndarray):
