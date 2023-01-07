@@ -15,7 +15,7 @@ class RandomObstacleWorld(World):
                        num_moving_obstacles: int=1,
                        box_measurements: list=[0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125],
                        sphere_measurements: list=[0.005, 0.02],
-                       moving_obstacles_vels: list=[0.01, 0.35],
+                       moving_obstacles_vels: list=[0.0005, 0.005],
                        moving_obstacles_directions: list=[],
                        moving_obstacles_trajectory_length: list=[0.05, 0.75]
                        ):
@@ -38,13 +38,17 @@ class RandomObstacleWorld(World):
         self.sphere_r_min, self.sphere_r_max = sphere_measurements
 
         self.vel_min, self.vel_max = moving_obstacles_vels
-        self.vels = None  # to be populated in the build method
+        self.vels = []  # to be populated in the build method
 
         self.allowed_directions = moving_obstacles_directions
-        self.directions = None  # to be populated in the build method
+        self.directions = []  # to be populated in the build method
 
         self.trajectory_length_min, self.trajectory_length_max = moving_obstacles_trajectory_length
-        self.trajectory_lenghts = None # to be populated in the build method
+        self.trajectory_lengths = [] # to be populated in the build method
+        self.trajectory_state = []
+
+        self.moving_obstacles_ids = []
+        self.moving_obstacles_positions = []
 
     def build(self):
         
@@ -55,21 +59,95 @@ class RandomObstacleWorld(World):
         ground_plate = pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01])
         self.objects_ids.append(ground_plate)
 
-        # add the static obstacles
-        for i in range(self.num_static_obstacles):
+        # add the moving obstacles
+        for i in range(self.num_moving_obstacles):
+            # pick a one of the robots' startign position randomly to...
             for idx in choice(range(len(self.robots_with_position))):
+                # ... generate a random position between halfway between it and its target
                 position = 0.5*(self.ee_starting_points[idx] + self.position_targets[idx] + 0.05*np.random.uniform(low=-1, high=1, size=(3,)))
+                self.moving_obstacles_positions.append(position)
+                
+                # generate a velocity
+                velocity = np.random.uniform(low=self.vel_min, high=self.vel_max)
+                self.vels.append(velocity)
+
+                # generate a trajectory length
+                trajectory = np.random.uniform(low=self.trajectory_length_min, high=self.trajectory_length_max)
+                self.trajectory_lengths.append(trajectory)
+                self.trajectory_state.append(0)
+
+                # get the direction from __init__ or, if none are given, generate one at random
+                if self.allowed_directions:
+                    direction = self.allowed_directions[i]
+                else:
+                    direction = np.random.uniform(low=-1, high=1, size=(3,))
+                direction = (1 / np.linalg.norm(direction)) * direction
+                self.directions
+                
                 # chance for plates 70%, for speres 30%
                 if np.random() > 0.3: 
                     # plate
                     plate = self._create_plate(position)
+                    self.moving_obstacles_ids.append(plate)
                     self.objects_ids.append(plate)
                 else:
                     # sphere
                     sphere = self._create_sphere(position)
+                    self.moving_obstacles_ids.append(sphere)
                     self.objects_ids.append(sphere)
 
+        # add the static obstacles
+        for i in range(self.num_static_obstacles):
+            for idx in choice(range(len(self.robots_with_position))):
+                    position = 0.5*(self.ee_starting_points[idx] + self.position_targets[idx] + 0.05*np.random.uniform(low=-1, high=1, size=(3,)))
+                    # chance for plates 70%, for speres 30%
+                    if np.random() > 0.3: 
+                        # plate
+                        plate = self._create_plate(position)
+                        self.objects_ids.append(plate)
+                    else:
+                        # sphere
+                        sphere = self._create_sphere(position)
+                        self.objects_ids.append(sphere)
+
         self.built = True
+
+    def reset(self):
+        self.vels = []
+        self.directions = []
+        self.trajectory_lengths = []
+        self.moving_obstacles_ids = []
+        self.moving_obstacles_positions = []
+        self.objects_ids = []
+        # the next three don't need to be reset, so commented out
+        #self.robots_in_world = []
+        #self.robots_with_position = []
+        #self.robots_with_orientation = []
+        self.built = False
+
+    def update(self):
+
+        # move the moving obstacles according to their velocities, trajectory lengths and directions
+        for idx, obstacle_id in enumerate(self.moving_obstacles_ids):
+            trajectory_state = self.trajectory_state[idx]
+            velocity = self.vels[idx]
+            direction = self.directions[idx]
+            max_trajectory = self.trajectory_lengths[idx]
+            position = self.moving_obstacles_positions[idx]
+
+            # first case: we're at least one step away from the end of the trajectory
+            if trajectory_state + velocity < max_trajectory:
+                new_position = velocity * direction + position
+            # second case: one more step would go over the max trajectory
+            else:
+                temp_velocity = max_trajectory - trajectory_state
+                new_position = temp_velocity * direction + position
+                # after this, reverse the direction and set the trajectory state to 0
+                self.directions[idx] = -self.directions[idx]
+                self.trajectory_state[idx] = 0
+            
+            # apply movement
+            pyb.resetBasePositionAndOrientation(obstacle_id, new_position, [0, 0, 0, 1])  # the quaternion was not specified when generating, so it's the default one here
 
     def _create_plate(self, position):
         length = np.random.uniform(low=self.box_l_min, high=self.box_l_max)

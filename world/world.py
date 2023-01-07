@@ -57,6 +57,16 @@ class World(ABC):
         pass
 
     @abstractmethod
+    def reset(self):
+        """
+        This method should reset all lists, arrays, variables etc. that handle the world to such a state that a new episode can be run.
+        Meaning that after this method is done, build() can be called again.
+        Don't reset the PyBullet simulation itself, that will be handled by the gym env.
+        Also set self.built to False again.
+        """
+        pass
+
+    @abstractmethod
     def build_visual_aux(self):
         """
         This method should add objects that are not necessary to the purpose of the world and useful only for visual quality.
