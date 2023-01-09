@@ -110,6 +110,8 @@ class RandomObstacleWorld(World):
                         sphere = self._create_sphere(position)
                         self.objects_ids.append(sphere)
 
+        # TODO: ensure that env does not result in instant collision
+
         self.built = True
 
     def reset(self):
