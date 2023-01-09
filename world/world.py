@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
+import pybullet as pyb
 
 class World(ABC):
     """
@@ -38,14 +39,48 @@ class World(ABC):
         """
         This method receives a list of robot objects from the outside and sorts the robots therein into several lists that are important for
         other methods.
+        Also gives each robot an id int that can be used to identify it.
         """
+        id_counter = 0
         for robot in robots:
             self.robots_in_world.append(robot)
+            robot.id = id_counter
+            id_counter += 1
             for goal in robot.goals:
                 if goal.name == "position":
                     self.robots_with_position.append(robot)
                 elif goal.name == "orientation":
                     self.robots_with_orientation.append(robot)
+
+    def collided(self) -> bool:
+        """
+        Performs a collision check 
+        1. between all robots and all obstacles in the world and
+        2. between each robot
+        
+        Returns True for collision.
+        """
+        pyb.performCollisionDetection()
+        col = False
+        # check for each robot with every obstacle
+        for robot in self.robots_in_world:
+            for obj in self.objects_ids:
+                if len(pyb.getContactPoints(robot.object_id, obj)) > 0:
+                    col = True 
+                    break
+            if col:
+                break  # this is to immediately break out of the outer loop too once a collision has been found
+        # check for each robot with every other one
+        if not col:  # skip if another collision was already detected
+            for idx, robot in enumerate(self.robots_in_world[:-1]):
+                for other_robot in self.robots_in_world[idx+1:]:
+                    if len(pyb.getContactPoints(robot.object_id, other_robot.object_id)) > 0:
+                        col = True
+                        break
+                if col:
+                    break  # same as above
+        return col
+
     @abstractmethod
     def build(self):
         """
@@ -96,7 +131,7 @@ class World(ABC):
         """
         This method should return a valid target position within the world simulation for a robot end effector.
         Valid meaning (at least very likely) being reachable for the robot without collision.
-        The return value should be a list of 3D points as numpy arrays, one each for every robot registered with the world that needs a position target.
+        The return value should be a list of 3D points as numpy arrays, one each for every robot registered with the world (robots that don't have the position goal should still get an empty entry).
         """
         pass
 
@@ -105,6 +140,6 @@ class World(ABC):
         """
         This method should return a valid target rotation within the world simulation for a robot end effector a
         Valid meaning (at least very likely) being reachable for the robot without collision.
-        The return value should be a list of quaternions as numpy arrays, one for each robot registered with the world that needs a rotation target.
+        The return value should be a list of quaternions as numpy arrays, one for each robot registered with the world (robots that don't have the rotation goal should still get an empty entry).
         """
         pass

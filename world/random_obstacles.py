@@ -164,8 +164,6 @@ class RandomObstacleWorld(World):
                                     basePosition=position)
         return plate
 
-
-
     def _create_sphere(self, position):
         radius = np.random.uniform(low=self.sphere_r_min, high=self.sphere_r_max)
         sphere = pyb.createMultiBody(baseMass=0,
@@ -174,23 +172,28 @@ class RandomObstacleWorld(World):
                                     basePosition=position)
         return sphere
         
-
     def _create_ee_starting_points(self) -> list:
-        for robot in self.robots_with_position:
-            rando = np.random.rand(3)
-            x = (self.x_min + self.x_max) / 2 + 0.5 * (rando[0] - 0.5) * (self.x_max - self.x_min)
-            y = (self.y_min + self.y_max) / 2 + 0.5 * (rando[1] - 0.5) * (self.y_max - self.y_min)
-            z = (self.z_min + self.z_max) / 2 + 0.5 * (rando[2] - 0.5) * (self.z_max - self.z_min)
-            self.ee_starting_points.append(np.array([x, y, z]))
+        for robot in self.robots_in_world:
+            if robot in self.robots_with_position:
+                rando = np.random.rand(3)
+                x = (self.x_min + self.x_max) / 2 + 0.5 * (rando[0] - 0.5) * (self.x_max - self.x_min)
+                y = (self.y_min + self.y_max) / 2 + 0.5 * (rando[1] - 0.5) * (self.y_max - self.y_min)
+                z = (self.z_min + self.z_max) / 2 + 0.5 * (rando[2] - 0.5) * (self.z_max - self.z_min)
+                self.ee_starting_points.append(np.array([x, y, z]))
+            else:
+                self.ee_starting_points.append([])
 
     def _create_position_target(self) -> list:
-        for idx, robot in enumerate(self.robot_base_positions):
-            while True:
-                rando = np.random.rand(3)
-                x = self.x_min + 0.5 * rando[0] * (self.x_max - self.x_min)
-                y = self.y_min + 0.5 * rando[1] * (self.y_max - self.y_min)
-                z = self.z_min + 0.5 * rando[2] * (self.z_max - self.z_min)
-                target = np.array([x, y, z])
-                if np.linalg.norm(target - self.ee_starting_points[idx]) > 0.4:
-                    self.position_targets.append(target)
-                    break
+        for idx, robot in enumerate(self.robots_in_world):
+            if robot in self.robots_with_position:
+                while True:
+                    rando = np.random.rand(3)
+                    x = self.x_min + 0.5 * rando[0] * (self.x_max - self.x_min)
+                    y = self.y_min + 0.5 * rando[1] * (self.y_max - self.y_min)
+                    z = self.z_min + 0.5 * rando[2] * (self.z_max - self.z_min)
+                    target = np.array([x, y, z])
+                    if np.linalg.norm(target - self.ee_starting_points[idx]) > 0.4:
+                        self.position_targets.append(target)
+                        break
+            else:
+                self.position_targets.append([])

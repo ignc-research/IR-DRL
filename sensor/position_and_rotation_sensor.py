@@ -11,16 +11,20 @@ class PositionRotationSensor(Sensor):
 
         super().__init__(normalize)
 
+        # WARNING: this position sensor will not return the position as part of the observation space
+        # because absolute position is not useful for the model
+        # its data will be used by the Position goal to construct a relative vector
+
         # set associated robot
         self.robot = robot
 
         # set output data field names
-        self.output_name_rotation = "rotation_link_" + str(link_id) + "_" + self.robot.name
+        self.output_name_rotation = "rotation_link_" + str(link_id) + "_" + self.robot.name + "_" + str(self.robot.id)
         # the position field is pointless as an absolute value and therefore not used in the get_data() method
         # the relative vector between target and current position will be added to the env observation space
         # by the position goal using this sensor's data (same goes for the rotation goal)
-        self.output_name_position = "position_link_" + str(link_id) + "_" + self.robot.name
-        self.output_name_velocity = "velocity_link_" + str(link_id) + "_" + self.robot.name
+        self.output_name_position = "position_link_" + str(link_id) + "_" + self.robot.name + "_" + str(self.robot.id)
+        self.output_name_velocity = "velocity_link_" + str(link_id) + "_" + self.robot.name + "_" + str(self.robot.id)
 
         # set the link of the robot for which data is to be gathered
         self.link_id = link_id
@@ -41,7 +45,7 @@ class PositionRotationSensor(Sensor):
     def update(self):
         new_time = time() - self.epoch
         self.pos_prev = self.position
-        ee_link_state = pyb.getLinkState(self.robot.id, self.link_id, computeForwardKinematics=True)
+        ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
         self.position = np.array(ee_link_state[4])
         self.rotation = ee_link_state[5]  # TODO: think about whether this maybe should be entry 1
         if not self.quaternion:
@@ -50,9 +54,9 @@ class PositionRotationSensor(Sensor):
         self.position_velocity = (self.position - self.position_prev) / (new_time - self.time)
         self.time = new_time
 
-        return self.get_data()
+        return self.get_observation()
 
-    def get_data(self):
+    def get_observation(self):
         if self.normalize:
             return self._normalize()
         else:

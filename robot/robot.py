@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Union
 import numpy as np
 import pybullet as pyb
+from world.world import World
 
 class Robot(ABC):
     """
@@ -11,6 +12,7 @@ class Robot(ABC):
     """
 
     def __init__(self, name: str,
+                       world:World,
                        base_position: Union[list, np.ndarray], 
                        base_orientation: Union[list, np.ndarray], 
                        resting_angles: Union[list, np.ndarray], 
@@ -24,6 +26,13 @@ class Robot(ABC):
 
         # set name
         self.name = name
+
+        # set id field, this will be given by the world containing this robot
+        # it's used by other objects such as goals to access the correct robot's data when it's in some list somewhere
+        self.id = None
+
+        # set world
+        self.world = world
 
         # base position
         self.base_position = np.array(base_position)
@@ -39,7 +48,7 @@ class Robot(ABC):
         self.base_link_id = base_link_id
 
         # PyBullet related variables
-        self.id = None  # PyBullet object id
+        self.object_id = None  # PyBullet object id
         self.joints_ids = []  # array of joint ids
         self.joints_limits_lower = []
         self.joints_limits_upper = []
@@ -134,7 +143,7 @@ class Robot(ABC):
 
         # apply movement
         for i in range(len(self.joints_ids)):
-            pyb.resetJointState(self.id, self.joints_ids[i], desired_joints_angles[i])
+            pyb.resetJointState(self.object_id, self.joints_ids[i], desired_joints_angles[i])
 
     def moveto_xyzrpy(self, desired_xyz: np.ndarray, desired_rpy: np.ndarray):
         """
@@ -177,7 +186,7 @@ class Robot(ABC):
         :return: Vector containing the joint angles required to reach the pose.
         """
         joints = pyb.calculateInverseKinematics(
-            bodyUniqueId=self.id,
+            bodyUniqueId=self.object_id,
             endEffectorLinkIndex=self.end_effector_link_id,
             targetPosition=xyz.tolist(),
             targetOrientation=quat.tolist(),
@@ -199,4 +208,4 @@ class Robot(ABC):
 
         self.base_position = desired_base_position
         self.base_orientation = desired_base_orientation
-        pyb.resetBasePositionAndOrientation(self.id, desired_base_position.tolist(), desired_base_orientation.tolist())
+        pyb.resetBasePositionAndOrientation(self.object_id, desired_base_position.tolist(), desired_base_orientation.tolist())

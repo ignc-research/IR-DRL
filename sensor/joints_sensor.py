@@ -15,7 +15,7 @@ class JointsSensor(Sensor):
         self.robot = robot
 
         # set output data field name
-        self.output_name = "joints_angles_" + self.robot.name
+        self.output_name = "joints_angles_" + self.robot.name + "_" + str(self.robot.id)
 
         # init data storage
         self.joints_dims = len(self.robot.joints_ids)
@@ -33,13 +33,13 @@ class JointsSensor(Sensor):
     def update(self) -> dict:
         new_time = time() - self.epoch
         self.joints_angles_prev = self.joints_angles
-        self.joints_angles = np.array([pyb.getJointState(self.robot.id, i)[0] for i in self.robot.joints_ids])
+        self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids])
         self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / (new_time - self.time)
         self.time = new_time
 
-        return self.get_data()
+        return self.get_observation()
 
-    def get_data(self) -> dict:
+    def get_observation(self) -> dict:
         if self.normalize:
             return self._normalize()
         else:

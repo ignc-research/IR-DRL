@@ -36,7 +36,7 @@ class Sensor(ABC):
         pass
 
     @abstractmethod
-    def get_data(self) -> dict:
+    def get_observation(self) -> dict:
         """
         Returns the data currently stored. Does not perform an update.
         This must return the data in the same format as defined below in the gym space.
@@ -63,7 +63,7 @@ class Sensor(ABC):
     def get_data_for_logging(self) -> dict:
         """
         This method can be used to return data in a format that is more useful for logging.
-        Besides the primary data returned by get_data(), this can also include secondary data (e.g. the position sensor does not return absolute position in get_data, so this is a way to make that data available).
+        Besides the primary data returned by get_observation(), this can also include secondary data (e.g. the position sensor does not return absolute position in get_data, so this is a way to make that data available).
         Output should be a dict with parameter name as key and the value as value.
         If there is no use case for this with a specific sensor implementation, return an empty dict instead.
         You can also add custom methods for returning specific pieces of data other than this method, however only this method will be used for automatic logging.
