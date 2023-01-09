@@ -1,5 +1,5 @@
 import pybullet as pyb
-import gym
+from gym.spaces import Box
 import numpy as np
 from sensor.sensor import Sensor
 from robot.robot import Robot
@@ -54,9 +54,9 @@ class JointsSensor(Sensor):
             obs_sp_ele = dict()
 
             if self.normalize:
-                obs_sp_ele[self.output_name] = gym.spaces.Box(low=-1, high=1, shape=(self.joints_dims,), dtype=np.float32)
+                obs_sp_ele[self.output_name] = Box(low=-1, high=1, shape=(self.joints_dims,), dtype=np.float32)
             else:
-                obs_sp_ele[self.output_name] = gym.spaces.Box(low=self.robot.joints_limits_lower, high=self.robot.joints_limits_upper, shape=(self.joints_dims,), dtype=np.float32)
+                obs_sp_ele[self.output_name] = Box(low=self.robot.joints_limits_lower, high=self.robot.joints_limits_upper, shape=(self.joints_dims,), dtype=np.float32)
 
             return obs_sp_ele
         else:

@@ -1,5 +1,5 @@
 import pybullet as pyb
-import gym
+from gym.spaces import Box
 import numpy as np
 from sensor.sensor import Sensor
 from robot.robot import Robot
@@ -75,12 +75,12 @@ class PositionRotationSensor(Sensor):
             obs_sp_ele = dict()
 
             if self.quaternion:
-                obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-1, high=1, shape=(4,), dtype=np.float32)
+                obs_sp_ele[self.output_name_rotation] = Box(low=-1, high=1, shape=(4,), dtype=np.float32)
             else:
                 if self.normalize:
-                    obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-1, high=1, shape=(3,), dtype=np.float32) 
+                    obs_sp_ele[self.output_name_rotation] = Box(low=-1, high=1, shape=(3,), dtype=np.float32) 
                 else:
-                    obs_sp_ele[self.output_name_rotation] = gym.spaces.Box(low=-np.pi, high=np.pi, shape=(3,), dtype=np.float32)
+                    obs_sp_ele[self.output_name_rotation] = Box(low=-np.pi, high=np.pi, shape=(3,), dtype=np.float32)
         else:
             return {}
 

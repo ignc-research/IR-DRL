@@ -1,7 +1,7 @@
 from goal.goal import Goal
 import numpy as np
 from robot.robot import Robot
-import gym
+from gym.spaces import Box
 
 class PositionCollisionGoal(Goal):
     """
@@ -81,11 +81,11 @@ class PositionCollisionGoal(Goal):
         if self.add_to_observation_space:
             ret = dict()
             if self.normalize:
-                ret[self.output_name ] = gym.spaces.Box(low=-1, high=1, shape=(4,), dtype=np.float32)
+                ret[self.output_name ] = Box(low=-1, high=1, shape=(4,), dtype=np.float32)
             else:
                 high = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min, 1])
                 low = np.array([-self.robot.world.x_max + self.robot.world.x_min, -self.robot.world.y_max + self.robot.world.y_min, -self.robot.world.z_max + self.robot.world.z_min, 0])
-                ret[self.output_name ] = gym.spaces.Box(low=low, high=high, shape=(4,), dtype=np.float32)
+                ret[self.output_name ] = Box(low=low, high=high, shape=(4,), dtype=np.float32)
 
             return ret
         else:
