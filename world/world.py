@@ -13,27 +13,29 @@ class World(ABC):
         # set initial build state
         self.built = False
 
-        # list that will contain all PyBullet object ids managed by this world simulation
+        # list that will contain all PyBullet object ids with collision managed by this world simulation
         self.objects_ids = []
+        # list that will contain all purely visual PyBullet object ids (e.g. explicatory lines, workspace boundaries etc.)
+        self.aux_object_ids = []
 
         # set up workspace boundaries
         self.x_min, self.x_max, self.y_min, self.y_max, self.z_min, self.z_max = workspace_boundaries
 
         # targets for goals that need to interact with the world
-        self.position_targets = None
-        self.rotation_targets = None
+        self.position_targets = []
+        self.rotation_targets = []
 
         # robot base points
         self.robot_base_positions = robot_base_positions
         self.robot_base_orientations = robot_base_orientations
 
         # points for robot end effectors at episode start
-        self.ee_starting_points = None
+        self.ee_starting_points = []
 
         # list of robots, gets filled by register method down below
         self.robots_in_world = []  # all robots in world
-        self.robots_with_position = []  # all robots with the position goal
-        self.robots_with_orientation = []  # all robots with the orientation goal
+        self.robots_with_position = []  # all robots that need a position goal in the world
+        self.robots_with_orientation = []  # all robots that need a rotation goal in the world
 
     def register_robots(self, robots):
         """
@@ -46,11 +48,10 @@ class World(ABC):
             self.robots_in_world.append(robot)
             robot.id = id_counter
             id_counter += 1
-            for goal in robot.goals:
-                if goal.name == "position":
-                    self.robots_with_position.append(robot)
-                elif goal.name == "orientation":
-                    self.robots_with_orientation.append(robot)
+            if robot.goal.needs_a_position:
+                self.robots_with_position.append(robot)
+            elif robot.goal.needs_a_rotation:
+                self.robots_with_orientation.append(robot)
 
     def collided(self) -> bool:
         """
@@ -105,8 +106,11 @@ class World(ABC):
     def build_visual_aux(self):
         """
         This method should add objects that are not necessary to the purpose of the world and useful only for visual quality.
-        This could include things like lines marking the boundaries of the workspace or geometry marking a target zone etc.
-        Objects built here should NOT be added to self.object_ids
+        This could include things like lines marking the boundaries of the workspace.
+        Visual objects related to a goal should be implemented by that goal.
+        (This is because the world should be usable with all sorts of goals, even those that need different visualizations for their goals,
+        e.g. a target sphere vs. a target cube)
+        Objects built here should NOT be added to self.object_ids but to self.aux_object_ids.
         """
         pass
     
@@ -118,7 +122,7 @@ class World(ABC):
         pass
 
     @abstractmethod
-    def _create_ee_starting_points(self) -> list:
+    def create_ee_starting_points(self) -> list:
         """
         This method should return a valid starting position for the end effector at episode start.
         Valid meaning reachable and not in collision.
@@ -127,7 +131,7 @@ class World(ABC):
         pass
 
     @abstractmethod
-    def _create_position_target(self) -> list:
+    def create_position_target(self) -> list:
         """
         This method should return a valid target position within the world simulation for a robot end effector.
         Valid meaning (at least very likely) being reachable for the robot without collision.
@@ -136,7 +140,7 @@ class World(ABC):
         pass
 
     @abstractmethod
-    def _create_rotation_target(self) -> list:
+    def create_rotation_target(self) -> list:
         """
         This method should return a valid target rotation within the world simulation for a robot end effector a
         Valid meaning (at least very likely) being reachable for the robot without collision.

@@ -1,3 +1,9 @@
-from sensor.position_and_rotation_sensor import PositionRotationSensor
+from gym_env.environment import ModularDRLEnv
+from time import sleep
 
-test_sensor = PositionRotationSensor(12, True)
+testo = ModularDRLEnv({})
+testo.reset()
+
+while True:
+    testo.step(None)
+    sleep(0.005)

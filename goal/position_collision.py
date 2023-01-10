@@ -25,6 +25,10 @@ class PositionCollisionGoal(Goal):
         # set output name for observation space
         self.output_name = "PositionGoal_" + self.robot.name + "_" + str(self.robot.id)
 
+        # set the flags
+        self.needs_a_position = True
+        self.needs_a_rotation = False
+
         # set the reward that's given if the ee reaches the goal position and for collision
         self.reward_success = reward_success
         self.reward_collision = reward_collision
@@ -52,7 +56,7 @@ class PositionCollisionGoal(Goal):
         self.normalizing_constant_b_obs = np.zeros(4)  # 3 for difference vector and 1 for distance itself
         self.normalizing_constant_a_obs[:3] = 2 / (vec_distance_max - vec_distance_min)
         self.normalizing_constant_a_obs[3] = 1 / distance_max  # distance only between 0 and 1
-        self.normalizing_constant_b_obs[:3] = np.ones(3) - np.multiply(self.normalizing_constant_a_obs, vec_distance_max)
+        self.normalizing_constant_b_obs[:3] = np.ones(3) - np.multiply(self.normalizing_constant_a_obs[:3], vec_distance_max)
         self.normalizing_constant_b_obs[3] = 1 - self.normalizing_constant_a_obs[3] * distance_max  # this is 0, but keeping it in the code for symmetry
 
         # placeholders so that we have access in other methods without doing double work

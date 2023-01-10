@@ -7,7 +7,7 @@ from time import time
 
 class JointsSensor(Sensor):
 
-    def __init__(self, robot: Robot, normalize: bool):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, robot: Robot):
 
         super().__init__(normalize)
         
@@ -25,7 +25,7 @@ class JointsSensor(Sensor):
 
         # normalizing constants for faster normalizing
         self.normalizing_constant_a = 2 / self.robot.joints_range
-        self.normalizing_constant_b = np.ones(6) - np.multiply(self.normalizing_constant_a, self.robot.joints_upper_limits)
+        self.normalizing_constant_b = np.ones(6) - np.multiply(self.normalizing_constant_a, self.robot.joints_limits_upper)
 
         self.update()
 

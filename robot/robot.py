@@ -49,9 +49,9 @@ class Robot(ABC):
 
         # PyBullet related variables
         self.object_id = None  # PyBullet object id
-        self.joints_ids = []  # array of joint ids
-        self.joints_limits_lower = []
-        self.joints_limits_upper = []
+        self.joints_ids = []  # array of joint ids, this gets filled at runtime
+        self.joints_limits_lower = []  # this and the two below you have to fill for yourself in the subclass in __init__
+        self.joints_limits_upper = []  # the values are typically found in the urdf
         self.joints_range = None
 
         # wether to control xyz_rpy or joints
@@ -60,8 +60,8 @@ class Robot(ABC):
         # set build state
         self.built = False
 
-        # goals associated with the robot
-        self.goals = []
+        # goal associated with the robot
+        self.goals = None
 
         # sensors associated with the robot
         self.sensors = []
@@ -107,6 +107,12 @@ class Robot(ABC):
         Simple setter for the position and rotation sensor of this robot.
         """
         self.position_rotation_sensor = position_rotation_sensor
+
+    def set_goal(self, goal):
+        """
+        Simple setter for the goal of this robot.
+        """
+        self.goal = goal
 
     def process_action(self, action: np.ndarray):
         """

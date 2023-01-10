@@ -7,9 +7,9 @@ from time import time
 
 class PositionRotationSensor(Sensor):
 
-    def __init__(self, robot: Robot, normalize: bool, link_id: int, quaternion: bool=True):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, robot: Robot, link_id: int, quaternion: bool=True):
 
-        super().__init__(normalize)
+        super().__init__(normalize, add_to_observation_space)
 
         # WARNING: this position sensor will not return the position as part of the observation space
         # because absolute position is not useful for the model
@@ -84,7 +84,7 @@ class PositionRotationSensor(Sensor):
         else:
             return {}
 
-    def get_secondary_data(self):
+    def get_data_for_logging(self):
         logging_dict = dict()
 
         logging_dict[self.output_name_position] = self.position

@@ -11,6 +11,8 @@ class RandomObstacleWorld(World):
     """
 
     def __init__(self, workspace_boundaries: list=[-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], 
+                       robot_base_positions: list=[np.array([0.0, -0.12, 0.5])],
+                       robot_base_orientations: list=[np.array([0, 0, 0, 1])],
                        num_static_obstacles: int=3, 
                        num_moving_obstacles: int=1,
                        box_measurements: list=[0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125],
@@ -29,7 +31,11 @@ class RandomObstacleWorld(World):
         :param moving_obstacles_directions: List of numpy arrays that contain directions in 3D space among which obstacles can move. If none are given directions are generated in random fashion.
         :param moving_obstacles_trajectory_length: List of 2 floats that contains the minimum and maximum trajectory length of dynamic obstacles.
         """
-        super().__init__(workspace_boundaries)
+
+        # TODO: add random spline movement instead of simple linear trajectories
+        # TODO: add random rotations for the plates
+
+        super().__init__(workspace_boundaries, robot_base_positions, robot_base_orientations)
 
         self.num_static_obstacles = num_static_obstacles
         self.num_moving_obstacles = num_moving_obstacles
@@ -61,54 +67,54 @@ class RandomObstacleWorld(World):
 
         # add the moving obstacles
         for i in range(self.num_moving_obstacles):
-            # pick a one of the robots' startign position randomly to...
-            for idx in choice(range(len(self.robots_with_position))):
-                # ... generate a random position between halfway between it and its target
-                position = 0.5*(self.ee_starting_points[idx] + self.position_targets[idx] + 0.05*np.random.uniform(low=-1, high=1, size=(3,)))
-                self.moving_obstacles_positions.append(position)
-                
-                # generate a velocity
-                velocity = np.random.uniform(low=self.vel_min, high=self.vel_max)
-                self.vels.append(velocity)
+            # pick a one of the robots' starting positions randomly to...
+            idx = choice(range(len(self.ee_starting_points)))
+            # ... generate a random position between halfway between it and its target
+            position = 0.5*(self.ee_starting_points[idx][0] + self.position_targets[idx] + 0.15*np.random.uniform(low=-1, high=1, size=(3,)))
+            self.moving_obstacles_positions.append(position)
+            
+            # generate a velocity
+            velocity = np.random.uniform(low=self.vel_min, high=self.vel_max)
+            self.vels.append(velocity)
 
-                # generate a trajectory length
-                trajectory = np.random.uniform(low=self.trajectory_length_min, high=self.trajectory_length_max)
-                self.trajectory_lengths.append(trajectory)
-                self.trajectory_state.append(0)
+            # generate a trajectory length
+            trajectory = np.random.uniform(low=self.trajectory_length_min, high=self.trajectory_length_max)
+            self.trajectory_lengths.append(trajectory)
+            self.trajectory_state.append(0)
 
-                # get the direction from __init__ or, if none are given, generate one at random
-                if self.allowed_directions:
-                    direction = self.allowed_directions[i]
-                else:
-                    direction = np.random.uniform(low=-1, high=1, size=(3,))
-                direction = (1 / np.linalg.norm(direction)) * direction
-                self.directions
-                
-                # chance for plates 70%, for speres 30%
-                if np.random() > 0.3: 
-                    # plate
-                    plate = self._create_plate(position)
-                    self.moving_obstacles_ids.append(plate)
-                    self.objects_ids.append(plate)
-                else:
-                    # sphere
-                    sphere = self._create_sphere(position)
-                    self.moving_obstacles_ids.append(sphere)
-                    self.objects_ids.append(sphere)
+            # get the direction from __init__ or, if none are given, generate one at random
+            if self.allowed_directions:
+                direction = self.allowed_directions[i]
+            else:
+                direction = np.random.uniform(low=-1, high=1, size=(3,))
+            direction = (1 / np.linalg.norm(direction)) * direction
+            self.directions.append(direction)
+            
+            # chance for plates 70%, for spheres 30%
+            if np.random.random() > 0.3: 
+                # plate
+                plate = self._create_plate(position)
+                self.moving_obstacles_ids.append(plate)
+                self.objects_ids.append(plate)
+            else:
+                # sphere
+                sphere = self._create_sphere(position)
+                self.moving_obstacles_ids.append(sphere)
+                self.objects_ids.append(sphere)
 
         # add the static obstacles
         for i in range(self.num_static_obstacles):
-            for idx in choice(range(len(self.robots_with_position))):
-                    position = 0.5*(self.ee_starting_points[idx] + self.position_targets[idx] + 0.05*np.random.uniform(low=-1, high=1, size=(3,)))
-                    # chance for plates 70%, for speres 30%
-                    if np.random() > 0.3: 
-                        # plate
-                        plate = self._create_plate(position)
-                        self.objects_ids.append(plate)
-                    else:
-                        # sphere
-                        sphere = self._create_sphere(position)
-                        self.objects_ids.append(sphere)
+            idx = choice(range(len(self.ee_starting_points)))
+            position = 0.5*(self.ee_starting_points[idx][0] + self.position_targets[idx] + 0.15*np.random.uniform(low=-1, high=1, size=(3,)))
+            # chance for plates 70%, for spheres 30%
+            if np.random.random() > 0.3: 
+                # plate
+                plate = self._create_plate(position)
+                self.objects_ids.append(plate)
+            else:
+                # sphere
+                sphere = self._create_sphere(position)
+                self.objects_ids.append(sphere)
 
         # TODO: ensure that env does not result in instant collision
 
@@ -121,6 +127,9 @@ class RandomObstacleWorld(World):
         self.moving_obstacles_ids = []
         self.moving_obstacles_positions = []
         self.objects_ids = []
+        self.position_targets = []
+        self.rotation_targets = []
+        self.ee_starting_points = []
         # the next three don't need to be reset, so commented out
         #self.robots_in_world = []
         #self.robots_with_position = []
@@ -128,6 +137,8 @@ class RandomObstacleWorld(World):
         self.built = False
 
     def update(self):
+
+        # TODO: safeguard against going out of bounds
 
         # move the moving obstacles according to their velocities, trajectory lengths and directions
         for idx, obstacle_id in enumerate(self.moving_obstacles_ids):
@@ -140,6 +151,7 @@ class RandomObstacleWorld(World):
             # first case: we're at least one step away from the end of the trajectory
             if trajectory_state + velocity < max_trajectory:
                 new_position = velocity * direction + position
+                self.trajectory_state[idx] += velocity
             # second case: one more step would go over the max trajectory
             else:
                 temp_velocity = max_trajectory - trajectory_state
@@ -158,44 +170,78 @@ class RandomObstacleWorld(World):
 
         # randomly assign lwh to xyz
         dims = [length, width, height]
-        random_dim = shuffle([0, 1, 2])
+        shuffle(dims)
 
         plate = pyb.createMultiBody(baseMass=0,
-                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_BOX, halfExtents=[dims[random_dim[0]], dims[random_dim[1]], dims[random_dim[2]]], rgbaColor=[0, 0, 1, 1]),
-                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, halfExtents=[dims[random_dim[0]], dims[random_dim[1]], dims[random_dim[2]]]),
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_BOX, halfExtents=[dims[0], dims[1], dims[2]], rgbaColor=[0.5,0.5,0.5,1]),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, halfExtents=[dims[0], dims[1], dims[2]]),
                                     basePosition=position)
         return plate
 
     def _create_sphere(self, position):
         radius = np.random.uniform(low=self.sphere_r_min, high=self.sphere_r_max)
         sphere = pyb.createMultiBody(baseMass=0,
-                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=radius, rgba_color=[1, 0, 0, 1]),
-                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, radius=radius),
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=radius, rgbaColor=[0.75,0.75,0.75,1]),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_SPHERE, radius=radius),
                                     basePosition=position)
         return sphere
         
-    def _create_ee_starting_points(self) -> list:
+    def create_ee_starting_points(self):
         for robot in self.robots_in_world:
             if robot in self.robots_with_position:
                 rando = np.random.rand(3)
                 x = (self.x_min + self.x_max) / 2 + 0.5 * (rando[0] - 0.5) * (self.x_max - self.x_min)
                 y = (self.y_min + self.y_max) / 2 + 0.5 * (rando[1] - 0.5) * (self.y_max - self.y_min)
                 z = (self.z_min + self.z_max) / 2 + 0.5 * (rando[2] - 0.5) * (self.z_max - self.z_min)
-                self.ee_starting_points.append(np.array([x, y, z]))
+                self.ee_starting_points.append((np.array([x, y, z]), None))
             else:
-                self.ee_starting_points.append([])
+                self.ee_starting_points.append([(None, None)])
+        return self.ee_starting_points
 
-    def _create_position_target(self) -> list:
+    def create_position_target(self):
         for idx, robot in enumerate(self.robots_in_world):
             if robot in self.robots_with_position:
                 while True:
                     rando = np.random.rand(3)
-                    x = self.x_min + 0.5 * rando[0] * (self.x_max - self.x_min)
-                    y = self.y_min + 0.5 * rando[1] * (self.y_max - self.y_min)
-                    z = self.z_min + 0.5 * rando[2] * (self.z_max - self.z_min)
+                    x = self.x_min + rando[0] * (self.x_max - self.x_min)
+                    y = self.y_min + rando[1] * (self.y_max - self.y_min)
+                    z = self.z_min + rando[2] * (self.z_max - self.z_min)
                     target = np.array([x, y, z])
-                    if np.linalg.norm(target - self.ee_starting_points[idx]) > 0.4:
+                    if np.linalg.norm(target - self.ee_starting_points[idx][0]) > 0.4:
                         self.position_targets.append(target)
                         break
             else:
                 self.position_targets.append([])
+        return self.position_targets
+
+    def create_rotation_target(self) -> list:
+        return None  # TODO for later, just adding this so that the world starts
+
+    def build_visual_aux(self):
+        # create a visual border for the workspace
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+                                lineToXYZ=[self.x_min, self.y_min, self.z_max])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+        
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_min])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_min])
+        pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_min])

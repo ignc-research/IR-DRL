@@ -26,6 +26,11 @@ class Goal(ABC):
         # this is necessary for goals such as the position goal which will add relative position of its assigned robot's ee to the goal
         self.add_to_observation_space = add_to_observation_space
 
+        # flags such that the automated processes elsewhere can recognize what this goal needs
+        # set these yourself if they apply in a subclass
+        self.needs_a_position = False  # goal needs a target position in the worldspace
+        self.needs_a_rotation = False  # goal needs a target rotation in the worldspace
+
     @abstractmethod
     def get_observation_space_element(self) -> dict:
         """
