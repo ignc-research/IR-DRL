@@ -13,7 +13,8 @@ class PositionRotationSensor(Sensor):
 
         # WARNING: this position sensor will not return the position as part of the observation space
         # because absolute position is not useful for the model
-        # its data will be used by the Position goal to construct a relative vector
+        # its data will be used by a Position goal to construct a relative vector
+        # the robot position is still stored as a class attribute here
 
         # set associated robot
         self.robot = robot
@@ -40,11 +41,11 @@ class PositionRotationSensor(Sensor):
         self.position = None
         self.position_prev = None
         self.rotation = None
-        self.position_velocity = None
+        self.position_velocity = np.zeros(3)
 
     def update(self):
         new_time = time() - self.epoch
-        self.pos_prev = self.position
+        self.position_prev = self.position
         ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
         self.position = np.array(ee_link_state[4])
         self.rotation = ee_link_state[5]  # TODO: think about whether this maybe should be entry 1
@@ -55,6 +56,20 @@ class PositionRotationSensor(Sensor):
         self.time = new_time
 
         return self.get_observation()
+
+    def reset(self):
+        self.epoch = time()
+        self.time = 0
+        ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
+        self.position = np.array(ee_link_state[4])
+        self.position_prev = self.position
+        self.rotation = ee_link_state[5]
+        if not self.quaternion:
+            self.rotation = pyb.getEulerFromQuaternion(self.rotation)
+        self.rotation = np.array(self.rotation)
+        new_time = time() - self.epoch
+        self.position_velocity = np.zeros(3)
+        self.time = new_time
 
     def get_observation(self):
         if self.normalize:

@@ -7,7 +7,7 @@ class Sensor(ABC):
     See the joint or position sensor for examples.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool=True):
+    def __init__(self, normalize: bool, add_to_observation_space: bool):
         
         super().__init__()
         
@@ -32,6 +32,14 @@ class Sensor(ABC):
         Updates sensor data by performing underlying data collection.
         This also includes any operations necessary to adapt the sensor's state to the changed environment, e.g. in case of moving sensors.
         Returns the current data.
+        """
+        pass
+
+    @abstractmethod
+    def reset(self):
+        """
+        This should set any values within the sensor back to default.
+        Should be used when tracking e.g. previous position such that velocities are tracked correctly at the start of an episode.
         """
         pass
 

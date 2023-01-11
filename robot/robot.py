@@ -65,7 +65,7 @@ class Robot(ABC):
 
         # sensors associated with the robot
         self.sensors = []
-        # joint and position sensor are mandatory and thus treated separately
+        # joint and position sensor (for end effector) are mandatory and thus treated separately
         self.joints_sensor = None
         self.position_rotation_sensor = None
 

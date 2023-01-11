@@ -16,6 +16,7 @@ from robot.ur5 import UR5
 #   sensors
 from sensor.joints_sensor import JointsSensor
 from sensor.position_and_rotation_sensor import PositionRotationSensor
+from sensor.lidar import LidarSensorUR5
 #   goals
 from goal.position_collision import PositionCollisionGoal
 
@@ -93,6 +94,10 @@ class ModularDRLEnv(gym.Env):
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
+        ur5_1_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, ur5_1, 20, 0, 0.3, 10, 6, True, True)
+        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor]
+
+
         # at this point we would generate all the goals needed and assign them to their respective robots
         # however, for the moment we simply generate the one we want for testing
         self.goals = []
@@ -122,11 +127,16 @@ class ModularDRLEnv(gym.Env):
 
         self.world.build()
 
+        for sensor in self.sensors:
+            sensor.reset()
+
         if self.show_auxillary_geometry:
             self.world.build_visual_aux()
 
     def step(self, action):
         self.world.update()
+        for sensor in self.sensors:
+            sensor.update()
 
     def _reward(self):
         pass

@@ -9,7 +9,7 @@ class JointsSensor(Sensor):
 
     def __init__(self, normalize: bool, add_to_observation_space:bool, robot: Robot):
 
-        super().__init__(normalize)
+        super().__init__(normalize, add_to_observation_space)
         
         # set associated robot
         self.robot = robot
@@ -38,6 +38,15 @@ class JointsSensor(Sensor):
         self.time = new_time
 
         return self.get_observation()
+
+    def reset(self):
+        self.epoch = time()
+        self.time = 0
+        self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids])
+        self.joints_angles_prev = self.joints_angles
+        new_time = time() - self.epoch
+        self.joints_velocities = np.zeros(self.joints_dims)
+        self.time = new_time
 
     def get_observation(self) -> dict:
         if self.normalize:
