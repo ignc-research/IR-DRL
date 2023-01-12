@@ -3,9 +3,7 @@ from time import sleep
 
 testo = ModularDRLEnv({})
 testo.reset()
-print(testo.observation_space)
-print(testo.action_space)
 
 while True:
-    testo.step(None)
+    testo.step(testo.action_space.sample())
     sleep(0.005)

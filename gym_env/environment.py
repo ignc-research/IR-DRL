@@ -37,10 +37,10 @@ class ModularDRLEnv(gym.Env):
 
         # world attributes
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
-        robot_base_positions = [np.array([0.0, -0.12, 0.5])]
-        robot_base_orientations = [np.array([0, 0, 0, 1])]
-        num_static_obstacles = 1
-        num_moving_obstacles = 25
+        robot_base_positions = [np.array([0.0, -0.12, 0.5]), np.array([0.0, 1.12, 0.5])]
+        robot_base_orientations = [np.array([0, 0, 0, 1]), np.array([0, 0, 0, 1])]
+        num_static_obstacles = 4
+        num_moving_obstacles = 2
         box_measurements = [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
         sphere_measurements = [0.005, 0.02]
         moving_obstacles_vels = [0.005, 0.025]
@@ -49,10 +49,10 @@ class ModularDRLEnv(gym.Env):
         moving_obstacles_trajectory_length = [0.3, 0.75]
 
         # robot attributes
-        self.xyz_vels = [0.005]
-        self.rpy_vels = [0.005]
-        self.joint_vels = [0.005]
-        self.joint_control = [False]
+        self.xyz_vels = [0.005, 0.005]
+        self.rpy_vels = [0.005, 0.005]
+        self.joint_vels = [0.015, 0.015]
+        self.joint_control = [False, False]
 
         # set up the PyBullet client
         disp = pyb.DIRECT if not self.display else pyb.GUI
@@ -87,6 +87,20 @@ class ModularDRLEnv(gym.Env):
         self.robots.append(ur5_1)
         ur5_1.id = 1
 
+        ur5_2 = UR5(name="HAL9050", 
+                   world=self.world,
+                   base_position=robot_base_positions[1],
+                   base_orientation=robot_base_orientations[1],
+                   resting_angles=np.array([-np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2, 0.0]),
+                   end_effector_link_id=7,
+                   base_link_id=1,
+                   control_joints=self.joint_control[1],
+                   xyz_vel=self.xyz_vels[1],
+                   rpy_vel=self.rpy_vels[1],
+                   joint_vel=self.joint_vels[1])
+        self.robots.append(ur5_2)
+        ur5_2.id = 2
+
         # at this point we would generate all the sensors prescribed by the config for each robot and assign them to the robots
         # however, for now we simply generate the two necessary ones manually
         self.sensors = []
@@ -96,7 +110,15 @@ class ModularDRLEnv(gym.Env):
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
         ur5_1_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, ur5_1, 20, 0, 0.3, 10, 6, True, True)
-        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor]
+
+        ur5_2_position_sensor = PositionRotationSensor(self.normalize_sensor_data, True, ur5_2, 7)
+        ur5_2_joint_sensor = JointsSensor(self.normalize_sensor_data, True, ur5_2)
+        ur5_2.set_joint_sensor(ur5_2_joint_sensor)
+        ur5_2.set_position_rotation_sensor(ur5_2_position_sensor)
+
+        ur5_2_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, ur5_2, 20, 0, 0.3, 10, 6, True, True)
+
+        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor, ur5_2_position_sensor, ur5_2_joint_sensor, ur5_2_lidar_sensor]
 
 
         # at this point we would generate all the goals needed and assign them to their respective robots
@@ -117,6 +139,21 @@ class ModularDRLEnv(gym.Env):
         self.goals.append(ur5_1_goal)
         ur5_1.set_goal(ur5_1_goal)
 
+        ur5_2_goal = PositionCollisionGoal(robot=ur5_2,
+                                           normalize_rewards=self.normalize_rewards,
+                                           normalize_observations=self.normalize_sensor_data,
+                                           train=self.train,
+                                           max_steps=self.max_steps_per_episode,
+                                           reward_success=10,
+                                           reward_collision=-10,
+                                           reward_distance_mult=-0.01,
+                                           dist_threshold_start=0.3,
+                                           dist_threshold_end=0.01,
+                                           dist_threshold_increment_start=0.01,
+                                           dist_threshold_increment_end=0.001)
+        self.goals.append(ur5_2_goal)
+        ur5_2.set_goal(ur5_2_goal)
+
         self.world.register_robots(self.robots)
 
         # construct observation space from sensors and goals
@@ -131,15 +168,15 @@ class ModularDRLEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(observation_space_dict)
 
         # construct action space from robots
-        action_space_dims = 0
-        for robot in self.robots:
-            xyz_dims, joints_dims = robot.get_action_space_dims()
-            if self.joint_control:
-                action_space_dims += joints_dims
+        self.action_space_dims = []
+        for idx, robot in enumerate(self.robots):
+            ik_dims, joints_dims = robot.get_action_space_dims()
+            if self.joint_control[idx]:
+                self.action_space_dims.append(joints_dims)
             else:
-                xyz_dims += xyz_dims
+                self.action_space_dims.append(ik_dims)
         
-        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(action_space_dims,), dtype=np.float32)
+        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(sum(self.action_space_dims),), dtype=np.float32)
 
     def reset(self):
 
@@ -157,8 +194,37 @@ class ModularDRLEnv(gym.Env):
         if self.show_auxillary_geometry:
             self.world.build_visual_aux()
 
+        return self._get_obs()
+
+    def _get_obs(self):
+        obs_dict = dict()
+        # get the sensor data
+        for sensor in self.sensors:
+            if sensor.add_to_observation_space:
+                obs_dict = {**obs_dict, **sensor.get_observation()}
+        for goal in self.goals:
+            if goal.add_to_observation_space:
+                obs_dict = {**obs_dict, **goal.get_observation()}
+
+        # no normalizing here, that should be handled by the sensors and goals
+
+        return obs_dict
+
     def step(self, action):
+        # convert to numpy
+        action = np.array(action)
+        
+        # first, let the world update
         self.world.update()
+
+        # then apply the action to all robots that have to be moved
+        offset = 0  # the offset at which the ith robot sits in the action array
+        for idx, robot in enumerate(self.robots):
+            current_robot_action = action[offset : self.action_space_dims[idx] + offset]
+            offset += self.action_space_dims[idx]
+            robot.process_action(current_robot_action)
+
+        # then update the sensor data
         for sensor in self.sensors:
             sensor.update()
 

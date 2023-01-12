@@ -19,7 +19,7 @@ class LidarSensor(Sensor):
         self.robot = robot
 
         # bool for whether the rays get rendered
-        self.render = True
+        self.render = False
 
         # bool for wether the return data is the distances measured by the lidar or a processed indicator
         self.indicator = indicator
@@ -183,7 +183,7 @@ class LidarSensorUR5(LidarSensor):
         # short explanation: takes a number between 0 and 1, assigns it a bucket in the range, and returns the corresponding bucket in the range of -1 and 1
         # the round is thrown in there to prevent weird numeric appendages that came up in testing, e.g. 0.200000000004, -0.199999999999 or the like
 
-        lidar_shape = 1 + 4 * self.num_rays_circle_directions * self.num_rays_side 
+        lidar_shape = 1 + 4 * self.num_rays_circle_directions 
         indicator = np.zeros(lidar_shape)
         distances = np.zeros(lidar_shape)
 
