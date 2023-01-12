@@ -18,7 +18,7 @@ class JointsSensor(Sensor):
         self.output_name = "joints_angles_" + self.robot.name + "_" + str(self.robot.id)
 
         # init data storage
-        self.joints_dims = len(self.robot.joints_ids)
+        self.joints_dims = len(self.robot.joints_limits_lower)
         self.joints_angles = None
         self.joints_angles_prev = None
         self.joints_velocities = None
@@ -27,7 +27,7 @@ class JointsSensor(Sensor):
         self.normalizing_constant_a = 2 / self.robot.joints_range
         self.normalizing_constant_b = np.ones(6) - np.multiply(self.normalizing_constant_a, self.robot.joints_limits_upper)
 
-        self.update()
+        #self.update()
 
 
     def update(self) -> dict:

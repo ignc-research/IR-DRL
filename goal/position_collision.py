@@ -10,7 +10,8 @@ class PositionCollisionGoal(Goal):
     """
 
     def __init__(self, robot: Robot, 
-                       normalize: bool, 
+                       normalize_rewards: bool, 
+                       normalize_observations: bool,
                        train: bool,
                        max_steps: int, 
                        reward_success=10, 
@@ -20,7 +21,7 @@ class PositionCollisionGoal(Goal):
                        dist_threshold_end=1e-2,
                        dist_threshold_increment_start=1e-2,
                        dist_threshold_increment_end=1e-3):
-        super().__init__(robot, train, max_steps, normalize, True)  # True for adding to observation space
+        super().__init__(robot, train, max_steps, normalize_rewards, True, normalize_observations)  # True for adding to observation space
 
         # set output name for observation space
         self.output_name = "PositionGoal_" + self.robot.name + "_" + str(self.robot.id)
@@ -84,7 +85,7 @@ class PositionCollisionGoal(Goal):
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            if self.normalize:
+            if self.normalize_observations:
                 ret[self.output_name ] = Box(low=-1, high=1, shape=(4,), dtype=np.float32)
             else:
                 high = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min, 1])
@@ -108,7 +109,7 @@ class PositionCollisionGoal(Goal):
         ret[:3] = self.target - self.position
         ret[3] = np.linalg.norm(ret[:3])
         
-        if self.normalize:
+        if self.normalize_rewards:
             return {self.output_name: np.multiply(self.normalizing_constant_a_obs, ret) + self.normalizing_constant_b_obs} 
         else:
             return {self.output_name: ret}

@@ -19,9 +19,12 @@ class Sensor(ABC):
         # useful to set to false if you need the sensor data for something but don't want the model to have access to it
         self.add_to_observation_space = add_to_observation_space
 
-        # sets the epoch, use this to determine relative time, useful for e.g. velocities
+        # sets the epoch, use this to determine relative CPU (aka real-world) time, useful for performance measuring
         self.time = 0
         self.epoch = time()
+
+        # sets the simulation time step, the time that is supposed to pass in the simulation for every step of the env
+        # if this is lower than what
 
         # at the end of init the sensor should also update itself
         # self.update()  # add this in your subclass at the end of __init__ without the comment
@@ -40,6 +43,7 @@ class Sensor(ABC):
         """
         This should set any values within the sensor back to default.
         Should be used when tracking e.g. previous position such that velocities are tracked correctly at the start of an episode.
+        This should also get a new epoch by calling time() and reset self.time to 0 (see already implemented sensors).
         """
         pass
 

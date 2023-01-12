@@ -97,7 +97,7 @@ class LidarSensorUR5(LidarSensor):
         self.num_rays_side = num_rays_side  # rays to cast per sideways direction
 
     def get_observation_space_element(self) -> dict:
-        return {self.output_name: Box(low=-1, high=1, shape=(1 + 4 * self.num_rays_circle_directions * self.num_rays_side), dtype=np.float32)}
+        return {self.output_name: Box(low=-1, high=1, shape=(1 + 4 * self.num_rays_circle_directions,), dtype=np.float32)}
 
     def _get_lidar_data(self):
         
@@ -141,6 +141,9 @@ class LidarSensorUR5(LidarSensor):
                 rays_ends.append(np.matmul(frame_wrist3, np.array([self.ray_end * np.sin(angle), i * interval - 0.05, self.ray_end * np.cos(angle), 1]).T)[0:3].tolist())
         for angle in np.linspace(-np.pi/2, np.pi/2, self.num_rays_circle_directions):
             for i in range(self.num_rays_side):
+                # TODO: this does not seem to work for all orientations of the UR5 robot
+                # at some angles, the rays of this wrist will all point towards the inside
+                # this doesn't happen in the default experiments, but might become acute if other experiments use different poses
                 interval = 0.01
                 rays_starts.append(np.matmul(frame_wrist2, np.array([0.0, 0.0, i * interval - 0.03, 1]).T)[0:3].tolist())
                 rays_ends.append(np.matmul(frame_wrist2, np.array([-self.ray_end * np.cos(angle), self.ray_end * np.sin(angle), i * interval - 0.03, 1]).T)[0:3].tolist())

@@ -8,7 +8,7 @@ class Goal(ABC):
     See the position goal for examples.
     """
 
-    def __init__(self, robot:Robot, normalize:bool, train:bool, max_steps:int, add_to_observation_space=False):
+    def __init__(self, robot:Robot, normalize_rewards:bool, train:bool, max_steps:int, add_to_observation_space:bool=False, normalize_observations:bool=False):
 
         # each goal needs to have a robot assigned for which it is valid
         self.robot = robot
@@ -20,7 +20,8 @@ class Goal(ABC):
         self.max_steps = max_steps
 
         # determines whether the rewards and observations given by this goal will be normalized
-        self.normalize = normalize 
+        self.normalize_rewards = normalize_rewards 
+        self.normalize_observations = normalize_observations
 
         # this bool determines whether the goal will add an entry to the observation space
         # this is necessary for goals such as the position goal which will add relative position of its assigned robot's ee to the goal

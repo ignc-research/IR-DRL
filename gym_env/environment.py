@@ -85,6 +85,7 @@ class ModularDRLEnv(gym.Env):
                    rpy_vel=self.rpy_vels[0],
                    joint_vel=self.joint_vels[0])
         self.robots.append(ur5_1)
+        ur5_1.id = 1
 
         # at this point we would generate all the sensors prescribed by the config for each robot and assign them to the robots
         # however, for now we simply generate the two necessary ones manually
@@ -102,7 +103,8 @@ class ModularDRLEnv(gym.Env):
         # however, for the moment we simply generate the one we want for testing
         self.goals = []
         ur5_1_goal = PositionCollisionGoal(robot=ur5_1,
-                                           normalize=self.normalize_rewards,
+                                           normalize_rewards=self.normalize_rewards,
+                                           normalize_observations=self.normalize_sensor_data,
                                            train=self.train,
                                            max_steps=self.max_steps_per_episode,
                                            reward_success=10,
@@ -116,6 +118,28 @@ class ModularDRLEnv(gym.Env):
         ur5_1.set_goal(ur5_1_goal)
 
         self.world.register_robots(self.robots)
+
+        # construct observation space from sensors and goals
+        observation_space_dict = dict()
+        for sensor in self.sensors:
+            if sensor.add_to_observation_space:
+                observation_space_dict = {**observation_space_dict, **sensor.get_observation_space_element()}  # merges the two dicts
+        for goal in self.goals:
+            if goal.add_to_observation_space:
+                observation_space_dict = {**observation_space_dict, **goal.get_observation_space_element()}
+
+        self.observation_space = gym.spaces.Dict(observation_space_dict)
+
+        # construct action space from robots
+        action_space_dims = 0
+        for robot in self.robots:
+            xyz_dims, joints_dims = robot.get_action_space_dims()
+            if self.joint_control:
+                action_space_dims += joints_dims
+            else:
+                xyz_dims += xyz_dims
+        
+        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(action_space_dims,), dtype=np.float32)
 
     def reset(self):
 

@@ -96,6 +96,7 @@ class PositionRotationSensor(Sensor):
                     obs_sp_ele[self.output_name_rotation] = Box(low=-1, high=1, shape=(3,), dtype=np.float32) 
                 else:
                     obs_sp_ele[self.output_name_rotation] = Box(low=-np.pi, high=np.pi, shape=(3,), dtype=np.float32)
+            return obs_sp_ele
         else:
             return {}
 
