@@ -7,7 +7,7 @@ class Sensor(ABC):
     See the joint or position sensor for examples.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, sim_step: float):
         
         super().__init__()
         
@@ -19,9 +19,12 @@ class Sensor(ABC):
         # useful to set to false if you need the sensor data for something but don't want the model to have access to it
         self.add_to_observation_space = add_to_observation_space
 
-        # sets the epoch, use this to determine relative CPU (aka real-world) time, useful for performance measuring
-        self.time = 0
-        self.epoch = time()
+        # time that passes per sim(=env) step
+        self.sim_step = sim_step
+
+        # use these two variables to determine relative CPU (aka real-world) time, useful for performance measuring
+        self.cpu_time = 0
+        self.cpu_epoch = time()
 
         # sets the simulation time step, the time that is supposed to pass in the simulation for every step of the env
         # if this is lower than what

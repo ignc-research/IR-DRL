@@ -12,8 +12,8 @@ class LidarSensor(Sensor):
     Must be subclassed for each robot because the setup of the rays changes.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, robot:Robot, indicator_buckets:int, render:bool=False, indicator:bool=True):
-        super().__init__(normalize, add_to_observation_space)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, sim_step: float, robot:Robot, indicator_buckets:int, render:bool=False, indicator:bool=True):
+        super().__init__(normalize, add_to_observation_space, sim_step)
 
         # set associated robot
         self.robot = robot
@@ -36,18 +36,18 @@ class LidarSensor(Sensor):
 
     def update(self):
 
+        self.cpu_epoch = time()
         lidar_data_raw = self._get_lidar_data()
         self.lidar_indicator, self.lidar_distances = self._process_raw_lidar(lidar_data_raw)    
-
-        self.time = time() - self.epoch
+        self.cpu_time = time() - self.cpu_epoch
         
         return self.get_observation()
 
     def reset(self):
-        self.epoch = time()
+        self.cpu_epoch = time()
         lidar_data_raw = self._get_lidar_data()
         self.lidar_indicator, self.lidar_distances = self._process_raw_lidar(lidar_data_raw)
-        self.time = time() - self.epoch
+        self.cpu_time = time() - self.cpu_epoch
 
     def get_observation(self) -> dict:
         if self.indicator:
@@ -63,6 +63,7 @@ class LidarSensor(Sensor):
 
         logging_dict["lidar_indicator_" + self.robot.name] = self.lidar_indicator
         logging_dict["lidar_distances_" + self.robot.name] = self.lidar_distances
+        logging_dict["lidar_sensor_cpu_time_" + self.robot.name] = self.cpu_time
 
         return logging_dict
 
@@ -87,8 +88,8 @@ class LidarSensorUR5(LidarSensor):
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
-        super().__init__(normalize, add_to_observation_space, robot, indicator_buckets, render, indicator)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, sim_step: float, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
+        super().__init__(normalize, add_to_observation_space, sim_step, robot, indicator_buckets, render, indicator)
 
         # lidar setup attributes
         self.ray_start = ray_start  # offset of the ray start from the mesh center

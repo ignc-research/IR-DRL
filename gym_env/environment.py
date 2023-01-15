@@ -1,6 +1,7 @@
 import gym
 import numpy as np
 import pybullet as pyb
+from time import time
 
 # import abstracts
 from robot.robot import Robot
@@ -37,9 +38,13 @@ class ModularDRLEnv(gym.Env):
         self.max_steps_per_episode = 1000
         self.logging = 1  # 0:no logging, 1:logging for console, 2: logging for console and to text file after each episode
         self.stat_buffer_size = 25  # length of the stat arrays in terms of episodes over which the average will be drawn for logging
+        self.sim_step = 1 / 240  # in seconds -> 240 Hz
 
         # tracking variables
         self.steps_current_episode = 0
+        self.sim_time = 0
+        self.cpu_time = 0
+        self.cpu_epoch = time()
         self.log = []
         self.success_stat = [False]
         self.out_of_bounds_stat = [False]
@@ -202,6 +207,9 @@ class ModularDRLEnv(gym.Env):
         # reset the tracking variables
         self.steps_current_episode = 0
         self.log = []
+        self.sim_time = 0
+        self.cpu_time = 0
+        self.cpu_epoch = time()
 
         # build the world and robots
         # this is put into a loop that will only break if the generation process results in a collision free setup
@@ -294,10 +302,12 @@ class ModularDRLEnv(gym.Env):
 
         # apply the action to all robots that have to be moved
         offset = 0  # the offset at which the ith robot sits in the action array
+        exec_times_cpu = []  # track execution times
         for idx, robot in enumerate(self.robots):
             current_robot_action = action[offset : self.action_space_dims[idx] + offset]
             offset += self.action_space_dims[idx]
-            robot.process_action(current_robot_action)
+            exec_time = robot.process_action(current_robot_action)
+            exec_times_cpu.append(exec_time)
 
         # update the sensor data
         for sensor in self.sensors:
@@ -337,6 +347,8 @@ class ModularDRLEnv(gym.Env):
             reward = np.sum(rewards)
 
         # update tracking variables and stats
+        self.sim_time += self.sim_step
+        self.cpu_time = time() - self.cpu_epoch
         self.steps_current_episode += 1
         if done:
             self.success_stat.append(is_success)
@@ -355,15 +367,24 @@ class ModularDRLEnv(gym.Env):
         if self.logging == 0:
             # no logging
             info = {}
-        elif self.logging == 1 or self.logging == 2:
-            # logging to console
+        if self.logging == 1 or self.logging == 2:
+            # logging to console or textfile
+
+            # start log dict with env wide information
             info = {"is_success": is_success, 
                     "success_rate": np.average(self.success_stat),
                     "out_of_bounds_rate": np.average(self.out_of_bounds_stat),
                     "timeout_rate": np.average(self.timeout_stat),
-                    "collision_rate": np.average(self.collision_stat)}
+                    "collision_rate": np.average(self.collision_stat),
+                    "sim_time": self.sim_time,
+                    "cpu_time": self.cpu_time}
+            # get robot execution times
+            for idx, robot in enumerate(self.robots):
+                info["action_cpu_time_" + robot.name] = exec_times_cpu[idx] 
+            # get the log data from sensors
             for sensor in self.sensors:
                 info = {**info, **sensor.get_data_for_logging()}
+            # get log data from goals
             for goal in self.goals:
                 info = {**info, **goal.get_data_for_logging()}
 

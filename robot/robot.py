@@ -3,6 +3,7 @@ from typing import Union
 import numpy as np
 import pybullet as pyb
 from world.world import World
+from time import time
 
 class Robot(ABC):
     """
@@ -113,7 +114,9 @@ class Robot(ABC):
         """
         This takes an action vector as given as the output of the NN actor and applies it to the robot.
         This vector will always have the size given by get_action_space_dims and will contain values from -1 to 1.
+        The method will return its execution time on the cpu.
         """
+        cpu_epoch = time()
         if self.control_joints:
             joint_delta = action * self.joint_vel
 
@@ -128,6 +131,7 @@ class Robot(ABC):
             new_rpy = pyb.getEulerFromQuaternion(self.position_rotation_sensor.rotation.tolist()) + rpy_delta
 
             self.moveto_xyzrpy(new_pos, new_rpy)
+        return time() - cpu_epoch
 
     def moveto_joints(self, desired_joints_angles: np.ndarray):
         """

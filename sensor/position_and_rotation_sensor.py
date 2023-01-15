@@ -7,9 +7,9 @@ from time import time
 
 class PositionRotationSensor(Sensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space:bool, robot: Robot, link_id: int, quaternion: bool=True):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, sim_step: float, robot: Robot, link_id: int, quaternion: bool=True):
 
-        super().__init__(normalize, add_to_observation_space)
+        super().__init__(normalize, add_to_observation_space, sim_step)
 
         # WARNING: this position sensor will not return the position as part of the observation space
         # because absolute position is not useful for the model
@@ -26,6 +26,7 @@ class PositionRotationSensor(Sensor):
         # by the position goal using this sensor's data (same goes for the rotation goal)
         self.output_name_position = "position_link_" + str(link_id) + "_" + self.robot.name
         self.output_name_velocity = "velocity_link_" + str(link_id) + "_" + self.robot.name
+        self.output_name_time = "position_rotation_sensor_cpu_time_" + self.robot.name
 
         # set the link of the robot for which data is to be gathered
         self.link_id = link_id
@@ -44,7 +45,7 @@ class PositionRotationSensor(Sensor):
         self.position_velocity = np.zeros(3)
 
     def update(self):
-        new_time = time() - self.epoch
+        self.cpu_epoch = time()
         self.position_prev = self.position
         ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
         self.position = np.array(ee_link_state[4])
@@ -52,14 +53,13 @@ class PositionRotationSensor(Sensor):
         if not self.quaternion:
             self.rotation = pyb.getEulerFromQuaternion(self.rotation)
         self.rotation = np.array(self.rotation)
-        self.position_velocity = (self.position - self.position_prev) / (new_time - self.time)
-        self.time = new_time
+        self.position_velocity = (self.position - self.position_prev) / self.sim_step
+        self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()
 
     def reset(self):
-        self.epoch = time()
-        self.time = 0
+        self.cpu_epoch = time()
         ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
         self.position = np.array(ee_link_state[4])
         self.position_prev = self.position
@@ -67,9 +67,8 @@ class PositionRotationSensor(Sensor):
         if not self.quaternion:
             self.rotation = pyb.getEulerFromQuaternion(self.rotation)
         self.rotation = np.array(self.rotation)
-        new_time = time() - self.epoch
         self.position_velocity = np.zeros(3)
-        self.time = new_time
+        self.cpu_time = time() - self.cpu_epoch
 
     def get_observation(self):
         if self.normalize:
@@ -106,5 +105,6 @@ class PositionRotationSensor(Sensor):
         logging_dict[self.output_name_position] = self.position
         logging_dict[self.output_name_velocity] = self.position_velocity
         logging_dict[self.output_name_rotation] = self.rotation
+        logging_dict[self.output_name_time] = self.cpu_time
 
         return logging_dict
