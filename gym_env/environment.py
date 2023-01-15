@@ -56,8 +56,8 @@ class ModularDRLEnv(gym.Env):
 
         # world attributes
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
-        robot_base_positions = [np.array([0.0, -0.12, 0.5]), np.array([0.0, 1.12, 0.5])]
-        robot_base_orientations = [np.array([0, 0, 0, 1]), np.array([0, 0, 0, 1])]
+        robot_base_positions = [np.array([0.0, -0.12, 0.5])]
+        robot_base_orientations = [np.array([0, 0, 0, 1])]
         num_static_obstacles = 3
         num_moving_obstacles = 1
         box_measurements = [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
@@ -96,7 +96,7 @@ class ModularDRLEnv(gym.Env):
                    world=self.world,
                    base_position=robot_base_positions[0],
                    base_orientation=robot_base_orientations[0],
-                   resting_angles=np.array([np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2, 0.0]),
+                   resting_angles=np.array([0.0, np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2]),
                    end_effector_link_id=7,
                    base_link_id=1,
                    control_joints=self.joint_control[0],

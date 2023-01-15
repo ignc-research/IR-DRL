@@ -199,7 +199,6 @@ class Robot(ABC):
             lowerLimits=self.joints_limits_lower.tolist(),
             upperLimits=self.joints_limits_upper.tolist(),
             jointRanges=self.joints_range.tolist(),
-            
             maxNumIterations=100,
             residualThreshold=.01)
         return np.float32(joints)

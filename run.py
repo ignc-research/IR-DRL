@@ -14,7 +14,7 @@ import argparse
 # for now all the settings are done by hand here
 
 script_parameters = {
-    "train": True,
+    "train": False,
     "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into txt file at episode end
     "timesteps": 15e6,
     "save_freq": 3e4,
@@ -30,7 +30,7 @@ script_parameters = {
     "ppo_steps": 1024,  # steps per env until PPO updates
     "batch_size": 2048,  # batch size for the ppo updates
     "load_model": False,  # set to True when loading an existing model 
-    "model_path": './models/weights/PPO_test',  # path for the model when loading one, also used for the eval model when train is set to False
+    "model_path": './models/weights/PPO_test_2880000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
 # do not change the env_configs below
@@ -85,8 +85,8 @@ if __name__ == "__main__":
 
     else:
         env = ModularDRLEnv(env_config_eval)
-        #model = PPO.load(script_parameters["model_path"], env=env)
-        model = PPO("MultiInputPolicy", env, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"])
+        model = PPO.load(script_parameters["model_path"], env=env)
+        #model = PPO("MultiInputPolicy", env, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"])
 
         for i in range(30):
             obs = env.reset()
