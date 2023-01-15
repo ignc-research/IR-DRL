@@ -8,7 +8,7 @@ class Goal(ABC):
     See the position goal for examples.
     """
 
-    def __init__(self, robot:Robot, normalize_rewards:bool, train:bool, max_steps:int, add_to_observation_space:bool=False, normalize_observations:bool=False):
+    def __init__(self, robot:Robot, normalize_rewards:bool, normalize_observations:bool, train:bool, max_steps:int, continue_after_success:bool=False, add_to_observation_space:bool=False):
 
         # each goal needs to have a robot assigned for which it is valid
         self.robot = robot
@@ -18,6 +18,9 @@ class Goal(ABC):
 
         # the maximum steps which the env has to fulfill this goal
         self.max_steps = max_steps
+
+        # wether the robot associated with this goal can continue to receive actions after the goal has been fulfilled (only relevant for multi robot setups)
+        self.continue_after_success = continue_after_success
 
         # determines whether the rewards and observations given by this goal will be normalized
         self.normalize_rewards = normalize_rewards 
@@ -51,18 +54,16 @@ class Goal(ABC):
         pass
 
     @abstractmethod
-    def reward(self, step) -> Tuple[float, bool, bool]:
+    def reward(self, step) -> Tuple[float, bool, bool, bool, bool]:
         """
         This method calculates the reward received by the assigned robot for this particular goal.
-        The return value is a tuple of a float and two bools.
-        The float is the reward value, the first bool signifies if the goal has been successfully achieved
-        and the last bool signals an env-wide terminal state. To illustrate:
-        The position goal will return *some_number*, True, False if the robot EE is in the desired target position. The True is for reaching the goal,
-        the False is because other goals might not have been reached yet and thus the episode cannot end yet.
-        A collision goal might return *some_number*, False, True if the EE has collided with something. The False is for colliding, the True is for ending
-        the episode, because after collision no other goal matters anymore and the episode has to be ended.
-        Also, if self.normalize is True the reward here should be normalized.
-        The step parameter is given from the outside by the gym env and is the number of steps undertaken in this episode.
+        Takes as input the current step count.
+        The return value is a tuple of a float and four bools:
+        - float: reward, should be normalized if self.normalize is True
+        - bool #1: success signal
+        - bool #2: done signal (episode over for all robots in env, not just this one)
+        - bool #3: timeout signal (max steps condition violated, done signal must also be set to True)
+        - bool #4: out of bounds signal (also set done to True)
         """
         pass
 

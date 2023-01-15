@@ -14,7 +14,8 @@ class PositionCollisionGoal(Goal):
                        normalize_rewards: bool, 
                        normalize_observations: bool,
                        train: bool,
-                       max_steps: int, 
+                       max_steps: int,
+                       continue_after_success:bool, 
                        reward_success=10, 
                        reward_collision=-10,
                        reward_distance_mult=-0.01,
@@ -22,7 +23,7 @@ class PositionCollisionGoal(Goal):
                        dist_threshold_end=1e-2,
                        dist_threshold_increment_start=1e-2,
                        dist_threshold_increment_end=1e-3):
-        super().__init__(robot, train, max_steps, normalize_rewards, True, normalize_observations)  # True for adding to observation space
+        super().__init__(robot, normalize_rewards, normalize_observations, train, max_steps, continue_after_success, True)  # True for adding to observation space
 
         # set output name for observation space
         self.output_name = "PositionGoal_" + self.robot.name
@@ -76,12 +77,8 @@ class PositionCollisionGoal(Goal):
 
         # statistics 
         self.stat_buffer_size = 25  # in episodes
-        self.stat_success = []
-        self.stat_timeout = []
         self.stat_shaking = []
-        self.stat_collision = []
         self.stat_reward = []
-        self.stat_oob = []
         self.stat_distance = []  # same as past_distances, but keeping it this way for symmetry
 
     def get_observation_space_element(self) -> dict:
@@ -190,7 +187,7 @@ class PositionCollisionGoal(Goal):
                 self.stat_distance.pop(0)
         
         # return
-        return self.reward_value, self.is_success, self.done    
+        return self.reward_value, self.is_success, self.done, self.timeout, self.out_of_bounds    
 
     def on_env_reset(self):
         
@@ -226,10 +223,6 @@ class PositionCollisionGoal(Goal):
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
 
-        logging_dict["success_rate" + self.robot.name] = np.average(self.stat_success)
-        logging_dict["timeout_rate" + self.robot.name] = np.average(self.stat_timeout)
-        logging_dict["outofbounds_rate" + self.robot.name] = np.average(self.stat_oob)
-        logging_dict["collision_rate" + self.robot.name] = np.average(self.stat_collision)
         logging_dict["shaking_" + self.robot.name] = np.average(self.stat_shaking)
         logging_dict["reward_" + self.robot.name] = np.average(self.stat_reward)
         logging_dict["distance_" + self.robot.name] = np.average(self.stat_distance)
