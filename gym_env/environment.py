@@ -120,19 +120,19 @@ class ModularDRLEnv(gym.Env):
         # at this point we would generate all the sensors prescribed by the config for each robot and assign them to the robots
         # however, for now we simply generate the two necessary ones manually
         self.sensors = []
-        ur5_1_position_sensor = PositionRotationSensor(self.normalize_sensor_data, True, ur5_1, 7)
-        ur5_1_joint_sensor = JointsSensor(self.normalize_sensor_data, True, ur5_1)
+        ur5_1_position_sensor = PositionRotationSensor(self.normalize_sensor_data, True, self.sim_step, ur5_1, 7)
+        ur5_1_joint_sensor = JointsSensor(self.normalize_sensor_data, True, self.sim_step, ur5_1)
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
-        ur5_1_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, ur5_1, 20, 0, 0.3, 10, 6, True, True)
+        ur5_1_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, self.sim_step, ur5_1, 20, 0, 0.3, 10, 6, True, True)
 
-        ur5_2_position_sensor = PositionRotationSensor(self.normalize_sensor_data, True, ur5_2, 7)
-        ur5_2_joint_sensor = JointsSensor(self.normalize_sensor_data, True, ur5_2)
+        ur5_2_position_sensor = PositionRotationSensor(self.normalize_sensor_data, True, self.sim_step, ur5_2, 7)
+        ur5_2_joint_sensor = JointsSensor(self.normalize_sensor_data, True, self.sim_step, ur5_2)
         ur5_2.set_joint_sensor(ur5_2_joint_sensor)
         ur5_2.set_position_rotation_sensor(ur5_2_position_sensor)
 
-        ur5_2_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, ur5_2, 20, 0, 0.3, 10, 6, True, True)
+        ur5_2_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, self.sim_step, ur5_2, 20, 0, 0.3, 10, 6, True, True)
 
         self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor, ur5_2_position_sensor, ur5_2_joint_sensor, ur5_2_lidar_sensor]
 
@@ -258,6 +258,9 @@ class ModularDRLEnv(gym.Env):
             else:
                 reset_count += 1
 
+        # set all robots to active
+        self.active_robots = [True for robot in self.robots]
+
         # reset the sensors to start settings
         for sensor in self.sensors:
             sensor.reset()
@@ -304,6 +307,8 @@ class ModularDRLEnv(gym.Env):
         offset = 0  # the offset at which the ith robot sits in the action array
         exec_times_cpu = []  # track execution times
         for idx, robot in enumerate(self.robots):
+            if not self.active_robots[idx]:
+                continue
             current_robot_action = action[offset : self.action_space_dims[idx] + offset]
             offset += self.action_space_dims[idx]
             exec_time = robot.process_action(current_robot_action)
@@ -322,10 +327,13 @@ class ModularDRLEnv(gym.Env):
         successes = []
         timeouts = []
         oobs = []
-        for goal in self.goals:
+        for idx, goal in enumerate(self.goals):
             reward_info = goal.reward(self.steps_current_episode)  # tuple: reward, success, done
             rewards.append(reward_info[0])
             successes.append(reward_info[1])
+            # set respective robot to inactive after success, if needed
+            if reward_info[1] and not goal.continue_after_success:
+                self.active_robots[idx] = False
             dones.append(reward_info[2])
             timeouts.append(reward_info[3])
             oobs.append(reward_info[4])
