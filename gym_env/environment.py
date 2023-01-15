@@ -35,6 +35,7 @@ class ModularDRLEnv(gym.Env):
         self.show_auxillary_geometry_goal = False
         self.train = False
         self.max_steps_per_episode = 1000
+        self.logging = 1  # 0:no logging, 1:logging for console, 2: logging for console and to text file after each episode
 
         # tracking variables
         self.steps_current_episode = 0
@@ -187,34 +188,58 @@ class ModularDRLEnv(gym.Env):
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(sum(self.action_space_dims),), dtype=np.float32)
 
     def reset(self):
+        # disable rendering for the setup to save time
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
 
-        # reset the tracking variables
-        self.steps_current_episode = 0
+        # build the world and robots
+        # this is put into a loop that will only break if the generation process results in a collision free setup
+        # the code will abort if even after several attempts no valid starting setup is found
+        # TODO: maybe find a smarter way to do this
+        reset_count = 0
+        while True:
+            if reset_count > 1000:
+                raise Exception("Could not find collision-free starting setup after 1000 tries. Maybe check your world generation code.")
 
-        # spawn robots in world
-        for robot in self.robots:
-            robot.build()
+            # reset PyBullet
+            pyb.resetSimulation()
 
-    	# get a set of starting positions for the end effectors
-        ee_starting_points = self.world.create_ee_starting_points()
-        
-        # get position and roation goals
-        position_targets = self.world.create_position_target()
-        rotation_targets = self.world.create_rotation_target()
+            # reset world attributes
+            self.world.reset()
 
-        # spawn world objects
-        self.world.build()
+            # reset the tracking variables
+            self.steps_current_episode = 0
 
-        # set the robots into the starting positions
-        for idx, ee_pos in enumerate(ee_starting_points):
-            if ee_pos[0] is None:
-                continue  # nothing to do here
-            elif ee_pos[1] is None:
-                # only position
-                self.robots[idx].moveto_xyz(ee_pos[0])
+            # spawn robots in world
+            for robot in self.robots:
+                robot.build()
+
+            # get a set of starting positions for the end effectors
+            ee_starting_points = self.world.create_ee_starting_points()
+            
+            # get position and roation goals
+            position_targets = self.world.create_position_target()
+            rotation_targets = self.world.create_rotation_target()
+
+            # spawn world objects
+            self.world.build()
+
+            # set the robots into the starting positions
+            for idx, ee_pos in enumerate(ee_starting_points):
+                if ee_pos[0] is None:
+                    continue  # nothing to do here
+                elif ee_pos[1] is None:
+                    # only position
+                    self.robots[idx].moveto_xyz(ee_pos[0])
+                else:
+                    # both position and rotation
+                    self.robots[idx].moveto_xyzquat(ee_pos[0], ee_pos[1])
+            
+            # check collision
+            self.world.perform_collision_check()
+            if not self.world.collision:
+                break
             else:
-                # both position and rotation
-                self.robots[idx].moveto_xyzquat(ee_pos[0], ee_pos[1])
+                reset_count += 1
 
         for sensor in self.sensors:
             sensor.reset()
@@ -222,9 +247,12 @@ class ModularDRLEnv(gym.Env):
         # render non-essential visual stuff
         if self.show_auxillary_geometry_world:
             self.world.build_visual_aux()
-        if True:
+        if self.show_auxillary_geometry_goal:
             for goal in self.goals:
                 goal.build_visual_aux()
+
+        # turn rendering back on
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         return self._get_obs()
 
@@ -288,7 +316,17 @@ class ModularDRLEnv(gym.Env):
         # update tracking variables
         self.steps_current_episode += 1
 
-        info = {}
+        # get logging data
+        if self.logging == 0:
+            # no logging
+            info = {}
+        elif self.logging == 1 or self.logging == 2:
+            # logging to console
+            info = {}
+            for sensor in self.sensors:
+                info = {**info, **sensor.get_data_for_logging()}
+            for goal in self.goals:
+                info = {**info, **goal.get_data_for_logging()}
 
         return self._get_obs(), reward, done, info
 

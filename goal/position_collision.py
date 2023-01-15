@@ -226,13 +226,13 @@ class PositionCollisionGoal(Goal):
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
 
-        logging_dict["success_rate" + self.robot.name + "_" + str(self.robot.id)] = np.average(self.stat_success)
-        logging_dict["timeout_rate" + self.robot.name + "_" + str(self.robot.id)] = np.average(self.stat_timeout)
-        logging_dict["outofbounds_rate" + self.robot.name + "_" + str(self.robot.id)] = np.average(self.stat_oob)
-        logging_dict["collision_rate" + self.robot.name + "_" + str(self.robot.id)] = np.average(self.stat_collision)
-        logging_dict["shaking_" + self.robot.name + "_" + str(self.robot.id)] = np.average(self.stat_shaking)
-        logging_dict["reward_" + self.robot.name + "_" + str(self.robot.id)] = np.average(self.stat_reward)
-        logging_dict["distance_" + self.robot.name + "_" + str(self.robot.id)] = np.average(self.stat_distance)
+        logging_dict["success_rate" + self.robot.name] = np.average(self.stat_success)
+        logging_dict["timeout_rate" + self.robot.name] = np.average(self.stat_timeout)
+        logging_dict["outofbounds_rate" + self.robot.name] = np.average(self.stat_oob)
+        logging_dict["collision_rate" + self.robot.name] = np.average(self.stat_collision)
+        logging_dict["shaking_" + self.robot.name] = np.average(self.stat_shaking)
+        logging_dict["reward_" + self.robot.name] = np.average(self.stat_reward)
+        logging_dict["distance_" + self.robot.name] = np.average(self.stat_distance)
 
         return logging_dict
 

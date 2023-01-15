@@ -57,9 +57,6 @@ class Robot(ABC):
         # wether to control xyz_rpy or joints
         self.control_joints = control_joints
 
-        # set build state
-        self.built = False
-
         # goal associated with the robot
         self.goals = None
 
@@ -91,8 +88,6 @@ class Robot(ABC):
         """
         Method that spawns the robot into the simulation, moves its base to the desired position and orientation
         and sets its joints to the resting angles. Also populates the PyBullet variables with information.
-        Does nothing if self.built is True and must set it to True if it was false.
-        # TODO: envs should reset built to false if the pybullet simulation is killed
         """
         pass
 
@@ -200,7 +195,7 @@ class Robot(ABC):
             lowerLimits=self.joints_limits_lower.tolist(),
             upperLimits=self.joints_limits_upper.tolist(),
             jointRanges=self.joints_range.tolist(),
-            restPoses=self.resting_pose_angles.tolist(),
+            
             maxNumIterations=100,
             residualThreshold=.01)
         return np.float32(joints)

@@ -57,9 +57,6 @@ class RandomObstacleWorld(World):
         self.moving_obstacles_positions = []
 
     def build(self):
-        
-        if self.built:
-            return
 
         # add ground plate
         ground_plate = pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01])
@@ -134,7 +131,6 @@ class RandomObstacleWorld(World):
         #self.robots_in_world = []
         #self.robots_with_position = []
         #self.robots_with_orientation = []
-        self.built = False
 
     def update(self):
 

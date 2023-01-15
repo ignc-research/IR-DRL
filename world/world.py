@@ -10,9 +10,6 @@ class World(ABC):
 
     def __init__(self, workspace_boundaries:list, robot_base_positions:list, robot_base_orientations:list):
 
-        # set initial build state
-        self.built = False
-
         # list that will contain all PyBullet object ids with collision managed by this world simulation
         self.objects_ids = []
         # list that will contain all purely visual PyBullet object ids (e.g. explicatory lines, workspace boundaries etc.)
@@ -91,7 +88,6 @@ class World(ABC):
         This method should build all the components that make up the world simulation aside from the robot.
         This includes URDF files as well as objects created by PyBullet code.
         All object ids loaded in by this method must be added to the self.object_ids list! Otherwise they will be ignored in collision detection.
-        If the self.built variable is True, this method should do nothing. If the method finishes, it should set self.built to True.
         """
         pass
 
@@ -101,7 +97,6 @@ class World(ABC):
         This method should reset all lists, arrays, variables etc. that handle the world to such a state that a new episode can be run.
         Meaning that after this method is done, build() can be called again.
         Don't reset the PyBullet simulation itself, that will be handled by the gym env.
-        Also set self.built to False again.
         """
         pass
 
