@@ -15,7 +15,7 @@ class JointsSensor(Sensor):
         self.robot = robot
 
         # set output data field name
-        self.output_name = "joints_angles_" + self.robot.name + "_" + str(self.robot.id)
+        self.output_name = "joints_angles_" + self.robot.name
 
         # init data storage
         self.joints_dims = len(self.robot.joints_limits_lower)

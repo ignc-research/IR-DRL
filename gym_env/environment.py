@@ -31,9 +31,13 @@ class ModularDRLEnv(gym.Env):
         self.normalize_sensor_data = False
         self.normalize_rewards = False
         self.display = True
-        self.show_auxillary_geometry = True
+        self.show_auxillary_geometry_world = True
+        self.show_auxillary_geometry_goal = False
         self.train = False
         self.max_steps_per_episode = 1000
+
+        # tracking variables
+        self.steps_current_episode = 0
 
         # world attributes
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
@@ -157,6 +161,7 @@ class ModularDRLEnv(gym.Env):
         self.world.register_robots(self.robots)
 
         # construct observation space from sensors and goals
+        # each sensor and goal will add elements to the observation space with fitting names
         observation_space_dict = dict()
         for sensor in self.sensors:
             if sensor.add_to_observation_space:
@@ -168,6 +173,9 @@ class ModularDRLEnv(gym.Env):
         self.observation_space = gym.spaces.Dict(observation_space_dict)
 
         # construct action space from robots
+        # the action space will be a vector with the length of all robot's control dimensions added up
+        # e.g. if one robot needs 4 values for its control and another 10,
+        # the action space will be a 10-vector with the first 4 elements working for robot 1 and the last 6 for robot 2
         self.action_space_dims = []
         for idx, robot in enumerate(self.robots):
             ik_dims, joints_dims = robot.get_action_space_dims()
@@ -180,19 +188,43 @@ class ModularDRLEnv(gym.Env):
 
     def reset(self):
 
+        # reset the tracking variables
+        self.steps_current_episode = 0
+
+        # spawn robots in world
         for robot in self.robots:
             robot.build()
 
+    	# get a set of starting positions for the end effectors
         ee_starting_points = self.world.create_ee_starting_points()
+        
+        # get position and roation goals
         position_targets = self.world.create_position_target()
+        rotation_targets = self.world.create_rotation_target()
 
+        # spawn world objects
         self.world.build()
+
+        # set the robots into the starting positions
+        for idx, ee_pos in enumerate(ee_starting_points):
+            if ee_pos[0] is None:
+                continue  # nothing to do here
+            elif ee_pos[1] is None:
+                # only position
+                self.robots[idx].moveto_xyz(ee_pos[0])
+            else:
+                # both position and rotation
+                self.robots[idx].moveto_xyzquat(ee_pos[0], ee_pos[1])
 
         for sensor in self.sensors:
             sensor.reset()
 
-        if self.show_auxillary_geometry:
+        # render non-essential visual stuff
+        if self.show_auxillary_geometry_world:
             self.world.build_visual_aux()
+        if True:
+            for goal in self.goals:
+                goal.build_visual_aux()
 
         return self._get_obs()
 
@@ -211,22 +243,54 @@ class ModularDRLEnv(gym.Env):
         return obs_dict
 
     def step(self, action):
+        
         # convert to numpy
         action = np.array(action)
         
-        # first, let the world update
+        # update world
         self.world.update()
 
-        # then apply the action to all robots that have to be moved
+        # apply the action to all robots that have to be moved
         offset = 0  # the offset at which the ith robot sits in the action array
         for idx, robot in enumerate(self.robots):
             current_robot_action = action[offset : self.action_space_dims[idx] + offset]
             offset += self.action_space_dims[idx]
             robot.process_action(current_robot_action)
 
-        # then update the sensor data
+        # update the sensor data
         for sensor in self.sensors:
             sensor.update()
+
+        # update the collision model
+        self.world.perform_collision_check()
+
+        # calculate reward and get termination conditions
+        rewards = []
+        dones = []
+        successes = []
+        for goal in self.goals:
+            reward_info = goal.reward(self.steps_current_episode)  # tuple: reward, success, done
+            rewards.append(reward_info[0])
+            successes.append(reward_info[1])
+            dones.append(reward_info[2])
+        # determine overall env termination condition
+        done = np.average(dones) > 0  # one done out of all goals/robots suffices for the entire env to be done
+        success = np.average(successes) == 1  # all goals must be succesful for the entire env to be
+        # reward
+        # if we are normalizing the reward, we must also account for the number of robots 
+        # (each goal will output a reward from -1 to 1, so e.g. three robots would have a cumulative reward range from -3 to 3)
+        if self.normalize_rewards:
+            reward = np.average(reward)
+        # otherwise we can just add the single rewards up
+        else:
+            reward = np.sum(rewards)
+
+        # update tracking variables
+        self.steps_current_episode += 1
+
+        info = {}
+
+        return self._get_obs(), reward, done, info
 
     def _reward(self):
         pass

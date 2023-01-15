@@ -2,6 +2,7 @@ from goal.goal import Goal
 import numpy as np
 from robot.robot import Robot
 from gym.spaces import Box
+import pybullet as pyb
 
 class PositionCollisionGoal(Goal):
     """
@@ -24,7 +25,7 @@ class PositionCollisionGoal(Goal):
         super().__init__(robot, train, max_steps, normalize_rewards, True, normalize_observations)  # True for adding to observation space
 
         # set output name for observation space
-        self.output_name = "PositionGoal_" + self.robot.name + "_" + str(self.robot.id)
+        self.output_name = "PositionGoal_" + self.robot.name
 
         # set the flags
         self.needs_a_position = True
@@ -33,6 +34,7 @@ class PositionCollisionGoal(Goal):
         # set the reward that's given if the ee reaches the goal position and for collision
         self.reward_success = reward_success
         self.reward_collision = reward_collision
+        
         # multiplicator for the distance reward
         self.reward_distance_mult = reward_distance_mult
 
@@ -100,16 +102,18 @@ class PositionCollisionGoal(Goal):
         # get the data
         self.position = self.robot.position_rotation_sensor.position
         self.target = self.robot.world.position_targets[self.robot.id]
+        dif = self.target - self.position
+        self.distance = np.linalg.norm(dif)
 
         self.past_distances.append(self.distance)
         if len(self.past_distances) > 10:
             self.past_distances.pop(0)
 
         ret = np.zeros(4)
-        ret[:3] = self.target - self.position
-        ret[3] = np.linalg.norm(ret[:3])
+        ret[:3] = dif
+        ret[3] = self.distance
         
-        if self.normalize_rewards:
+        if self.normalize_observations:
             return {self.output_name: np.multiply(self.normalizing_constant_a_obs, ret) + self.normalizing_constant_b_obs} 
         else:
             return {self.output_name: ret}
@@ -119,7 +123,7 @@ class PositionCollisionGoal(Goal):
         reward = 0
 
         self.out_of_bounds = self._out()
-        self.collided = self.robot.world.collided()
+        self.collided = self.robot.world.collision
 
         shaking = 0
         if len(self.past_distances) >= 10:
@@ -150,7 +154,10 @@ class PositionCollisionGoal(Goal):
         else:
             self.done = False
             reward += self.reward_distance_mult * self.distance
+        
         self.reward_value = reward
+        if self.normalize_rewards:
+            self.reward_value = self.normalizing_constant_a_reward * self.reward_value + self.normalizing_constant_b_reward
 
         # update the stats at the end of an episode
         if self.done:
@@ -208,6 +215,13 @@ class PositionCollisionGoal(Goal):
                 self.distance_threshold = self.distance_threshold_start
             if self.distance_threshold < self.distance_threshold_end:
                 self.distance_threshold = self.distance_threshold_end
+
+    def build_visual_aux(self):
+        # build a sphere of distance_threshold size around the target
+        self.target = self.robot.world.position_targets[self.robot.id]
+        pyb.createMultiBody(baseMass=0,
+                            baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=self.distance_threshold, rgbaColor=[0, 1, 0, 1]),
+                            basePosition=self.target)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()

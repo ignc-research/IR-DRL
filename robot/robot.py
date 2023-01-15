@@ -117,6 +117,7 @@ class Robot(ABC):
     def process_action(self, action: np.ndarray):
         """
         This takes an action vector as given as the output of the NN actor and applies it to the robot.
+        This vector will always have the size given by get_action_space_dims and will contain values from -1 to 1.
         """
         if self.control_joints:
             joint_delta = action * self.joint_vel
@@ -195,7 +196,7 @@ class Robot(ABC):
             bodyUniqueId=self.object_id,
             endEffectorLinkIndex=self.end_effector_link_id,
             targetPosition=xyz.tolist(),
-            targetOrientation=quat.tolist(),
+            targetOrientation=quat.tolist() if quat is not None else None,
             lowerLimits=self.joints_limits_lower.tolist(),
             upperLimits=self.joints_limits_upper.tolist(),
             jointRanges=self.joints_range.tolist(),

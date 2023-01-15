@@ -73,12 +73,19 @@ class Goal(ABC):
         This is usefull if you e.g. have some running metric that can change the goals parameters depending on training success.
         Doesn't have to do anything if not needed.
         """
+        pass
 
-    @abstractmethod
+    def build_visual_aux(self):
+        """
+        This method should add objects that are helpful to visualize the goal. In most cases this will be something 
+        like marking the target zone. 
+        """
+        pass
+
     def get_data_for_logging(self) -> dict:
         """
         This method can be used to return goal-related data for logging.
         This could include stuff you return via get_observation, but also things like success rates etc.
-        Pass an empty dict if not using this.
+        Passes an empty dict if not using this.
         """
-        pass
+        return {}

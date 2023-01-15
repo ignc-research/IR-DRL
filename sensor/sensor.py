@@ -71,7 +71,6 @@ class Sensor(ABC):
         """
         pass
 
-    @abstractmethod
     def get_data_for_logging(self) -> dict:
         """
         This method can be used to return data in a format that is more useful for logging.
@@ -80,5 +79,5 @@ class Sensor(ABC):
         If there is no use case for this with a specific sensor implementation, return an empty dict instead.
         You can also add custom methods for returning specific pieces of data other than this method, however only this method will be used for automatic logging.
         """
-        pass
+        return {}
 

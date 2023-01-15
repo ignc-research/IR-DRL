@@ -37,6 +37,9 @@ class World(ABC):
         self.robots_with_position = []  # all robots that need a position goal in the world
         self.robots_with_orientation = []  # all robots that need a rotation goal in the world
 
+        # collision attribute, for convenient outside access
+        self.collision = False
+
     def register_robots(self, robots):
         """
         This method receives a list of robot objects from the outside and sorts the robots therein into several lists that are important for
@@ -53,13 +56,13 @@ class World(ABC):
             elif robot.goal.needs_a_rotation:
                 self.robots_with_orientation.append(robot)
 
-    def collided(self) -> bool:
+    def perform_collision_check(self):
         """
         Performs a collision check 
         1. between all robots and all obstacles in the world and
         2. between each robot
         
-        Returns True for collision.
+        Stores the result in a class variable.
         """
         pyb.performCollisionDetection()
         col = False
@@ -80,7 +83,7 @@ class World(ABC):
                         break
                 if col:
                     break  # same as above
-        return col
+        self.collision = col
 
     @abstractmethod
     def build(self):
@@ -102,7 +105,6 @@ class World(ABC):
         """
         pass
 
-    @abstractmethod
     def build_visual_aux(self):
         """
         This method should add objects that are not necessary to the purpose of the world and useful only for visual quality.

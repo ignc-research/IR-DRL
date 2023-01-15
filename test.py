@@ -5,5 +5,7 @@ testo = ModularDRLEnv({})
 testo.reset()
 
 while True:
-    testo.step(testo.action_space.sample())
+    obs, reward, done, info = testo.step(testo.action_space.sample())
+    print(obs)
+    print(done)
     sleep(0.005)
