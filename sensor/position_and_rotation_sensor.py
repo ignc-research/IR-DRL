@@ -7,9 +7,9 @@ from time import time
 
 class PositionRotationSensor(Sensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space:bool, sim_step: float, robot: Robot, link_id: int, quaternion: bool=True):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, robot: Robot, link_id: int, quaternion: bool=True):
 
-        super().__init__(normalize, add_to_observation_space, sim_step)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step)
 
         # WARNING: this position sensor will not return the position as part of the observation space
         # because absolute position is not useful for the model
@@ -94,12 +94,14 @@ class PositionRotationSensor(Sensor):
                 if self.normalize:
                     obs_sp_ele[self.output_name_rotation] = Box(low=-1, high=1, shape=(3,), dtype=np.float32) 
                 else:
-                    obs_sp_ele[self.output_name_rotation] = Box(low=-np.pi, high=np.pi, shape=(3,), dtype=np.float32)
+                    obs_sp_ele[self.output_name_rotation] = Box(low=np.float32(-np.pi), high=np.float32(np.pi), shape=(3,), dtype=np.float32)
             return obs_sp_ele
         else:
             return {}
 
     def get_data_for_logging(self):
+        if not self.add_to_logging:
+            return {}
         logging_dict = dict()
 
         logging_dict[self.output_name_position] = self.position

@@ -29,14 +29,14 @@ class ModularDRLEnv(gym.Env):
         # for now, the attributes needed to get this prototype to run are set manually here
         
         # general env attributes
-        self.normalize_sensor_data = False
-        self.normalize_rewards = False
-        self.display = True
-        self.show_auxillary_geometry_world = True
-        self.show_auxillary_geometry_goal = False
-        self.train = False
-        self.max_steps_per_episode = 1000
-        self.logging = 1  # 0:no logging, 1:logging for console, 2: logging for console and to text file after each episode
+        self.normalize_observations = env_config["normalize_observations"]
+        self.normalize_rewards = env_config["normalize_rewards"]
+        self.display = env_config["display"]
+        self.show_auxillary_geometry_world = env_config["display_extra"]
+        self.show_auxillary_geometry_goal = env_config["display_extra"]
+        self.train = env_config["train"]
+        self.max_steps_per_episode = 1024
+        self.logging = env_config["logging"]  # 0:no logging, 1:logging for console, 2: logging for console and to text file after each episode
         self.stat_buffer_size = 25  # length of the stat arrays in terms of episodes over which the average will be drawn for logging
         self.sim_step = 1 / 240  # in seconds -> 240 Hz
 
@@ -50,25 +50,28 @@ class ModularDRLEnv(gym.Env):
         self.out_of_bounds_stat = [False]
         self.timeout_stat = [False]
         self.collision_stat = [False]
+        self.goal_metrics = []
+        self.reward = 0
+        self.reward_cumulative = 0
 
         # world attributes
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
         robot_base_positions = [np.array([0.0, -0.12, 0.5]), np.array([0.0, 1.12, 0.5])]
         robot_base_orientations = [np.array([0, 0, 0, 1]), np.array([0, 0, 0, 1])]
-        num_static_obstacles = 4
-        num_moving_obstacles = 2
+        num_static_obstacles = 3
+        num_moving_obstacles = 1
         box_measurements = [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
         sphere_measurements = [0.005, 0.02]
-        moving_obstacles_vels = [0.005, 0.025]
+        moving_obstacles_vels = [0.0015, 0.005]
         #moving_obstacles_vels = [0.2, 0.2]
         moving_obstacles_directions = []
-        moving_obstacles_trajectory_length = [0.3, 0.75]
+        moving_obstacles_trajectory_length = [1, 3]
 
         # robot attributes
-        self.xyz_vels = [0.005, 0.005]
-        self.rpy_vels = [0.005, 0.005]
-        self.joint_vels = [0.015, 0.015]
-        self.joint_control = [False, False]
+        self.xyz_vels = [0.005]
+        self.rpy_vels = [0.005]
+        self.joint_vels = [0.015]
+        self.joint_control = [env_config["joint_control"]]
 
         # set up the PyBullet client
         disp = pyb.DIRECT if not self.display else pyb.GUI
@@ -89,7 +92,7 @@ class ModularDRLEnv(gym.Env):
         # at this point robots would dynamically be created as needed by the config/the world
         # however, for now we generate one manually
         self.robots = []
-        ur5_1 = UR5(name="HAL9000", 
+        ur5_1 = UR5(name="ur5_1", 
                    world=self.world,
                    base_position=robot_base_positions[0],
                    base_orientation=robot_base_orientations[0],
@@ -103,38 +106,28 @@ class ModularDRLEnv(gym.Env):
         self.robots.append(ur5_1)
         ur5_1.id = 1
 
-        ur5_2 = UR5(name="HAL9050", 
-                   world=self.world,
-                   base_position=robot_base_positions[1],
-                   base_orientation=robot_base_orientations[1],
-                   resting_angles=np.array([-np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2, 0.0]),
-                   end_effector_link_id=7,
-                   base_link_id=1,
-                   control_joints=self.joint_control[1],
-                   xyz_vel=self.xyz_vels[1],
-                   rpy_vel=self.rpy_vels[1],
-                   joint_vel=self.joint_vels[1])
-        self.robots.append(ur5_2)
-        ur5_2.id = 2
-
         # at this point we would generate all the sensors prescribed by the config for each robot and assign them to the robots
         # however, for now we simply generate the two necessary ones manually
         self.sensors = []
-        ur5_1_position_sensor = PositionRotationSensor(self.normalize_sensor_data, True, self.sim_step, ur5_1, 7)
-        ur5_1_joint_sensor = JointsSensor(self.normalize_sensor_data, True, self.sim_step, ur5_1)
+        ur5_1_position_sensor = PositionRotationSensor(self.normalize_observations, True, True, self.sim_step, ur5_1, 7)
+        ur5_1_joint_sensor = JointsSensor(self.normalize_observations, True, True, self.sim_step, ur5_1)
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
-        ur5_1_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, self.sim_step, ur5_1, 20, 0, 0.3, 10, 6, True, True)
+        ur5_1_lidar_sensor = LidarSensorUR5(normalize=self.normalize_observations,
+                                            add_to_observation_space=True, 
+                                            add_to_logging=False,
+                                            sim_step=self.sim_step,
+                                            robot=ur5_1, 
+                                            indicator_buckets=9,
+                                            ray_start=0,
+                                            ray_end=0.3,
+                                            num_rays_side=10,
+                                            num_rays_circle_directions=6,
+                                            render=False,
+                                            indicator=True)
 
-        ur5_2_position_sensor = PositionRotationSensor(self.normalize_sensor_data, True, self.sim_step, ur5_2, 7)
-        ur5_2_joint_sensor = JointsSensor(self.normalize_sensor_data, True, self.sim_step, ur5_2)
-        ur5_2.set_joint_sensor(ur5_2_joint_sensor)
-        ur5_2.set_position_rotation_sensor(ur5_2_position_sensor)
-
-        ur5_2_lidar_sensor = LidarSensorUR5(self.normalize_sensor_data, True, self.sim_step, ur5_2, 20, 0, 0.3, 10, 6, True, True)
-
-        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor, ur5_2_position_sensor, ur5_2_joint_sensor, ur5_2_lidar_sensor]
+        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor]
 
 
         # at this point we would generate all the goals needed and assign them to their respective robots
@@ -142,35 +135,20 @@ class ModularDRLEnv(gym.Env):
         self.goals = []
         ur5_1_goal = PositionCollisionGoal(robot=ur5_1,
                                            normalize_rewards=self.normalize_rewards,
-                                           normalize_observations=self.normalize_sensor_data,
+                                           normalize_observations=self.normalize_observations,
                                            train=self.train,
-                                           continue_after_success=False,
+                                           add_to_logging=True,
                                            max_steps=self.max_steps_per_episode,
+                                           continue_after_success=False, 
                                            reward_success=10,
                                            reward_collision=-10,
                                            reward_distance_mult=-0.01,
-                                           dist_threshold_start=0.3,
+                                           dist_threshold_start=0.2,
                                            dist_threshold_end=0.01,
                                            dist_threshold_increment_start=0.01,
                                            dist_threshold_increment_end=0.001)
         self.goals.append(ur5_1_goal)
         ur5_1.set_goal(ur5_1_goal)
-
-        ur5_2_goal = PositionCollisionGoal(robot=ur5_2,
-                                           normalize_rewards=self.normalize_rewards,
-                                           normalize_observations=self.normalize_sensor_data,
-                                           train=self.train,
-                                           continue_after_success=False,
-                                           max_steps=self.max_steps_per_episode,
-                                           reward_success=10,
-                                           reward_collision=-10,
-                                           reward_distance_mult=-0.01,
-                                           dist_threshold_start=0.3,
-                                           dist_threshold_end=0.01,
-                                           dist_threshold_increment_start=0.01,
-                                           dist_threshold_increment_end=0.001)
-        self.goals.append(ur5_2_goal)
-        ur5_2.set_goal(ur5_2_goal)
 
         self.world.register_robots(self.robots)
 
@@ -210,6 +188,8 @@ class ModularDRLEnv(gym.Env):
         self.sim_time = 0
         self.cpu_time = 0
         self.cpu_epoch = time()
+        self.reward = 0
+        self.reward_cumulative = 0
 
         # build the world and robots
         # this is put into a loop that will only break if the generation process results in a collision free setup
@@ -265,9 +245,10 @@ class ModularDRLEnv(gym.Env):
         for sensor in self.sensors:
             sensor.reset()
 
-        # call the goals' update routine
+        # call the goals' update routine and get their metrics, if they exist
+        self.goal_metrics = []
         for goal in self.goals:
-            goal.on_env_reset(np.average(self.success_stat))
+            self.goal_metrics.append(goal.on_env_reset(np.average(self.success_stat)))
 
         # render non-essential visual stuff
         if self.show_auxillary_geometry_world:
@@ -349,10 +330,11 @@ class ModularDRLEnv(gym.Env):
         # if we are normalizing the reward, we must also account for the number of robots 
         # (each goal will output a reward from -1 to 1, so e.g. three robots would have a cumulative reward range from -3 to 3)
         if self.normalize_rewards:
-            reward = np.average(reward)
+            self.reward = np.average(rewards)
         # otherwise we can just add the single rewards up
         else:
-            reward = np.sum(rewards)
+            self.reward = np.sum(rewards)
+        self.reward_cumulative += self.reward
 
         # update tracking variables and stats
         self.sim_time += self.sim_step
@@ -380,6 +362,7 @@ class ModularDRLEnv(gym.Env):
 
             # start log dict with env wide information
             info = {"is_success": is_success, 
+                    "step": self.steps_current_episode,
                     "success_rate": np.average(self.success_stat),
                     "out_of_bounds_rate": np.average(self.out_of_bounds_stat),
                     "timeout_rate": np.average(self.timeout_stat),
@@ -391,10 +374,12 @@ class ModularDRLEnv(gym.Env):
                 info["action_cpu_time_" + robot.name] = exec_times_cpu[idx] 
             # get the log data from sensors
             for sensor in self.sensors:
-                info = {**info, **sensor.get_data_for_logging()}
+                if sensor.add_to_logging:
+                    info = {**info, **sensor.get_data_for_logging()}
             # get log data from goals
             for goal in self.goals:
-                info = {**info, **goal.get_data_for_logging()}
+                if goal.add_to_logging:
+                    info = {**info, **goal.get_data_for_logging()}
 
             self.log.append(info)
 
@@ -410,7 +395,7 @@ class ModularDRLEnv(gym.Env):
                             info_string = self._get_info_string(line)
                             outfile.write(info_string+"\n")
 
-        return self._get_obs(), reward, done, info
+        return self._get_obs(), self.reward, done, info
 
     def _get_info_string(self, info):
         """
@@ -419,15 +404,20 @@ class ModularDRLEnv(gym.Env):
         """
         info_string = ""
         for key in info:
-            # handle a few common datatypes
+            # handle a few common datatypes and special cases
             if type(info[key]) == np.ndarray:
                 to_print = ""
                 for ele in info[key]:
                     to_print += str(round(ele, 3)) + " "
                 to_print = to_print[:-1]  # cut off the last space
-            elif type(info[key]) == np.bool_:
-                to_print = str(bool(info[key]))
+            elif type(info[key]) == np.bool_ or type(info[key]) == bool:
+                to_print = str(int(info[key]))
+            elif "time" in key:
+                if info[key] > 0.01:  # time not very small
+                    to_print = str(round(info[key], 3))
+                else:  # time very small
+                    to_print = "{:.2e}".format(info[key])
             else:
                 to_print = str(round(info[key], 3))
             info_string += key + ": " + to_print + ", "
-        return info_string
+        return info_string[:-1]  # cut off last space

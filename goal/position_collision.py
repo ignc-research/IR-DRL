@@ -14,6 +14,7 @@ class PositionCollisionGoal(Goal):
                        normalize_rewards: bool, 
                        normalize_observations: bool,
                        train: bool,
+                       add_to_logging: bool,
                        max_steps: int,
                        continue_after_success:bool, 
                        reward_success=10, 
@@ -23,7 +24,7 @@ class PositionCollisionGoal(Goal):
                        dist_threshold_end=1e-2,
                        dist_threshold_increment_start=1e-2,
                        dist_threshold_increment_end=1e-3):
-        super().__init__(robot, normalize_rewards, normalize_observations, train, max_steps, continue_after_success, True)  # True for adding to observation space
+        super().__init__(robot, normalize_rewards, normalize_observations, train, True, add_to_logging, max_steps, continue_after_success)
 
         # set output name for observation space
         self.output_name = "PositionGoal_" + self.robot.name
@@ -41,7 +42,7 @@ class PositionCollisionGoal(Goal):
 
         # set the distance thresholds and the increments for changing them
         self.distance_threshold = dist_threshold_start if self.train else dist_threshold_end
-        self.distance_threshold_start = dist_threshold_increment_start
+        self.distance_threshold_start = dist_threshold_start
         self.distance_threshold_end = dist_threshold_end
         self.distance_threshold_increment_start = dist_threshold_increment_start
         self.distance_threshold_increment_end = dist_threshold_increment_end
@@ -81,8 +82,8 @@ class PositionCollisionGoal(Goal):
             if self.normalize_observations:
                 ret[self.output_name ] = Box(low=-1, high=1, shape=(4,), dtype=np.float32)
             else:
-                high = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min, 1])
-                low = np.array([-self.robot.world.x_max + self.robot.world.x_min, -self.robot.world.y_max + self.robot.world.y_min, -self.robot.world.z_max + self.robot.world.z_min, 0])
+                high = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min, 1], dtype=np.float32)
+                low = np.array([-self.robot.world.x_max + self.robot.world.x_min, -self.robot.world.y_max + self.robot.world.y_min, -self.robot.world.z_max + self.robot.world.z_min, 0], dtype=np.float32)
                 ret[self.output_name ] = Box(low=low, high=high, shape=(4,), dtype=np.float32)
 
             return ret
@@ -165,7 +166,7 @@ class PositionCollisionGoal(Goal):
         if self.train: 
 
             # calculate increment
-            ratio_start_end = (self.distance_threshold - self.distance_threshold_increment_end) / (self.distance_threshold_increment_start - self.distance_threshold_increment_end)
+            ratio_start_end = (self.distance_threshold - self.distance_threshold_end) / (self.distance_threshold_start - self.distance_threshold_end)
             increment = (self.distance_threshold_increment_start - self.distance_threshold_increment_end) * ratio_start_end + self.distance_threshold_increment_end
             if success_rate > 0.8 and self.distance_threshold > self.distance_threshold_end:
                 self.distance_threshold -= increment
@@ -175,6 +176,8 @@ class PositionCollisionGoal(Goal):
                 self.distance_threshold = self.distance_threshold_start
             if self.distance_threshold < self.distance_threshold_end:
                 self.distance_threshold = self.distance_threshold_end
+
+        return "distance_threshold", self.distance_threshold
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
@@ -189,6 +192,7 @@ class PositionCollisionGoal(Goal):
         logging_dict["shaking_" + self.robot.name] = self.shaking
         logging_dict["reward_" + self.robot.name] = self.reward_value
         logging_dict["distance_" + self.robot.name] = self.distance
+        logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
 
         return logging_dict
 

@@ -7,7 +7,7 @@ class Sensor(ABC):
     See the joint or position sensor for examples.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, sim_step: float):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float):
         
         super().__init__()
         
@@ -16,8 +16,12 @@ class Sensor(ABC):
         self.normalize = normalize
         
         # determines wether this sensor will create a field for the observation space, default is yes
-        # useful to set to false if you need the sensor data for something but don't want the model to have access to it
+        # useful to set to false if you need the sensor data for something (e.g. logging) but don't want the model to have access to it
         self.add_to_observation_space = add_to_observation_space
+
+        # determines wether a sensor will output logging data
+        # useful to set to false if you need the sensor data for your model but don't want it in the logs
+        self.add_to_logging = add_to_logging
 
         # time that passes per sim(=env) step
         self.sim_step = sim_step

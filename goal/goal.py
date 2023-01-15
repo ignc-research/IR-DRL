@@ -8,7 +8,7 @@ class Goal(ABC):
     See the position goal for examples.
     """
 
-    def __init__(self, robot:Robot, normalize_rewards:bool, normalize_observations:bool, train:bool, max_steps:int, continue_after_success:bool=False, add_to_observation_space:bool=False):
+    def __init__(self, robot:Robot, normalize_rewards:bool, normalize_observations:bool, train:bool, add_to_observation_space: bool, add_to_logging:bool, max_steps:int, continue_after_success:bool=False):
 
         # each goal needs to have a robot assigned for which it is valid
         self.robot = robot
@@ -29,6 +29,9 @@ class Goal(ABC):
         # this bool determines whether the goal will add an entry to the observation space
         # this is necessary for goals such as the position goal which will add relative position of its assigned robot's ee to the goal
         self.add_to_observation_space = add_to_observation_space
+
+        # this bool determines wether the goal will add to logging
+        self.add_to_logging = add_to_logging
 
         # flags such that the automated processes elsewhere can recognize what this goal needs
         # set these yourself if they apply in a subclass
@@ -73,7 +76,7 @@ class Goal(ABC):
         This method will be called once the env resets itself and starts a new episode.
         This is usefull if you e.g. have some running metric that can change the goal's parameters depending on training success.
         The success rate will be a float between 0 and 1.
-        Doesn't have to do anything if not needed.
+        To be able to track the performance metric in the main gym env automatically, return a tuple with its name and itself (the name will appear in tensorboard). If you don't have such a metric, return ("_", 0).
         """
         pass
 

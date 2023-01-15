@@ -7,9 +7,9 @@ from time import time
 
 class JointsSensor(Sensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space:bool, sim_step:float, robot: Robot):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step:float, robot: Robot):
 
-        super().__init__(normalize, add_to_observation_space, sim_step)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step)
         
         # set associated robot
         self.robot = robot
@@ -63,13 +63,15 @@ class JointsSensor(Sensor):
             if self.normalize:
                 obs_sp_ele[self.output_name] = Box(low=-1, high=1, shape=(self.joints_dims,), dtype=np.float32)
             else:
-                obs_sp_ele[self.output_name] = Box(low=self.robot.joints_limits_lower, high=self.robot.joints_limits_upper, shape=(self.joints_dims,), dtype=np.float32)
+                obs_sp_ele[self.output_name] = Box(low=np.float32(self.robot.joints_limits_lower), high=np.float32(self.robot.joints_limits_upper), shape=(self.joints_dims,), dtype=np.float32)
 
             return obs_sp_ele
         else:
             return {}
 
     def get_data_for_logging(self) -> dict:
+        if not self.add_to_logging:
+            return {}
         logging_dict = dict()
 
         logging_dict["joints_angles_" + self.robot.name] = self.joints_angles
