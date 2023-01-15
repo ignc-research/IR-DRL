@@ -75,12 +75,6 @@ class PositionCollisionGoal(Goal):
         self.done = False
         self.past_distances = []
 
-        # statistics 
-        self.stat_buffer_size = 25  # in episodes
-        self.stat_shaking = []
-        self.stat_reward = []
-        self.stat_distance = []  # same as past_distances, but keeping it this way for symmetry
-
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
@@ -155,41 +149,11 @@ class PositionCollisionGoal(Goal):
         self.reward_value = reward
         if self.normalize_rewards:
             self.reward_value = self.normalizing_constant_a_reward * self.reward_value + self.normalizing_constant_b_reward
-
-        # update the stats at the end of an episode
-        if self.done:
-            self.stat_success.append(self.is_success)
-            if len(self.stat_success) > self.stat_buffer_size:
-                self.stat_success.pop(0)
-
-            self.stat_oob.append(self.out_of_bounds)
-            if len(self.stat_oob) > self.stat_buffer_size:
-                self.stat_oob.pop(0)
-
-            self.stat_collision.append(self.collided)
-            if len(self.stat_collision) > self.stat_buffer_size:
-                self.stat_collision.pop(0)
-
-            self.stat_timeout.append(self.collided)
-            if len(self.stat_timeout) > self.stat_buffer_size:
-                self.stat_timeout.pop(0)
-
-            self.stat_shaking.append(self.shaking)
-            if len(self.stat_shaking) > self.stat_buffer_size:
-                self.stat_shaking.pop(0)
-
-            self.stat_reward.append(self.reward_value)
-            if len(self.stat_reward) > self.stat_buffer_size:
-                self.stat_reward.pop(0)
-
-            self.stat_distance.append(self.distance)
-            if len(self.stat_distance) > self.stat_buffer_size:
-                self.stat_distance.pop(0)
         
         # return
         return self.reward_value, self.is_success, self.done, self.timeout, self.out_of_bounds    
 
-    def on_env_reset(self):
+    def on_env_reset(self, success_rate):
         
         self.timeout = False
         self.is_success = False
@@ -199,7 +163,6 @@ class PositionCollisionGoal(Goal):
         
         # set the distance threshold according to the success of the training
         if self.train: 
-            success_rate = np.average(self.stat_success)
 
             # calculate increment
             ratio_start_end = (self.distance_threshold - self.distance_threshold_increment_end) / (self.distance_threshold_increment_start - self.distance_threshold_increment_end)
@@ -223,9 +186,9 @@ class PositionCollisionGoal(Goal):
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
 
-        logging_dict["shaking_" + self.robot.name] = np.average(self.stat_shaking)
-        logging_dict["reward_" + self.robot.name] = np.average(self.stat_reward)
-        logging_dict["distance_" + self.robot.name] = np.average(self.stat_distance)
+        logging_dict["shaking_" + self.robot.name] = self.shaking
+        logging_dict["reward_" + self.robot.name] = self.reward_value
+        logging_dict["distance_" + self.robot.name] = self.distance
 
         return logging_dict
 

@@ -36,9 +36,15 @@ class ModularDRLEnv(gym.Env):
         self.train = False
         self.max_steps_per_episode = 1000
         self.logging = 1  # 0:no logging, 1:logging for console, 2: logging for console and to text file after each episode
+        self.stat_buffer_size = 25  # length of the stat arrays in terms of episodes over which the average will be drawn for logging
 
         # tracking variables
         self.steps_current_episode = 0
+        self.log = []
+        self.success_stat = [False]
+        self.out_of_bounds_stat = [False]
+        self.timeout_stat = [False]
+        self.collision_stat = [False]
 
         # world attributes
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
@@ -133,6 +139,7 @@ class ModularDRLEnv(gym.Env):
                                            normalize_rewards=self.normalize_rewards,
                                            normalize_observations=self.normalize_sensor_data,
                                            train=self.train,
+                                           continue_after_success=False,
                                            max_steps=self.max_steps_per_episode,
                                            reward_success=10,
                                            reward_collision=-10,
@@ -148,6 +155,7 @@ class ModularDRLEnv(gym.Env):
                                            normalize_rewards=self.normalize_rewards,
                                            normalize_observations=self.normalize_sensor_data,
                                            train=self.train,
+                                           continue_after_success=False,
                                            max_steps=self.max_steps_per_episode,
                                            reward_success=10,
                                            reward_collision=-10,
@@ -191,6 +199,10 @@ class ModularDRLEnv(gym.Env):
         # disable rendering for the setup to save time
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
 
+        # reset the tracking variables
+        self.steps_current_episode = 0
+        self.log = []
+
         # build the world and robots
         # this is put into a loop that will only break if the generation process results in a collision free setup
         # the code will abort if even after several attempts no valid starting setup is found
@@ -205,9 +217,6 @@ class ModularDRLEnv(gym.Env):
 
             # reset world attributes
             self.world.reset()
-
-            # reset the tracking variables
-            self.steps_current_episode = 0
 
             # spawn robots in world
             for robot in self.robots:
@@ -241,8 +250,13 @@ class ModularDRLEnv(gym.Env):
             else:
                 reset_count += 1
 
+        # reset the sensors to start settings
         for sensor in self.sensors:
             sensor.reset()
+
+        # call the goals' update routine
+        for goal in self.goals:
+            goal.on_env_reset(np.average(self.success_stat))
 
         # render non-essential visual stuff
         if self.show_auxillary_geometry_world:
@@ -296,14 +310,23 @@ class ModularDRLEnv(gym.Env):
         rewards = []
         dones = []
         successes = []
+        timeouts = []
+        oobs = []
         for goal in self.goals:
             reward_info = goal.reward(self.steps_current_episode)  # tuple: reward, success, done
             rewards.append(reward_info[0])
             successes.append(reward_info[1])
             dones.append(reward_info[2])
+            timeouts.append(reward_info[3])
+            oobs.append(reward_info[4])
+
         # determine overall env termination condition
-        done = np.average(dones) > 0  # one done out of all goals/robots suffices for the entire env to be done
-        success = np.average(successes) == 1  # all goals must be succesful for the entire env to be
+        collision = self.world.collision
+        done = np.any(dones) or collision  # one done out of all goals/robots suffices for the entire env to be done or anything collided
+        is_success = np.all(successes)  # all goals must be succesful for the entire env to be
+        timeout = np.any(timeouts)
+        out_of_bounds = np.any(oobs)
+
         # reward
         # if we are normalizing the reward, we must also account for the number of robots 
         # (each goal will output a reward from -1 to 1, so e.g. three robots would have a cumulative reward range from -3 to 3)
@@ -313,24 +336,69 @@ class ModularDRLEnv(gym.Env):
         else:
             reward = np.sum(rewards)
 
-        # update tracking variables
+        # update tracking variables and stats
         self.steps_current_episode += 1
+        if done:
+            self.success_stat.append(is_success)
+            if len(self.success_stat) > self.stat_buffer_size:
+                self.success_stat.pop(0)
+            self.timeout_stat.append(timeout)
+            if len(self.timeout_stat) > self.stat_buffer_size:
+                self.timeout_stat.pop(0)
+            self.out_of_bounds_stat.append(out_of_bounds)
+            if len(self.out_of_bounds_stat) > self.stat_buffer_size:
+                self.out_of_bounds_stat.pop(0)
+            self.collision_stat.append(collision)
+            if len(self.collision_stat) > self.stat_buffer_size:
+                self.collision_stat.pop(0)
 
-        # get logging data
         if self.logging == 0:
             # no logging
             info = {}
         elif self.logging == 1 or self.logging == 2:
             # logging to console
-            info = {}
+            info = {"is_success": is_success, 
+                    "success_rate": np.average(self.success_stat),
+                    "out_of_bounds_rate": np.average(self.out_of_bounds_stat),
+                    "timeout_rate": np.average(self.timeout_stat),
+                    "collision_rate": np.average(self.collision_stat)}
             for sensor in self.sensors:
                 info = {**info, **sensor.get_data_for_logging()}
             for goal in self.goals:
                 info = {**info, **goal.get_data_for_logging()}
 
+            self.log.append(info)
+
+            # on episode end:
+            if done:
+                # write to console
+                info_string = self._get_info_string(info)
+                print(info_string)
+                # write to textfile, in this case the entire log so far
+                if self.logging == 2:
+                    with open("./test.txt", "w") as outfile:
+                        for line in self.log:
+                            info_string = self._get_info_string(line)
+                            outfile.write(info_string+"\n")
+
         return self._get_obs(), reward, done, info
 
-    def _reward(self):
-        pass
-
-    
+    def _get_info_string(self, info):
+        """
+        Handles writing info from sensors and goals to console. Also deals with various datatypes and should be updated
+        if a new one appears in the code somewhere.
+        """
+        info_string = ""
+        for key in info:
+            # handle a few common datatypes
+            if type(info[key]) == np.ndarray:
+                to_print = ""
+                for ele in info[key]:
+                    to_print += str(round(ele, 3)) + " "
+                to_print = to_print[:-1]  # cut off the last space
+            elif type(info[key]) == np.bool_:
+                to_print = str(bool(info[key]))
+            else:
+                to_print = str(round(info[key], 3))
+            info_string += key + ": " + to_print + ", "
+        return info_string

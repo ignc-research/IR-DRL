@@ -68,10 +68,11 @@ class Goal(ABC):
         pass
 
     @abstractmethod
-    def on_env_reset(self):
+    def on_env_reset(self, success_rate):
         """
         This method will be called once the env resets itself and starts a new episode.
-        This is usefull if you e.g. have some running metric that can change the goals parameters depending on training success.
+        This is usefull if you e.g. have some running metric that can change the goal's parameters depending on training success.
+        The success rate will be a float between 0 and 1.
         Doesn't have to do anything if not needed.
         """
         pass
