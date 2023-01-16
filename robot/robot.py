@@ -126,7 +126,7 @@ class Robot(ABC):
         The method will return its execution time on the cpu.
         """
         cpu_epoch = time()
-        if self.control_mode == 1:  # control via inverse kinematics
+        if self.control_mode == 0:  # control via inverse kinematics
             pos_delta = action[:3] * self.xyz_delta
             rpy_delta = action[3:] * self.rpy_delta
 
@@ -172,7 +172,7 @@ class Robot(ABC):
 
         # apply movement
         if use_physics_sim:
-            pyb.setJointMotorControlArray(self.object_id, self.joints_ids.tolist(), controlMode=pyb.POSITION_CONTROL, targetPositions=desired_joints_angles.tolist())
+            pyb.setJointMotorControlArray(self.object_id, self.joints_ids.tolist(), controlMode=pyb.POSITION_CONTROL, targetPositions=desired_joints_angles.tolist(), forces=self.joints_forces.tolist())
         else:
             for i in range(len(self.joints_ids)):
                 pyb.resetJointState(self.object_id, self.joints_ids[i], desired_joints_angles[i])
