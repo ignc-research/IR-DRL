@@ -12,6 +12,7 @@ from world.world import World
 # import implementations, new ones hav to be added here
 #   worlds
 from world.random_obstacles import RandomObstacleWorld
+from world.testcases import TestcasesWorld
 #   robots
 from robot.ur5 import UR5
 #   sensors
@@ -81,6 +82,7 @@ class ModularDRLEnv(gym.Env):
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
         
+        
         self.world = RandomObstacleWorld(workspace_boundaries=workspace_boundaries,
                                          robot_base_positions=robot_base_positions,
                                          robot_base_orientations=robot_base_orientations,
@@ -91,6 +93,8 @@ class ModularDRLEnv(gym.Env):
                                          moving_obstacles_vels=moving_obstacles_vels,
                                          moving_obstacles_directions=moving_obstacles_directions,
                                          moving_obstacles_trajectory_length=moving_obstacles_trajectory_length)
+        
+        #self.world = TestcasesWorld(test_mode=2)
 
         # at this point robots would dynamically be created as needed by the config/the world
         # however, for now we generate one manually
@@ -108,7 +112,7 @@ class ModularDRLEnv(gym.Env):
                    rpy_delta=self.rpy_vels[0],
                    joint_delta=self.joint_vels[0])
         self.robots.append(ur5_1)
-        ur5_1.id = 1
+        ur5_1.id = 0
 
         # at this point we would generate all the sensors prescribed by the config for each robot and assign them to the robots
         # however, for now we simply generate the two necessary ones manually
@@ -184,7 +188,7 @@ class ModularDRLEnv(gym.Env):
 
     def reset(self):
         # disable rendering for the setup to save time
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        #pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
 
         # reset the tracking variables
         self.steps_current_episode = 0
@@ -217,7 +221,7 @@ class ModularDRLEnv(gym.Env):
             # get a set of starting positions for the end effectors
             ee_starting_points = self.world.create_ee_starting_points()
             
-            # get position and roation goals
+            # get position and rotation goals
             position_targets = self.world.create_position_target()
             rotation_targets = self.world.create_rotation_target()
 
@@ -225,15 +229,15 @@ class ModularDRLEnv(gym.Env):
             self.world.build()
 
             # set the robots into the starting positions
-            for idx, ee_pos in enumerate(ee_starting_points):
-                if ee_pos[0] is None:
+            for idx, robot in enumerate(self.robots):
+                if ee_starting_points[idx][0] is None:
                     continue  # nothing to do here
-                elif ee_pos[1] is None:
+                elif ee_starting_points[idx][1] is None:
                     # only position
-                    self.robots[idx].moveto_xyz(ee_pos[0], False)
+                    self.robots[idx].moveto_xyz(ee_starting_points[idx][0], False)
                 else:
                     # both position and rotation
-                    self.robots[idx].moveto_xyzquat(ee_pos[0], ee_pos[1], False)
+                    self.robots[idx].moveto_xyzquat(ee_starting_points[idx][0], ee_starting_points[idx][1], False)
             
             # check collision
             self.world.perform_collision_check()
@@ -262,7 +266,7 @@ class ModularDRLEnv(gym.Env):
                 goal.build_visual_aux()
 
         # turn rendering back on
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        #pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         return self._get_obs()
 
@@ -431,7 +435,7 @@ class ModularDRLEnv(gym.Env):
                 to_print = to_print[:-1]  # cut off the last space
             elif type(info[key]) == np.bool_ or type(info[key]) == bool:
                 to_print = str(int(info[key]))
-            elif "time" in key:
+            elif "time" in key and not "timeout" in key:
                 if info[key] > 0.001:  # time not very small
                     to_print = str(round(info[key], 3))
                 else:  # time very small

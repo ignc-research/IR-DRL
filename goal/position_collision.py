@@ -174,7 +174,7 @@ class PositionCollisionGoal(Goal):
             if success_rate > 0.8 and self.distance_threshold > self.distance_threshold_end:
                 self.distance_threshold -= increment
             elif success_rate < 0.8 and self.distance_threshold < self.distance_threshold_start:
-                self.distance_threshold += increment / 5  # upwards movement should be slower
+                self.distance_threshold += increment / 25  # upwards movement should be slower
             if self.distance_threshold > self.distance_threshold_start:
                 self.distance_threshold = self.distance_threshold_start
             if self.distance_threshold < self.distance_threshold_end:

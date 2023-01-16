@@ -101,11 +101,11 @@ class Robot(ABC):
         """
         pass
 
-    def set_joint_sensor(self, joint_sensor):
+    def set_joint_sensor(self, joints_sensor):
         """
         Simple setter method for the joint sensor of this robot.
         """
-        self.joint_sensor = joint_sensor
+        self.joints_sensor = joints_sensor
 
     def set_position_rotation_sensor(self, position_rotation_sensor):
         """

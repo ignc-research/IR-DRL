@@ -23,7 +23,7 @@ class MoreLoggingCustomCallback(BaseCallback):
         # get all metric names
         goal_names = [metric[0] for metric in goal_metrics_total]
         goal_names = set(goal_names)  # remove duplicates
-        goal_names.remove("")  # remove empty string, these are from goals that don't define performance metrics
+        goal_names.discard("")  # remove empty string, these are from goals that don't define performance metrics
         # set up a dict for the metrics
         metrics_dict = dict()
         for name in goal_names:
@@ -35,7 +35,7 @@ class MoreLoggingCustomCallback(BaseCallback):
             metrics_dict[metric[0]][2] = metric[3]  # wether to use the lowest or highest metric value
         for name in metrics_dict:
             # log actual average metric value for tensorboard
-            self.logger.record("train/"+name, np.average(metrics_dict[name][0]))
+            self.logger.record("train/" + name, np.average(metrics_dict[name][0]))
             # if backwrite is allowed ...
             if metrics_dict[name][1]:
                 # ... calculate the value to be written
@@ -44,7 +44,7 @@ class MoreLoggingCustomCallback(BaseCallback):
                 else:  # high value good
                     write_value = np.percentile(metrics_dict[name][0], 75)
                 # write the new value into all parallel envs via a class method
-                self.training_env.env_method("set_goal_metric", name, write_value)
+                self.training_env.env_method("set_goal_metric", name, round(write_value, 3))
 
 
         # collision rate

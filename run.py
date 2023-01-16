@@ -14,15 +14,15 @@ import argparse
 # for now all the settings are done by hand here
 
 script_parameters = {
-    "train": False,
+    "train": True,
     "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into txt file at episode end
     "timesteps": 15e6,
     "save_freq": 3e4,
     "save_folder": "./models/weights",
     "save_name": "PPO_test",  # name for the model file, this will get automated later on
     "num_envs": 16,
-    "use_physics_sim": True,  # use actual physics sim or ignore forces and teleport robot to desired poses
-    "control_mode": 2,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
+    "use_physics_sim": False,  # use actual physics sim or ignore forces and teleport robot to desired poses
+    "control_mode": 1,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
     "normalize_observations": False,
     "normalize_rewards": False,
     "gamma": 0.995,
@@ -30,8 +30,8 @@ script_parameters = {
     "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
     "ppo_steps": 1024,  # steps per env until PPO updates
     "batch_size": 2048,  # batch size for the ppo updates
-    "load_model": False,  # set to True when loading an existing model 
-    "model_path": './models/weights/PPO_test_7680000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
+    "load_model": True,  # set to True when loading an existing model 
+    "model_path": './models/weights/PPO_test_2400000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
 # do not change the env_configs below

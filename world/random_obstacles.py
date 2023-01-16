@@ -185,9 +185,12 @@ class RandomObstacleWorld(World):
                 x = (self.x_min + self.x_max) / 2 + 0.5 * (rando[0] - 0.5) * (self.x_max - self.x_min)
                 y = (self.y_min + self.y_max) / 2 + 0.5 * (rando[1] - 0.5) * (self.y_max - self.y_min)
                 z = (self.z_min + self.z_max) / 2 + 0.5 * (rando[2] - 0.5) * (self.z_max - self.z_min)
-                self.ee_starting_points.append((np.array([x, y, z]), None))
+                standard_rot = np.array([np.pi, 0, np.pi])
+                random_rot = np.random.uniform(low=-np.pi, high=np.pi, size=(3,))
+                standard_rot += random_rot * 0.1
+                self.ee_starting_points.append((np.array([x, y, z]), np.array(pyb.getQuaternionFromEuler(standard_rot.tolist()))))
             else:
-                self.ee_starting_points.append([(None, None)])
+                self.ee_starting_points.append((None, None))
         return self.ee_starting_points
 
     def create_position_target(self):

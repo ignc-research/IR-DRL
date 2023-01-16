@@ -202,7 +202,7 @@
   <link name="ee_link">
     <visual>
       <geometry>
-        <cylinder length="0.06" radius="0.006"/>
+        <cylinder length="0.04" radius="0.006"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0.0 0.0 -0.03"/>
       <material name="Green">

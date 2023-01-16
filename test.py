@@ -2,10 +2,10 @@ from gym_env.environment import ModularDRLEnv
 from time import sleep
 
 env_config_train = {
-    "train": True,
+    "train": False,
     "logging": 1,
-    "use_physics_sim": True,
-    "control_mode": 2,
+    "use_physics_sim": False,
+    "control_mode": 0,
     "normalize_observations": False,
     "normalize_rewards": False,
     "display": True,
@@ -13,8 +13,11 @@ env_config_train = {
 }
 
 testo = ModularDRLEnv(env_config_train)
-testo.reset()
+
 
 while True:
-    obs, reward, done, info = testo.step(testo.action_space.sample())
-    sleep(0.005)
+    testo.reset()
+    done = False
+    while not done:
+        obs, reward, done, info = testo.step(testo.action_space.sample())
+        #sleep(0.005)
