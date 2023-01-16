@@ -289,10 +289,13 @@ class ModularDRLEnv(gym.Env):
         exec_times_cpu = []  # track execution times
         for idx, robot in enumerate(self.robots):
             if not self.active_robots[idx]:
+                offset += self.action_space_dims[idx]
                 continue
             current_robot_action = action[offset : self.action_space_dims[idx] + offset]
             offset += self.action_space_dims[idx]
             exec_time = robot.process_action(current_robot_action)
+            if echte physik:
+                pyb.stepSimulation()
             exec_times_cpu.append(exec_time)
 
         # update the sensor data
@@ -309,7 +312,7 @@ class ModularDRLEnv(gym.Env):
         timeouts = []
         oobs = []
         for idx, goal in enumerate(self.goals):
-            reward_info = goal.reward(self.steps_current_episode)  # tuple: reward, success, done
+            reward_info = goal.reward(self.steps_current_episode, action)  # tuple: reward, success, done
             rewards.append(reward_info[0])
             successes.append(reward_info[1])
             # set respective robot to inactive after success, if needed
@@ -397,6 +400,10 @@ class ModularDRLEnv(gym.Env):
 
         return self._get_obs(), self.reward, done, info
 
+    ###################
+    # utility methods #
+    ###################
+
     def _get_info_string(self, info):
         """
         Handles writing info from sensors and goals to console. Also deals with various datatypes and should be updated
@@ -413,7 +420,7 @@ class ModularDRLEnv(gym.Env):
             elif type(info[key]) == np.bool_ or type(info[key]) == bool:
                 to_print = str(int(info[key]))
             elif "time" in key:
-                if info[key] > 0.01:  # time not very small
+                if info[key] > 0.001:  # time not very small
                     to_print = str(round(info[key], 3))
                 else:  # time very small
                     to_print = "{:.2e}".format(info[key])
@@ -421,3 +428,14 @@ class ModularDRLEnv(gym.Env):
                 to_print = str(round(info[key], 3))
             info_string += key + ": " + to_print + ", "
         return info_string[:-1]  # cut off last space
+
+    def set_goal_metric(self, name, value):
+        """
+        This method is only called from the outside by the custom logging callback (see callbacks/callbacks.py).
+        It will change the goal metrics depending on the criteria defined by each goal.
+        """
+        # find all goals that have a metric with name
+        for goal in self.goals:
+            if goal.metric_name == name:
+                setattr(goal, name, value)  # very bad for performance, but we'll never use so many goals that this will become relevant
+    

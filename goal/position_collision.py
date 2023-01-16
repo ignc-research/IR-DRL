@@ -76,6 +76,9 @@ class PositionCollisionGoal(Goal):
         self.done = False
         self.past_distances = []
 
+        # performance metric name
+        self.metric_name = "distance_threshold"
+
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
@@ -110,7 +113,7 @@ class PositionCollisionGoal(Goal):
         else:
             return {self.output_name: ret}
 
-    def reward(self, step):
+    def reward(self, step, action):
 
         reward = 0
 
@@ -177,7 +180,7 @@ class PositionCollisionGoal(Goal):
             if self.distance_threshold < self.distance_threshold_end:
                 self.distance_threshold = self.distance_threshold_end
 
-        return "distance_threshold", self.distance_threshold
+        return self.metric_name, self.distance_threshold, True, True
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target

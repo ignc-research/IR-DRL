@@ -33,6 +33,13 @@ class Goal(ABC):
         # this bool determines wether the goal will add to logging
         self.add_to_logging = add_to_logging
 
+        # name of the performance metric that this goal has, is used for external logging
+        # overwrite this in your subclass
+        # if you don't have a performance metric, leave as is
+        # IMPORTANT: the actual metric should be class variable with the same name as contained in this string, otherwise automatic logging will not work and create errors
+        # example: self.metric_name = "distance_threshold", actual metric is class variable self.distance_threshold
+        self.metric_name = ""
+
         # flags such that the automated processes elsewhere can recognize what this goal needs
         # set these yourself if they apply in a subclass
         self.needs_a_position = False  # goal needs a target position in the worldspace
@@ -57,7 +64,7 @@ class Goal(ABC):
         pass
 
     @abstractmethod
-    def reward(self, step) -> Tuple[float, bool, bool, bool, bool]:
+    def reward(self, step, action) -> Tuple[float, bool, bool, bool, bool]:
         """
         This method calculates the reward received by the assigned robot for this particular goal.
         Takes as input the current step count.
@@ -76,7 +83,11 @@ class Goal(ABC):
         This method will be called once the env resets itself and starts a new episode.
         This is usefull if you e.g. have some running metric that can change the goal's parameters depending on training success.
         The success rate will be a float between 0 and 1.
-        To be able to track the performance metric in the main gym env automatically, return a tuple with its name and itself (the name will appear in tensorboard). If you don't have such a metric, return ("_", 0).
+        Return a tuple with 4 entries:
+        - 1: str, name of the metric, best use the self.metric_name class variable for this
+        - 2: float, the actual value of the metric, use 0 if you don't have a metric
+        - 3: bool: determines if the env can write back the metric into goal, this is used by a stable_baselines callback to synchronize the metric across parallel envs, set to False if not using a metric
+        - 4: bool: determines wether a lower metric is better (True) or if a higher metric is better (False)
         """
         pass
 
