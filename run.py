@@ -21,7 +21,8 @@ script_parameters = {
     "save_folder": "./models/weights",
     "save_name": "PPO_test",  # name for the model file, this will get automated later on
     "num_envs": 16,
-    "joint_control": False,  # robot controlled by inverse kinematics or by directly acting on the joint angles
+    "use_physics_sim": True,  # use actual physics sim or ignore forces and teleport robot to desired poses
+    "control_mode": 2,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
     "normalize_observations": False,
     "normalize_rewards": False,
     "gamma": 0.995,
@@ -30,14 +31,15 @@ script_parameters = {
     "ppo_steps": 1024,  # steps per env until PPO updates
     "batch_size": 2048,  # batch size for the ppo updates
     "load_model": False,  # set to True when loading an existing model 
-    "model_path": './models/weights/PPO_test_2880000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
+    "model_path": './models/weights/PPO_test_7680000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
 # do not change the env_configs below
 env_config_train = {
     "train": True,
     "logging": 1,
-    "joint_control": script_parameters["joint_control"],
+    "use_physics_sim": script_parameters["use_physics_sim"],
+    "control_mode": script_parameters["control_mode"],
     "normalize_observations": script_parameters["normalize_observations"],
     "normalize_rewards": script_parameters["normalize_rewards"],
     "display": False,
@@ -47,7 +49,8 @@ env_config_train = {
 env_config_eval = {
     "train": False,
     "logging": script_parameters["logging"],
-    "joint_control": script_parameters["joint_control"],
+    "use_physics_sim": script_parameters["use_physics_sim"],
+    "control_mode": script_parameters["control_mode"],
     "normalize_observations": script_parameters["normalize_observations"],
     "normalize_rewards": script_parameters["normalize_rewards"],
     "display": True,
@@ -90,6 +93,7 @@ if __name__ == "__main__":
 
         for i in range(30):
             obs = env.reset()
+            env.goals[0].distance_threshold = 0.2
             done = False
             while not done:
                 act = model.predict(obs)[0]

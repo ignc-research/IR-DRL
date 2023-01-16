@@ -14,15 +14,16 @@ class Robot(ABC):
 
     def __init__(self, name: str,
                        world:World,
+                       use_physics_sim: bool,
                        base_position: Union[list, np.ndarray], 
                        base_orientation: Union[list, np.ndarray], 
                        resting_angles: Union[list, np.ndarray], 
                        end_effector_link_id: int, 
                        base_link_id: int,
-                       control_joints: bool, 
-                       xyz_vel: float,
-                       rpy_vel: float,
-                       joint_vel: float):
+                       control_mode: int, 
+                       xyz_delta: float,
+                       rpy_delta: float,
+                       joints_delta: float):
         super().__init__()
 
         # set name
@@ -44,6 +45,9 @@ class Robot(ABC):
         # resting pose angles
         self.resting_pose_angles = np.array(resting_angles)
 
+        # use physics sim or simply teleport for movement
+        self.use_physics_sim = use_physics_sim
+
         # link ids
         self.end_effector_link_id = end_effector_link_id
         self.base_link_id = base_link_id
@@ -55,8 +59,11 @@ class Robot(ABC):
         self.joints_limits_upper = []  # the values are typically found in the urdf
         self.joints_range = None
 
-        # wether to control xyz_rpy or joints
-        self.control_joints = control_joints
+        # control mode
+        #   0: inverse kinematics
+        #   1: joint angles
+        #   2: joint velocities
+        self.control_mode = control_mode
 
         # goal associated with the robot
         self.goals = None
@@ -67,16 +74,18 @@ class Robot(ABC):
         self.joints_sensor = None
         self.position_rotation_sensor = None
 
-        # maximum deltas on movements
-        self.xyz_vel = xyz_vel
-        self.rpy_vel = rpy_vel
-        self.joint_vel = joint_vel
+        # maximum deltas on movements, will be used depending on control mode
+        self.xyz_delta = xyz_delta
+        self.rpy_delta = rpy_delta
+        self.joints_delta = joints_delta
+        self.joints_vel_delta = None  # this will only be used for joint velocity control mode and must be written to in the build method, see the ur5 implementation for an example
+        self.joints_forces = None  # same as the one above
 
     @abstractmethod
     def get_action_space_dims(self):
         """
         A simple method that should return a tuple containing as first entry the number action space
-        dimensions if the joints themselves are controlled by the network (this should just be the amount of joints)
+        dimensions if the joints themselves or their velocities are controlled by the network (this should just be the amount of joints)
         and as second entry the dimensions when running on inverse kinematics (usually 6).
         These numbers get used when constructing the env's action space.
         Put something other than (6,6) if your robot is controlled in some different way, however that means you must
@@ -117,23 +126,37 @@ class Robot(ABC):
         The method will return its execution time on the cpu.
         """
         cpu_epoch = time()
-        if self.control_joints:
-            joint_delta = action * self.joint_vel
-
-            new_joints = self.joints_sensor.joints_angles + joint_delta
-
-            self.moveto_joints(new_joints)
-        else:
-            pos_delta = action[:3] * self.xyz_vel
-            rpy_delta = action[3:] * self.rpy_vel
+        if self.control_mode == 1:  # control via inverse kinematics
+            pos_delta = action[:3] * self.xyz_delta
+            rpy_delta = action[3:] * self.rpy_delta
 
             new_pos = self.position_rotation_sensor.position + pos_delta
             new_rpy = pyb.getEulerFromQuaternion(self.position_rotation_sensor.rotation.tolist()) + rpy_delta
 
-            self.moveto_xyzrpy(new_pos, new_rpy)
+            self.moveto_xyzrpy(new_pos, new_rpy, self.use_physics_sim)
+        elif self.control_mode == 1:  # control via joint angles
+            joint_delta = action * self.joints_delta
+
+            new_joints = self.joints_sensor.joints_angles + joint_delta
+
+            self.moveto_joints(new_joints, self.use_physics_sim)
+        elif self.control_mode == 2:  # control via joint velocities
+            if not self.use_physics_sim:
+                raise Exception("Joint velocities control mode only available when using the full physics sim!")
+            new_joint_vels = action * self.joints_vel_delta
+
+            self.moveto_joints_vels(new_joint_vels)
         return time() - cpu_epoch
 
-    def moveto_joints(self, desired_joints_angles: np.ndarray):
+    def moveto_joints_vels(self, desired_joints_velocities: np.ndarray):
+        """
+        Uses the actual physics simulation to set the joint velocities to desired targets.
+
+        :param desired_joints_velocities: Vector containing the new joint velocities.
+        """
+        pyb.setJointMotorControlArray(self.object_id, self.joints_ids.tolist(), controlMode=pyb.VELOCITY_CONTROL, targetVelocities=desired_joints_velocities.tolist(), forces=self.joints_forces.tolist())
+
+    def moveto_joints(self, desired_joints_angles: np.ndarray, use_physics_sim: bool):
         """
         Moves the robot's joints towards the desired configuration.
         Also automatically clips the input such that no joint limits are violated.
@@ -148,10 +171,13 @@ class Robot(ABC):
         desired_joints_angles[lower_limit_mask] = self.joints_limits_lower[lower_limit_mask]
 
         # apply movement
-        for i in range(len(self.joints_ids)):
-            pyb.resetJointState(self.object_id, self.joints_ids[i], desired_joints_angles[i])
+        if use_physics_sim:
+            pyb.setJointMotorControlArray(self.object_id, self.joints_ids.tolist(), controlMode=pyb.POSITION_CONTROL, targetPositions=desired_joints_angles.tolist())
+        else:
+            for i in range(len(self.joints_ids)):
+                pyb.resetJointState(self.object_id, self.joints_ids[i], desired_joints_angles[i])
 
-    def moveto_xyzrpy(self, desired_xyz: np.ndarray, desired_rpy: np.ndarray):
+    def moveto_xyzrpy(self, desired_xyz: np.ndarray, desired_rpy: np.ndarray, use_physics_sim: bool):
         """
         Moves the robot such that end effector is in the desired xyz position and rpy orientation.
 
@@ -160,9 +186,9 @@ class Robot(ABC):
         """
         desired_quat = np.array(pyb.getQuaternionFromEuler(desired_rpy.tolist()))
         joints = self._solve_ik(desired_xyz, desired_quat)
-        self.moveto_joints(joints)
+        self.moveto_joints(joints, use_physics_sim)
 
-    def moveto_xyzquat(self, desired_xyz: np.ndarray, desired_quat: np.ndarray):
+    def moveto_xyzquat(self, desired_xyz: np.ndarray, desired_quat: np.ndarray, use_physics_sim: bool):
         """
         Moves the robot such that end effector is in the desired xyz position and quat orientation.
 
@@ -170,9 +196,9 @@ class Robot(ABC):
         :param desired_quat: Vector containing the desired new quaternion orientation of the end effector.
         """
         joints = self._solve_ik(desired_xyz, desired_quat)
-        self.moveto_joints(joints)
+        self.moveto_joints(joints, use_physics_sim)
 
-    def moveto_xyz(self, desired_xyz: np.ndarray):
+    def moveto_xyz(self, desired_xyz: np.ndarray, use_physics_sim: bool):
         """
         Moves the robot such that end effector is in the desired xyz position.
         Orientation will not be controlled.
@@ -180,7 +206,7 @@ class Robot(ABC):
         :param desired_xyz: Vector containing the desired new xyz position of the end effector.
         """
         joints = self._solve_ik(desired_xyz, None)
-        self.moveto_joints(joints)
+        self.moveto_joints(joints, use_physics_sim)
 
     def _solve_ik(self, xyz: np.ndarray, quat:Union[np.ndarray, None]):
         """

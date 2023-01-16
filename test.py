@@ -4,11 +4,12 @@ from time import sleep
 env_config_train = {
     "train": True,
     "logging": 1,
-    "joint_control": False,
+    "use_physics_sim": True,
+    "control_mode": 2,
     "normalize_observations": False,
     "normalize_rewards": False,
-    "display": False,
-    "display_extra": False
+    "display": True,
+    "display_extra": True
 }
 
 testo = ModularDRLEnv(env_config_train)

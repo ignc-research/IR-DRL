@@ -37,6 +37,7 @@ class ModularDRLEnv(gym.Env):
         self.train = env_config["train"]
         self.max_steps_per_episode = 1024
         self.logging = env_config["logging"]  # 0:no logging, 1:logging for console, 2: logging for console and to text file after each episode
+        self.use_physics_sim = env_config["use_physics_sim"]  # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
         self.stat_buffer_size = 25  # length of the stat arrays in terms of episodes over which the average will be drawn for logging
         self.sim_step = 1 / 240  # in seconds -> 240 Hz
 
@@ -71,12 +72,14 @@ class ModularDRLEnv(gym.Env):
         self.xyz_vels = [0.005]
         self.rpy_vels = [0.005]
         self.joint_vels = [0.015]
-        self.joint_control = [env_config["joint_control"]]
+        self.control_mode = [env_config["control_mode"]]
 
         # set up the PyBullet client
         disp = pyb.DIRECT if not self.display else pyb.GUI
         pyb.connect(disp)
         pyb.setAdditionalSearchPath("./assets/")
+        if self.use_physics_sim:
+            pyb.setTimeStep(self.sim_step)
         
         self.world = RandomObstacleWorld(workspace_boundaries=workspace_boundaries,
                                          robot_base_positions=robot_base_positions,
@@ -94,15 +97,16 @@ class ModularDRLEnv(gym.Env):
         self.robots = []
         ur5_1 = UR5(name="ur5_1", 
                    world=self.world,
+                   use_physics_sim=self.use_physics_sim,
                    base_position=robot_base_positions[0],
                    base_orientation=robot_base_orientations[0],
                    resting_angles=np.array([0.0, np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2]),
                    end_effector_link_id=7,
                    base_link_id=1,
-                   control_joints=self.joint_control[0],
-                   xyz_vel=self.xyz_vels[0],
-                   rpy_vel=self.rpy_vels[0],
-                   joint_vel=self.joint_vels[0])
+                   control_mode=self.control_mode[0],
+                   xyz_delta=self.xyz_vels[0],
+                   rpy_delta=self.rpy_vels[0],
+                   joint_delta=self.joint_vels[0])
         self.robots.append(ur5_1)
         ur5_1.id = 1
 
@@ -170,8 +174,8 @@ class ModularDRLEnv(gym.Env):
         # the action space will be a 10-vector with the first 4 elements working for robot 1 and the last 6 for robot 2
         self.action_space_dims = []
         for idx, robot in enumerate(self.robots):
-            ik_dims, joints_dims = robot.get_action_space_dims()
-            if self.joint_control[idx]:
+            joints_dims, ik_dims = robot.get_action_space_dims()
+            if self.control_mode[idx]:  # aka if self.control_mode[idx] != 0
                 self.action_space_dims.append(joints_dims)
             else:
                 self.action_space_dims.append(ik_dims)
@@ -226,10 +230,10 @@ class ModularDRLEnv(gym.Env):
                     continue  # nothing to do here
                 elif ee_pos[1] is None:
                     # only position
-                    self.robots[idx].moveto_xyz(ee_pos[0])
+                    self.robots[idx].moveto_xyz(ee_pos[0], False)
                 else:
                     # both position and rotation
-                    self.robots[idx].moveto_xyzquat(ee_pos[0], ee_pos[1])
+                    self.robots[idx].moveto_xyzquat(ee_pos[0], ee_pos[1], False)
             
             # check collision
             self.world.perform_collision_check()
@@ -285,16 +289,17 @@ class ModularDRLEnv(gym.Env):
         self.world.update()
 
         # apply the action to all robots that have to be moved
-        offset = 0  # the offset at which the ith robot sits in the action array
+        action_offset = 0  # the offset at which the ith robot sits in the action array
         exec_times_cpu = []  # track execution times
         for idx, robot in enumerate(self.robots):
             if not self.active_robots[idx]:
-                offset += self.action_space_dims[idx]
+                action_offset += self.action_space_dims[idx]
                 continue
-            current_robot_action = action[offset : self.action_space_dims[idx] + offset]
-            offset += self.action_space_dims[idx]
+            # get the slice of the action vector that belongs to the current robot
+            current_robot_action = action[action_offset : self.action_space_dims[idx] + action_offset]
+            action_offset += self.action_space_dims[idx]
             exec_time = robot.process_action(current_robot_action)
-            if echte physik:
+            if self.use_physics_sim:
                 pyb.stepSimulation()
             exec_times_cpu.append(exec_time)
 
@@ -311,8 +316,13 @@ class ModularDRLEnv(gym.Env):
         successes = []
         timeouts = []
         oobs = []
+        action_offset = 0
         for idx, goal in enumerate(self.goals):
-            reward_info = goal.reward(self.steps_current_episode, action)  # tuple: reward, success, done
+            # again get the slice of the entire action vector that belongs to the robot/goal in question
+            current_robot_action = action[action_offset : self.action_space_dims[idx] + action_offset]
+            action_offset += self.action_space_dims[idx]
+            # get reward of goal
+            reward_info = goal.reward(self.steps_current_episode, current_robot_action)  # tuple: reward, success, done, timeout, out_of_bounds
             rewards.append(reward_info[0])
             successes.append(reward_info[1])
             # set respective robot to inactive after success, if needed
@@ -374,6 +384,8 @@ class ModularDRLEnv(gym.Env):
                     "cpu_time": self.cpu_time}
             # get robot execution times
             for idx, robot in enumerate(self.robots):
+                if not self.active_robots[idx]:
+                    continue
                 info["action_cpu_time_" + robot.name] = exec_times_cpu[idx] 
             # get the log data from sensors
             for sensor in self.sensors:
