@@ -15,6 +15,7 @@ from world.random_obstacles import RandomObstacleWorld
 from world.testcases import TestcasesWorld
 #   robots
 from robot.ur5 import UR5
+from robot.kr16 import KR16
 #   sensors
 from sensor.joints_sensor import JointsSensor
 from sensor.position_and_rotation_sensor import PositionRotationSensor
@@ -105,8 +106,6 @@ class ModularDRLEnv(gym.Env):
                    base_position=robot_base_positions[0],
                    base_orientation=robot_base_orientations[0],
                    resting_angles=np.array([0.0, np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2]),
-                   end_effector_link_id=7,
-                   base_link_id=1,
                    control_mode=self.control_mode[0],
                    xyz_delta=self.xyz_vels[0],
                    rpy_delta=self.rpy_vels[0],

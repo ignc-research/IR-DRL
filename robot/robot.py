@@ -18,8 +18,6 @@ class Robot(ABC):
                        base_position: Union[list, np.ndarray], 
                        base_orientation: Union[list, np.ndarray], 
                        resting_angles: Union[list, np.ndarray], 
-                       end_effector_link_id: int, 
-                       base_link_id: int,
                        control_mode: int, 
                        xyz_delta: float,
                        rpy_delta: float,
@@ -48,9 +46,9 @@ class Robot(ABC):
         # use physics sim or simply teleport for movement
         self.use_physics_sim = use_physics_sim
 
-        # link ids
-        self.end_effector_link_id = end_effector_link_id
-        self.base_link_id = base_link_id
+        # link ids, these have to be set in your subclass!
+        self.end_effector_link_id = None
+        self.base_link_id = None
 
         # PyBullet related variables
         self.object_id = None  # PyBullet object id
