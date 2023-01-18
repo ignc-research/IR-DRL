@@ -411,7 +411,8 @@ class ModularDRLEnv(gym.Env):
             if done:
                 # write to console
                 info_string = self._get_info_string(info)
-                print(info_string)
+                if not self.steps_current_episode % 15:
+                    print(info_string)
                 # write to textfile, in this case the entire log so far
                 if self.logging == 2:
                     with open("./test.txt", "w") as outfile:
