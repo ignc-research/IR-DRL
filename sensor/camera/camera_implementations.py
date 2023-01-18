@@ -37,6 +37,14 @@ class StaticBodyCameraUR5(CameraBase):
         self.pos, self.target = self._calculate_position()
         super()._adapt_to_environment()
 
+    def get_data_for_logging(self) -> dict:
+        """
+        Also track position because it moves
+        """
+        dic = super().get_data_for_logging()
+        dic[self.output_name + '_pos'] = self.pos
+        return dic
+
 class StaticFloatingCamera(CameraBase):
     """
     floating camera at position, if target is None, the camera will follow the robot's effector.
@@ -52,3 +60,29 @@ class StaticFloatingCamera(CameraBase):
         if self.follow_effector:
             self.target = pyb.getLinkState(self.robot.object_id, self.robot.end_effector_link_id)[4]
         super()._adapt_to_environment()
+
+    def get_data_for_logging(self) -> dict:
+        """
+        Track target because reasons
+        """
+        dic = super().get_data_for_logging()
+        if self.follow_effector:
+            dic[self.output_name + '_target'] = self.target
+        return dic
+
+
+class StaticFloatingCamera(CameraBase):
+    """
+    floating camera at position, if target is None, the camera will follow the robot's effector.
+    """
+
+    def __init__(self, position: List, target: List, camera_args: CameraArgs = None, name : str = 'default_floating', **kwargs):
+        super().__init__(target= target, camera_args= camera_args, name= name, **kwargs)
+        self.pos = position
+
+    def _adapt_to_environment(self):
+        """
+        Since there are no changes to the camara's parameters we can just skip updating it
+        """
+        pass
+        # super()._adapt_to_environment()

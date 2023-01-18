@@ -149,7 +149,8 @@ class CameraBase(Sensor):
     def _get_image(self):
         if not self.camera_ready:
             self.camera = self._set_camera()
-        return self.camera() 
+        self.image = self.camera()
+        return self.image/255 if self.normalize else self.image 
 
     def _move(self, position = None, orientation = None, target = None):
         self.pos = self.pos if position is None else position 
@@ -174,7 +175,9 @@ class CameraBase(Sensor):
             'rgb' : 3,
             'rgbd': 4,
         }
-        return {self.output_name : spaces.Box(low=0, high= 255, shape=(128,128,nr_channels[self.camera_args['type']],), dtype=np.uint8),}
+        low = 0
+        high = 1 if self.normalize else 255
+        return {self.output_name : spaces.Box(low=low, high= high, shape=(128,128,nr_channels[self.camera_args['type']],), dtype=np.uint8),}
         
 
     def get_observation(self):
@@ -193,7 +196,22 @@ class CameraBase(Sensor):
         self.cpu_time = time() - self.cpu_epoch
 
     def _normalize(self):
+        """
+        Bin mir immer noch nicht sicher wie das hier funktionieren soll
+        """
         pass
+
+    def get_data_for_logging(self) -> dict:
+        """
+        
+        """
+        if not self.add_to_logging:
+            return {}
+        logging_dict = dict()
+
+        logging_dict[self.output_name + '_cpu_time'] = self.cpu_time
+
+        return logging_dict
 
     @abstractmethod
     def _adapt_to_environment(self):
