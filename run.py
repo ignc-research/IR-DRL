@@ -19,7 +19,7 @@ script_parameters = {
     "timesteps": 15e6,
     "save_freq": 3e4,
     "save_folder": "./models/weights",
-    "save_name": "PPO_test",  # name for the model file, this will get automated later on
+    "save_name": "PPO_bodycam_0",  # name for the model file, this will get automated later on
     "num_envs": 16,
     "use_physics_sim": False,  # use actual physics sim or ignore forces and teleport robot to desired poses
     "control_mode": 1,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
@@ -79,6 +79,7 @@ if __name__ == "__main__":
         # create or load model
         if not script_parameters["load_model"]:
             model = PPO("MultiInputPolicy", envs, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"], batch_size=script_parameters["batch_size"])
+            print(model.policy)
         else:
             model = PPO.load(script_parameters["model_path"], env=envs, tensorboard_log=script_parameters["tensorboard_folder"])
             # needs to be set on my pc when loading a model, dont know why, might not be needed on yours

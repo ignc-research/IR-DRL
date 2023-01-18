@@ -136,7 +136,7 @@ class ModularDRLEnv(gym.Env):
 
         
         ur5_1_camera_sensor = CameraRegistry.get('UR5_Bodycam')(
-                                            ur5_1, debug={'lines' : True},
+                                            ur5_1,
                                             camera_args={'fov' : 120},
                                             )
 
