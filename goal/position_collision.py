@@ -23,7 +23,8 @@ class PositionCollisionGoal(Goal):
                        dist_threshold_start=3e-1,
                        dist_threshold_end=1e-2,
                        dist_threshold_increment_start=1e-2,
-                       dist_threshold_increment_end=1e-3):
+                       dist_threshold_increment_end=1e-3,
+                       dist_threshold_overwrite:float=None):
         super().__init__(robot, normalize_rewards, normalize_observations, train, True, add_to_logging, max_steps, continue_after_success)
 
         # set output name for observation space
@@ -42,6 +43,8 @@ class PositionCollisionGoal(Goal):
 
         # set the distance thresholds and the increments for changing them
         self.distance_threshold = dist_threshold_start if self.train else dist_threshold_end
+        if dist_threshold_overwrite:  # allows to set a different startpoint from the outside
+            self.distance_threshold = dist_threshold_overwrite
         self.distance_threshold_start = dist_threshold_start
         self.distance_threshold_end = dist_threshold_end
         self.distance_threshold_increment_start = dist_threshold_increment_start

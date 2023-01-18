@@ -19,7 +19,7 @@ class Obstacle(ABC):
         # (potential) trajectory
         # if this has no element, the obstacle will not move
         # if this has one element, the obstalce will move towards it and stay there
-        # for more than two elements the obstacle will loop between the two or more points
+        # for two or more elements the obstacle will loop between the two or more points
         self.trajectory = trajectory
         self.move_step = move_step
         self.trajectory_idx = -1
@@ -32,15 +32,7 @@ class Obstacle(ABC):
         Always use the inital position.
         Must return the object ID of the obstacle.
         """
-        return None
-
-    def reset(self):
-        """
-        This method will be called by the world's reset function.
-        """
-        self.object_id = None
-        self.position = self.position_orig
-        self.rotation = self.rotation_orig
+        return 0
 
     def move(self):
         """

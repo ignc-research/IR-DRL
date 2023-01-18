@@ -57,6 +57,9 @@ class ModularDRLEnv(gym.Env):
         self.reward = 0
         self.reward_cumulative = 0
 
+        # misc
+        dist_threshold_overwrite = env_config["dist_threshold_overwrite"]
+
         # world attributes
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
         robot_base_positions = [np.array([0.0, -0.12, 0.5])]
@@ -153,7 +156,8 @@ class ModularDRLEnv(gym.Env):
                                            dist_threshold_start=0.2,
                                            dist_threshold_end=0.01,
                                            dist_threshold_increment_start=0.02,
-                                           dist_threshold_increment_end=0.008)
+                                           dist_threshold_increment_end=0.008,
+                                           dist_threshold_overwrite=dist_threshold_overwrite)
         self.goals.append(ur5_1_goal)
         ur5_1.set_goal(ur5_1_goal)
 
@@ -444,6 +448,10 @@ class ModularDRLEnv(gym.Env):
             info_string += key + ": " + to_print + ", "
         return info_string[:-1]  # cut off last space
 
+    ####################
+    # callback methods #
+    ####################
+
     def set_goal_metric(self, name, value):
         """
         This method is only called from the outside by the custom logging callback (see callbacks/callbacks.py).
@@ -453,4 +461,5 @@ class ModularDRLEnv(gym.Env):
         for goal in self.goals:
             if goal.metric_name == name:
                 setattr(goal, name, value)  # very bad for performance, but we'll never use so many goals that this will become relevant
+
     
