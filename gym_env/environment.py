@@ -65,10 +65,10 @@ class ModularDRLEnv(gym.Env):
         num_moving_obstacles = 1
         box_measurements = [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
         sphere_measurements = [0.005, 0.02]
-        moving_obstacles_vels = [0.0015, 0.005]
+        moving_obstacles_vels = [0.1, 1]
         #moving_obstacles_vels = [0.2, 0.2]
         moving_obstacles_directions = []
-        moving_obstacles_trajectory_length = [1, 3]
+        moving_obstacles_trajectory_length = [0.2, 1]
 
         # robot attributes
         self.xyz_vels = [0.005]
@@ -86,6 +86,7 @@ class ModularDRLEnv(gym.Env):
         self.world = RandomObstacleWorld(workspace_boundaries=workspace_boundaries,
                                          robot_base_positions=robot_base_positions,
                                          robot_base_orientations=robot_base_orientations,
+                                         sim_step=self.sim_step,
                                          num_static_obstacles=num_static_obstacles,
                                          num_moving_obstacles=num_moving_obstacles,
                                          box_measurements=box_measurements,
@@ -151,8 +152,8 @@ class ModularDRLEnv(gym.Env):
                                            reward_distance_mult=-0.01,
                                            dist_threshold_start=0.2,
                                            dist_threshold_end=0.01,
-                                           dist_threshold_increment_start=0.01,
-                                           dist_threshold_increment_end=0.001)
+                                           dist_threshold_increment_start=0.02,
+                                           dist_threshold_increment_end=0.008)
         self.goals.append(ur5_1_goal)
         ur5_1.set_goal(ur5_1_goal)
 
