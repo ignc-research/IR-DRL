@@ -5,8 +5,8 @@ from robot.robot import Robot
 
 class UR5(Robot):
 
-    def __init__(self, name: str, world, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta:float, rpy_delta:float, joint_delta:float):
-        super().__init__(name, world, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta, joint_delta)
+    def __init__(self, name: str, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta:float, rpy_delta:float):
+        super().__init__(name, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta)
         self.joints_limits_lower = np.array([-np.pi, -np.pi, -np.pi, -np.pi, -np.pi, -np.pi])
         self.joints_limits_upper = np.array([np.pi, np.pi, np.pi, np.pi, np.pi, np.pi])
         self.joints_range = self.joints_limits_upper - self.joints_limits_lower

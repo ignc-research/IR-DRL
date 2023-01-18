@@ -5,8 +5,8 @@ from robot.robot import Robot
 
 class KR16(Robot):
 
-    def __init__(self, name: str, world, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta:float, rpy_delta:float, joint_delta:float):
-        super().__init__(name, world, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta, joint_delta)
+    def __init__(self, name: str, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta:float, rpy_delta:float):
+        super().__init__(name, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta)
         # from urdf file
         self.joints_limits_lower = np.array([-3.22885911619, -2.70526034059, -2.26892802759, -6.10865238198, -2.26892802759, -6.10865238198])  
         self.joints_limits_upper = np.array([3.22885911619, 0.610865238198, 2.68780704807, 6.10865238198, 2.26892802759, 6.10865238198])

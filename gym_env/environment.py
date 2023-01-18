@@ -73,7 +73,6 @@ class ModularDRLEnv(gym.Env):
         # robot attributes
         self.xyz_vels = [0.005]
         self.rpy_vels = [0.005]
-        self.joint_vels = [0.015]
         self.control_mode = [env_config["control_mode"]]
 
         # set up the PyBullet client
@@ -102,14 +101,14 @@ class ModularDRLEnv(gym.Env):
         self.robots = []
         ur5_1 = UR5(name="ur5_1", 
                    world=self.world,
+                   sim_step=self.sim_step,
                    use_physics_sim=self.use_physics_sim,
                    base_position=robot_base_positions[0],
                    base_orientation=robot_base_orientations[0],
                    resting_angles=np.array([0.0, np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2]),
                    control_mode=self.control_mode[0],
                    xyz_delta=self.xyz_vels[0],
-                   rpy_delta=self.rpy_vels[0],
-                   joint_delta=self.joint_vels[0])
+                   rpy_delta=self.rpy_vels[0])
         self.robots.append(ur5_1)
         ur5_1.id = 0
 

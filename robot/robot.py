@@ -13,15 +13,15 @@ class Robot(ABC):
     """
 
     def __init__(self, name: str,
-                       world:World,
+                       world: World,
+                       sim_step: float,
                        use_physics_sim: bool,
                        base_position: Union[list, np.ndarray], 
                        base_orientation: Union[list, np.ndarray], 
                        resting_angles: Union[list, np.ndarray], 
                        control_mode: int, 
                        xyz_delta: float,
-                       rpy_delta: float,
-                       joints_delta: float):
+                       rpy_delta: float):
         super().__init__()
 
         # set name
@@ -33,6 +33,9 @@ class Robot(ABC):
 
         # set world
         self.world = world
+
+        # set sim step
+        self.sim_step = sim_step
 
         # base position
         self.base_position = np.array(base_position)
@@ -72,11 +75,12 @@ class Robot(ABC):
         self.joints_sensor = None
         self.position_rotation_sensor = None
 
-        # maximum deltas on movements, will be used depending on control mode
+        # maximum deltas on movements, will be used in Inverse Kinematics control
         self.xyz_delta = xyz_delta
         self.rpy_delta = rpy_delta
-        self.joints_delta = joints_delta
-        self.joints_vel_delta = None  # this will only be used for joint velocity control mode and must be written to in the build method, see the ur5 implementation for an example
+
+        # velocity and force attributes
+        self.joints_vel_delta = None  # must be written to in the build method after loading the URDF with a PyBullet call, see the ur5 implementation for an example
         self.joints_forces = None  # same as the one above
 
     @abstractmethod
@@ -89,6 +93,7 @@ class Robot(ABC):
         Put something other than (6,6) if your robot is controlled in some different way, however that means you must
         also overwrite the moveto_*** or action methods below such that they still work.
         """
+        # TODO: deal with joints with two or more degrees of freedom
         pass
 
     @abstractmethod
@@ -124,7 +129,11 @@ class Robot(ABC):
         The method will return its execution time on the cpu.
         """
         cpu_epoch = time()
-        if self.control_mode == 0:  # control via inverse kinematics
+        if self.control_mode == 0:  
+            # control via inverse kinematics:
+            # actions are small changes in xyz and rpy of the robot's end effector
+            # we calculate the changed position, then use inverse kinematics to get the equivalent joint angles
+            # then we apply those
             pos_delta = action[:3] * self.xyz_delta
             rpy_delta = action[3:] * self.rpy_delta
 
@@ -132,18 +141,49 @@ class Robot(ABC):
             new_rpy = pyb.getEulerFromQuaternion(self.position_rotation_sensor.rotation.tolist()) + rpy_delta
 
             self.moveto_xyzrpy(new_pos, new_rpy, self.use_physics_sim)
-        elif self.control_mode == 1:  # control via joint angles
-            joint_delta = action * self.joints_delta
+        elif self.control_mode == 1:  
+            # control via joint angles
+            # actions are the new desired joint angles themselves
+            # we apply them mostly as is
 
-            new_joints = self.joints_sensor.joints_angles + joint_delta
-
-            self.moveto_joints(new_joints, self.use_physics_sim)
-        elif self.control_mode == 2:  # control via joint velocities
+            # transform action (-1 to 1) to desired new joint angles
+            new_joints = action * (self.joints_range / 2) + (self.joints_limits_lower + self.joints_limits_upper) / 2
+            
+            # if we don't use the physics sim, which will only perform a step towards the desired new joints, 
+            # we have to clamp the new joint angles such that they move with at most the maximum velocity within the next sim step
             if not self.use_physics_sim:
-                raise Exception("Joint velocities control mode only available when using the full physics sim!")
-            new_joint_vels = action * self.joints_vel_delta
+                # compute the maximum step we do in that direction
+                joint_delta = new_joints - self.joints_sensor.joints_angles
+                joint_delta = joint_delta / np.linalg.norm(joint_delta)
+                joint_delta = joint_delta * self.joints_vel_delta * self.sim_step
 
-            self.moveto_joints_vels(new_joint_vels)
+                # compute the joint angles we can actually go to
+                new_joints = joint_delta + self.joints_sensor.joints_angles
+
+            # execute movement
+            self.moveto_joints(new_joints, self.use_physics_sim)
+
+        elif self.control_mode == 2:  
+            # control via joint velocities
+            # actions are joint velocities
+            # if we use the physics sim, PyBullet can deal with those on its own
+            # if we don't, we run simple algebra to get the new joint angles for this step and then apply them
+
+            # transform action (-1 to 1) to joint velocities
+            new_joint_vels = action * self.joints_vel_delta
+            if not self.use_physics_sim:
+                # compute the delta for this sim step
+                joint_delta = new_joint_vels * self.sim_step
+                # add the delta to current joint angles
+                new_joints = joint_delta + self.joints_sensor.joints_angles
+                # execute movement
+                self.moveto_joints(new_joints, False)
+
+            else:
+                # use PyBullet to apply these velocities to robot
+                self.moveto_joints_vels(new_joint_vels)
+        
+        # returns execution time, gets used in gym env to log the times here
         return time() - cpu_epoch
 
     def moveto_joints_vels(self, desired_joints_velocities: np.ndarray):

@@ -11,7 +11,7 @@ class MoreLoggingCustomCallback(BaseCallback):
         """
         # success rate
         success_rate = np.average([(np.average(ar) if len(ar) != 0 else 0) for ar in self.training_env.get_attr("success_stat")])
-        self.logger.record("train/success_rate_train", success_rate)
+        self.logger.record("train/rate_success", success_rate)
         
         # goal metrics (like distance threshold)
         goal_metrics_envs = self.training_env.get_attr("goal_metrics")
@@ -35,29 +35,30 @@ class MoreLoggingCustomCallback(BaseCallback):
             metrics_dict[metric[0]][2] = metric[3]  # wether to use the lowest or highest metric value
         for name in metrics_dict:
             # log actual average metric value for tensorboard
-            self.logger.record("train/" + name, np.average(metrics_dict[name][0]))
+            tf_board_value = np.average(metrics_dict[name][0])
+            self.logger.record("train/" + name, tf_board_value)
             # if backwrite is allowed ...
             if metrics_dict[name][1]:
                 # ... calculate the value to be written
                 if metrics_dict[name][2]:  # low value good
-                    write_value = np.percentile(metrics_dict[name][0], 25)
+                    write_value = min(np.percentile(metrics_dict[name][0], 25), tf_board_value)
                 else:  # high value good
-                    write_value = np.percentile(metrics_dict[name][0], 75)
+                    write_value = max(np.percentile(metrics_dict[name][0], 75), tf_board_value)
                 # write the new value into all parallel envs via a class method
-                self.training_env.env_method("set_goal_metric", name, round(write_value, 3))
+                self.training_env.env_method("set_goal_metric", name, write_value)
 
 
         # collision rate
         collision_rate = np.average([(np.average(ar) if len(ar) != 0 else 0) for ar in self.training_env.get_attr("collision_stat")])
-        self.logger.record("train/collision_rate", collision_rate)
+        self.logger.record("train/rate_collision", collision_rate)
 
         # timeout rate
         timeout_rate = np.average([(np.average(ar) if len(ar) != 0 else 0) for ar in self.training_env.get_attr("timeout_stat")])
-        self.logger.record("train/timeout_rate", timeout_rate)
+        self.logger.record("train/rate_timeout", timeout_rate)
 
         # out of bounds rate
         out_of_bounds_rate = np.average([(np.average(ar) if len(ar) != 0 else 0) for ar in self.training_env.get_attr("out_of_bounds_stat")])
-        self.logger.record("train/out_of_bounds_rate", out_of_bounds_rate)
+        self.logger.record("train/rate_out_of_bounds", out_of_bounds_rate)
 
         # reward
         rewards_cumulative = np.average(self.training_env.get_attr("reward_cumulative"))
