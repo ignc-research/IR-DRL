@@ -25,12 +25,12 @@ script_parameters = {
     "control_mode": 1,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
     "normalize_observations": False,
     "normalize_rewards": False,
-    "gamma": 0.995,
+    "gamma": 0.9918,
     "tensorboard_folder": "./models/tensorboard_logs/",
     "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
     "ppo_steps": 1024,  # steps per env until PPO updates
-    "batch_size": 2048,  # batch size for the ppo updates
-    "load_model": True,  # set to True when loading an existing model 
+    "batch_size": 512,  # batch size for the ppo updates
+    "load_model": False,  # set to True when loading an existing model 
     "model_path": './models/weights/PPO_test_2400000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
