@@ -1,5 +1,6 @@
 from .camera import CameraBase
-from .camera_implementations import *
+from .camera_implementations.static_cameras import *
+from .camera_implementations.on_robot_cameras import *
 
 
 class CameraRegistry:
@@ -20,6 +21,7 @@ class CameraRegistry:
         return inner_wrapper
 
 
-CameraRegistry.register('UR5_Bodycam')(StaticBodyCameraUR5)
-CameraRegistry.register('General_Floating')(StaticFloatingCamera)
+CameraRegistry.register('OnBody_UR5')(OnBodyCameraUR5)
+CameraRegistry.register('Floating_General')(StaticFloatingCamera)
+CameraRegistry.register('Floating_FollowEffector')(StaticFloatingCameraFollowEffector)
 

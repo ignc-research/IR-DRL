@@ -1,15 +1,14 @@
 import pybullet as pyb
 from typing import Union, List, Dict, TypedDict
-from robot.ur5 import UR5
-from .camera_utils import *
-from .camera import CameraBase, CameraArgs
+from robot.robot_implementations.ur5 import UR5
+from ..camera_utils import *
+from ..camera import CameraBase, CameraArgs
 
 __all__ = [
-    'StaticBodyCameraUR5',
-    'StaticFloatingCamera'
+    'OnBodyCameraUR5',
 ]
 
-class StaticBodyCameraUR5(CameraBase):
+class OnBodyCameraUR5(CameraBase):
 
     def __init__(self, robot : UR5, position_relative_to_effector: List = None, camera_args: CameraArgs = None, name : str = 'default_body_ur5', **kwargs):
         self.robot = robot
@@ -42,45 +41,3 @@ class StaticBodyCameraUR5(CameraBase):
         dic = super().get_data_for_logging()
         dic[self.output_name + '_pos'] = self.pos
         return dic
-
-class StaticFloatingCamera(CameraBase):
-    """
-    floating camera at position, if target is None, the camera will follow the robot's effector.
-    """
-
-    def __init__(self, robot : UR5, position: List, target: List = None, camera_args: CameraArgs = None, name : str = 'default_floating', **kwargs):
-        super().__init__(target= target, camera_args= camera_args, name= name, **kwargs)
-        self.robot = robot
-        self.follow_effector = target is None
-        self.pos = position
-
-    def _adapt_to_environment(self):
-        if self.follow_effector:
-            self.target = pyb.getLinkState(self.robot.object_id, self.robot.end_effector_link_id)[4]
-        super()._adapt_to_environment()
-
-    def get_data_for_logging(self) -> dict:
-        """
-        Track target because reasons
-        """
-        dic = super().get_data_for_logging()
-        if self.follow_effector:
-            dic[self.output_name + '_target'] = self.target
-        return dic
-
-
-class StaticFloatingCamera(CameraBase):
-    """
-    floating camera at position, if target is None, the camera will follow the robot's effector.
-    """
-
-    def __init__(self, position: List, target: List, camera_args: CameraArgs = None, name : str = 'default_floating', **kwargs):
-        super().__init__(target= target, camera_args= camera_args, name= name, **kwargs)
-        self.pos = position
-
-    def _adapt_to_environment(self):
-        """
-        Since there are no changes to the camara's parameters we can just skip updating it
-        """
-        pass
-        # super()._adapt_to_environment()

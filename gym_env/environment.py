@@ -14,8 +14,7 @@ from world.world import World
 from world.random_obstacles import RandomObstacleWorld
 from world.testcases import TestcasesWorld
 #   robots
-from robot.ur5 import UR5
-from robot.kr16 import KR16
+from robot import RobotRegistry
 #   sensors
 from sensor.joints_sensor import JointsSensor
 from sensor.position_and_rotation_sensor import PositionRotationSensor
@@ -104,7 +103,7 @@ class ModularDRLEnv(gym.Env):
         # at this point robots would dynamically be created as needed by the config/the world
         # however, for now we generate one manually
         self.robots = []
-        ur5_1 = UR5(name="ur5_1", 
+        ur5_1 = RobotRegistry.get('UR5')(name="ur5_1", 
                    world=self.world,
                    sim_step=self.sim_step,
                    use_physics_sim=self.use_physics_sim,
@@ -139,7 +138,7 @@ class ModularDRLEnv(gym.Env):
                                             indicator=True)
 
         
-        ur5_1_camera_sensor = CameraRegistry.get('UR5_Bodycam')(
+        ur5_1_camera_sensor = CameraRegistry.get('OnBody_UR5')(
                                             ur5_1,
                                             camera_args={
                                                 'fov' : 120,
