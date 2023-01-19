@@ -58,6 +58,9 @@ class ModularDRLEnv(gym.Env):
         self.reward = 0
         self.reward_cumulative = 0
 
+        # misc
+        dist_threshold_overwrite = env_config["dist_threshold_overwrite"]
+
         # world attributes
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
         robot_base_positions = [np.array([0.0, -0.12, 0.5])]
@@ -66,10 +69,10 @@ class ModularDRLEnv(gym.Env):
         num_moving_obstacles = 1
         box_measurements = [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
         sphere_measurements = [0.005, 0.02]
-        moving_obstacles_vels = [0.0015, 0.005]
+        moving_obstacles_vels = [0.1, 1]
         #moving_obstacles_vels = [0.2, 0.2]
         moving_obstacles_directions = []
-        moving_obstacles_trajectory_length = [1, 3]
+        moving_obstacles_trajectory_length = [0.2, 1]
 
         # robot attributes
         self.xyz_vels = [0.005]
@@ -87,6 +90,7 @@ class ModularDRLEnv(gym.Env):
         self.world = RandomObstacleWorld(workspace_boundaries=workspace_boundaries,
                                          robot_base_positions=robot_base_positions,
                                          robot_base_orientations=robot_base_orientations,
+                                         sim_step=self.sim_step,
                                          num_static_obstacles=num_static_obstacles,
                                          num_moving_obstacles=num_moving_obstacles,
                                          box_measurements=box_measurements,
@@ -158,8 +162,9 @@ class ModularDRLEnv(gym.Env):
                                            reward_distance_mult=-0.01,
                                            dist_threshold_start=0.2,
                                            dist_threshold_end=0.01,
-                                           dist_threshold_increment_start=0.01,
-                                           dist_threshold_increment_end=0.001)
+                                           dist_threshold_increment_start=0.02,
+                                           dist_threshold_increment_end=0.008,
+                                           dist_threshold_overwrite=dist_threshold_overwrite)
         self.goals.append(ur5_1_goal)
         ur5_1.set_goal(ur5_1_goal)
 
@@ -450,6 +455,10 @@ class ModularDRLEnv(gym.Env):
             info_string += key + ": " + to_print + ", "
         return info_string[:-1]  # cut off last space
 
+    ####################
+    # callback methods #
+    ####################
+
     def set_goal_metric(self, name, value):
         """
         This method is only called from the outside by the custom logging callback (see callbacks/callbacks.py).
@@ -459,4 +468,5 @@ class ModularDRLEnv(gym.Env):
         for goal in self.goals:
             if goal.metric_name == name:
                 setattr(goal, name, value)  # very bad for performance, but we'll never use so many goals that this will become relevant
+
     

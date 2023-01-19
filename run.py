@@ -19,19 +19,20 @@ script_parameters = {
     "timesteps": 15e6,
     "save_freq": 3e4,
     "save_folder": "./models/weights",
-    "save_name": "PPO_test",  # name for the model file, this will get automated later on
+    "save_name": "PPO_test_sim",  # name for the model file, this will get automated later on
     "num_envs": 16,
-    "use_physics_sim": False,  # use actual physics sim or ignore forces and teleport robot to desired poses
-    "control_mode": 1,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
+    "use_physics_sim": True,  # use actual physics sim or ignore forces and teleport robot to desired poses
+    "control_mode": 2,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
     "normalize_observations": False,
     "normalize_rewards": False,
-    "gamma": 0.9918,
+    "gamma": 0.99,
+    "dist_threshold_overwrite": None,  # use this when continuing training to set the distance threhsold to the value that your agent had already reached
     "tensorboard_folder": "./models/tensorboard_logs/",
     "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
     "ppo_steps": 1024,  # steps per env until PPO updates
-    "batch_size": 512,  # batch size for the ppo updates
+    "batch_size": 2048,  # batch size for the ppo updates
     "load_model": False,  # set to True when loading an existing model 
-    "model_path": './models/weights/PPO_test_2400000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
+    "model_path": './models/weights/PPO_test_sim_16800000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
 # do not change the env_configs below
@@ -42,6 +43,7 @@ env_config_train = {
     "control_mode": script_parameters["control_mode"],
     "normalize_observations": script_parameters["normalize_observations"],
     "normalize_rewards": script_parameters["normalize_rewards"],
+    "dist_threshold_overwrite": script_parameters["dist_threshold_overwrite"],
     "display": False,
     "display_extra": False
 }
@@ -93,7 +95,6 @@ if __name__ == "__main__":
 
         for i in range(30):
             obs = env.reset()
-            env.goals[0].distance_threshold = 0.2
             done = False
             while not done:
                 act = model.predict(obs)[0]

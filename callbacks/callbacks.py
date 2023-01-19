@@ -41,9 +41,9 @@ class MoreLoggingCustomCallback(BaseCallback):
             if metrics_dict[name][1]:
                 # ... calculate the value to be written
                 if metrics_dict[name][2]:  # low value good
-                    write_value = min(np.percentile(metrics_dict[name][0], 25), tf_board_value)
+                    write_value = min(metrics_dict[name][0])
                 else:  # high value good
-                    write_value = max(np.percentile(metrics_dict[name][0], 75), tf_board_value)
+                    write_value = max(metrics_dict[name][0])
                 # write the new value into all parallel envs via a class method
                 self.training_env.env_method("set_goal_metric", name, write_value)
 
