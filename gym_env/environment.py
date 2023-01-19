@@ -19,7 +19,7 @@ from robot.kr16 import KR16
 #   sensors
 from sensor.joints_sensor import JointsSensor
 from sensor.position_and_rotation_sensor import PositionRotationSensor
-from sensor.lidar import LidarSensorUR5
+from sensor.lidar import LidarRegistry
 from sensor.camera import CameraRegistry
 #   goals
 from goal.position_collision import PositionCollisionGoal
@@ -125,7 +125,7 @@ class ModularDRLEnv(gym.Env):
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
-        ur5_1_lidar_sensor = LidarSensorUR5(normalize=self.normalize_observations,
+        ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5')(normalize=self.normalize_observations,
                                             add_to_observation_space=True, 
                                             add_to_logging=False,
                                             sim_step=self.sim_step,

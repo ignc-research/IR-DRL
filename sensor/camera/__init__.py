@@ -1,12 +1,6 @@
 from .camera import CameraBase
 from .camera_implementations import *
 
-__all__ = [
-    'UR5_Bodycam',
-    'General_'
-]
-
-
 
 class CameraRegistry:
     _camera_classes = {}

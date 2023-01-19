@@ -55,6 +55,7 @@ env_config_eval = {
     "control_mode": script_parameters["control_mode"],
     "normalize_observations": script_parameters["normalize_observations"],
     "normalize_rewards": script_parameters["normalize_rewards"],
+    "dist_threshold_overwrite": script_parameters["dist_threshold_overwrite"],
     "display": True,
     "display_extra": True
 }
