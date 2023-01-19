@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- This implements the reference model from
+https://mmm.humanoids.kit.edu/referencemodel.html
+with a height of H = 1.75. This model is based on the one from
+"Biomechanics and motor control of human movement", David A. Winter
+
+The segment mass data (only mass) is calculated using the table 4.1 from this book for
+a total body mass of 68 kg.
+
+This model's additional details (feet), which are implemented here, are given in
+Terlemez, O., Ulbrich, S., Mandery, C., Do, M., Vahrenkamp, N., & Asfour, T. (2014, November). Master Motor Map (MMM)-Framework and toolkit for capturing, representing, and reproducing human motion on humanoid robots. In 2014 IEEE-RAS International Conference on Humanoid Robots (pp. 894-901). IEEE.
+
+IMPORTANT NOTE: THE INERTIAL PROPERTIES ARE NOT CORRECT (PARTICULARLY THE ORIGINS)
+-->
+
+<robot name="child" xmlns:xacro="https://www.ros.org/wiki/xacro">
+
+  <!-- Properties -->
+  <xacro:property name="weight" value="14.20" />
+  <xacro:property name="height" value="0.9530" />
+
+  <xacro:include filename="mass_ratio.xacro"/>
+  <xacro:include filename="length_ratio.xacro"/>
+  <xacro:include filename="macros.xacro"/>
+
+  <!-- Chest (Base Link) -->
+  <link name="chest">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.18375 0" />
+      <mass value = "${chest_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+
+    <xacro:read_stl_file filename="stl/chest.stl" scale="${stl_scale_chest}" />
+  </link>
+
+  <!-- 
+	downwards from the chest 
+	************************
+  -->
+
+  <link name="belly">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.0525 0" />
+      <mass value = "${belly_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+
+    <xacro:read_stl_file filename="stl/belly.stl" scale="${stl_scale_belly}" />
+  </link>
+
+  <joint name="chest_to_belly" type="spherical">
+    <parent link="chest"/>
+    <child link="belly"/>
+    <xacro:conn_origin conn_name="${conn_chest_belly}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="pelvis">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.035 0" />
+      <mass value = "${pelvis_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/pelvis.stl" scale="${stl_scale_pelvis}" />
+  </link>
+
+  <joint name="belly_to_pelvis" type="spherical">
+    <parent link="belly"/>
+    <child link="pelvis"/>
+    <xacro:conn_origin conn_name="${conn_belly_pelvis}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  
+  <link name="right_leg">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.214375 0" />
+      <mass value = "${leg_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/leg_right.stl" scale="${stl_scale_leg}" />
+  </link>
+
+  <joint name="pelvis_to_right_leg" type="spherical">
+    <parent link="pelvis"/>
+    <child link="right_leg"/>
+    <xacro:conn_origin conn_name="${conn_pelvis_right_leg}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_leg">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.214375 0" />
+      <mass value = "${leg_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/leg_left.stl" scale="${stl_scale_leg}" />
+  </link>
+
+  <joint name="pelvis_to_left_leg" type="spherical">
+    <parent link="pelvis"/>
+    <child link="left_leg"/>
+    <xacro:conn_origin conn_name="${conn_pelvis_left_leg}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_shin">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.21525 0" />
+      <mass value = "${shin_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/shin_right.stl" scale="${stl_scale_shin}" />
+  </link>
+
+  <joint name="right_leg_to_right_shin" type="continuous">
+    <parent link="right_leg"/>
+    <child link="right_shin"/>
+    <axis xyz="1 0 0"/>
+    <xacro:conn_origin conn_name="${conn_leg_shin}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_shin">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.21525 0" />
+      <mass value = "${shin_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/shin_left.stl" scale="${stl_scale_shin}" />
+  </link>
+
+  <joint name="left_leg_to_left_shin" type="continuous">
+    <parent link="left_leg"/>
+    <child link="left_shin"/>
+    <axis xyz="1 0 0"/>
+    <xacro:conn_origin conn_name="${conn_leg_shin}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_foot">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.034125 0" />
+      <mass value = "${foot_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/foot_right.stl" scale="${stl_scale_foot}" />
+  </link>
+
+  <joint name="right_shin_to_right_foot" type="spherical">
+    <parent link="right_shin"/>
+    <child link="right_foot"/>
+    <xacro:conn_origin conn_name="${conn_shin_foot}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_foot">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.034125 0" />
+      <mass value = "${foot_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/foot_left.stl" scale="${stl_scale_foot}" />
+  </link>
+
+  <joint name="left_shin_to_left_foot" type="spherical">
+    <parent link="left_shin"/>
+    <child link="left_foot"/>
+    <xacro:conn_origin conn_name="${conn_shin_foot}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <!-- 
+	upwards from the chest 
+	**********************
+  -->
+
+  <link name="right_arm">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.1645 0" />
+      <mass value = "${arm_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/arm_right.stl" scale="${stl_scale_arm}" />
+  </link>
+
+  <joint name="chest_to_right_arm" type="spherical">
+    <parent link="chest"/>
+    <child link="right_arm"/>
+    <xacro:conn_origin conn_name="${conn_chest_right_arm}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_arm">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.1645 0" />
+      <mass value = "${arm_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/arm_left.stl" scale="${stl_scale_arm}" />
+  </link>
+  
+  <joint name="chest_to_left_arm" type="spherical">
+    <parent link="chest"/>
+    <child link="left_arm"/>
+    <xacro:conn_origin conn_name="${conn_chest_left_arm}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_forearm">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.126875 0" />
+      <mass value = "${forearm_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/arm_lower_right.stl" scale="${stl_scale_forearm}" />
+  </link>
+
+  <joint name="right_arm_to_right_forearm" type="continuous">
+    <parent link="right_arm"/>
+    <child link="right_forearm"/>
+    <axis xyz="1 0 0"/>
+    <xacro:conn_origin conn_name="${conn_arm_forearm}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_forearm">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.126875 0" />
+      <mass value = "${forearm_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/arm_lower_left.stl" scale="${stl_scale_forearm}" />
+  </link>
+
+  <joint name="left_arm_to_left_forearm" type="continuous">
+    <parent link="left_arm"/>
+    <child link="left_forearm"/>
+    <axis xyz="1 0 0"/>
+    <xacro:conn_origin conn_name="${conn_arm_forearm}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_hand">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.0945 0" />
+      <mass value = "${hand_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/hand_right.stl" scale="${stl_scale_hand}" />
+  </link>
+
+  <joint name="right_forearm_to_right_hand" type="spherical">
+    <parent link="right_forearm"/>
+    <child link="right_hand"/>
+    <xacro:conn_origin conn_name="${conn_forearm_hand}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_hand">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.0945 0" />
+      <mass value = "${hand_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+
+    <xacro:read_stl_file filename="stl/hand_left.stl" scale="${stl_scale_hand}" />
+  </link>
+
+  <joint name="left_forearm_to_left_hand" type="spherical">
+    <parent link="left_forearm"/>
+    <child link="left_hand"/>
+    <xacro:conn_origin conn_name="${conn_forearm_hand}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="neck">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.02625 0" />
+      <mass value = "${neck_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+
+    <xacro:read_stl_file filename="stl/neck.stl"
+                         scale="${stl_scale_neck}"
+                         local_proportion="${local_neck}" />
+  </link>
+
+  <joint name="chest_to_neck" type="spherical">
+    <parent link="chest"/>
+    <child link="neck"/>
+    <xacro:conn_origin conn_name="${conn_chest_neck}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="head">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.11375 0" />
+      <mass value = "${head_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/head_child.stl" 
+                         scale="${stl_scale_head}" 
+                         local_proportion="${local_head}" />
+  </link>
+
+  <joint name="neck_to_head" type="spherical">
+    <parent link="neck"/>
+    <child link="head"/>
+    <xacro:conn_origin conn_name="${conn_neck_head}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <!--
+  Feet
+  -->
+
+  <link name="right_sole">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0.042" />
+      <mass value = "${sole_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "5.0001" iyz = "0" izz = "1.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/sole_right.stl" scale="${stl_scale_sole}" />
+  </link>
+
+  <joint name="right_foot_to_right_sole" type="continuous">
+    <parent link="right_foot"/>
+    <child link="right_sole"/>
+    <axis xyz="0 1 0"/>
+    <xacro:conn_origin conn_name="${conn_foot_sole}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_sole">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0.042" />
+      <mass value = "${sole_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "5.0001" iyz = "0" izz = "1.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/sole_left.stl" scale="${stl_scale_sole}" />
+  </link>
+
+  <joint name="left_foot_to_left_sole" type="continuous">
+    <parent link="left_foot"/>
+    <child link="left_sole"/>
+    <axis xyz="0 1 0"/>
+    <xacro:conn_origin conn_name="${conn_foot_sole}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_toes">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0.02975" />
+      <mass value = "${toes_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "5.0001" iyz = "0" izz = "1.0001" />
+    </inertial>
+
+    <xacro:read_stl_file filename="stl/toes_right.stl" scale="${stl_scale_toes}" />
+  </link>
+
+  <joint name="right_sole_to_right_toes" type="continuous">
+    <parent link="right_sole"/>
+    <child link="right_toes"/>
+    <axis xyz="1 0 0"/>
+    <xacro:conn_origin conn_name="${conn_sole_toes}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_toes">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0.02975" />
+      <mass value = "${toes_mass_ratio * weight}" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "5.0001" iyz = "0" izz = "1.0001" />
+    </inertial>
+    
+    <xacro:read_stl_file filename="stl/toes_left.stl" scale="${stl_scale_toes}" />
+  </link>
+
+  <joint name="left_sole_to_left_toes" type="continuous">
+    <parent link="left_sole"/>
+    <child link="left_toes"/>
+    <axis xyz="1 0 0"/>
+    <xacro:conn_origin conn_name="${conn_sole_toes}"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+</robot>

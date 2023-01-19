@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+
+<!-- Mass and inertia are not correct -->
+
+<robot name="wheelchair" xmlns:xacro="https://www.ros.org/wiki/xacro">
+
+  	<xacro:include filename="macros.xacro"/>
+
+	<link name="wheelchair_main">
+		<inertial>
+			<origin rpy = "0 0 0" xyz = "0 0 0" />
+			<mass value = "50" />
+			<inertia ixx = "22.23722770713"
+					 ixy = "-0.04006835911" 
+					 ixz = "-0.02300035044"
+					 iyy = "17.58011380849" 
+					 iyz = "-0.02387139307" 
+					 izz = "28.82981259528"/>
+		</inertial>
+
+		<xacro:read_stl_file 
+			filename="stl/wheelchair.stl"
+			scale="1" 
+			xyz="${[0, 0, 0]}"  
+			rpy="${[0, 0, pi/2]}"
+		/>
+	</link>
+
+	<link name="bumper">
+		<inertial>
+			<origin rpy = "0 0 0" xyz = "0 0 0" />
+			<mass value = "1.5" />
+			<inertia ixx = "0.02155077848" 
+				 ixy = "0.00000859993"
+				 ixz = "0.00000332812"
+				 iyy = "0.03332543416"
+				 iyz = "0.00575422413"
+				 izz = "0.04216038950" />
+		</inertial>
+
+		<xacro:read_stl_file 
+			filename="stl/bumper.stl"
+			scale="1" 
+			xyz="${[0, 0, 0]}"  
+			rpy="${[0, 0, pi/2]}"
+		/>
+  	</link>
+
+	<xacro:joint_macro 
+		parent="wheelchair_main" 
+		child="bumper" 
+		type="fixed"
+		conn_origin="${[0.350, 0, 0.19]}"
+	/>
+
+</robot>

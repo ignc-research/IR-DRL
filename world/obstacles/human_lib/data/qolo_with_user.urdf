@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<robot name="qolo_and_user">
+  <link concave="yes" name="base">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0" />
+      <mass value = "0" />
+      <inertia ixx = "0" ixy = "0" ixz = "0" iyy = "0" iyz = "0" izz = "0" />
+    </inertial>
+    
+    <collision concave="yes">
+      <geometry>
+        <mesh filename="qolo_with_user.stl" scale="1.0 1.0 1.0"/>
+      </geometry>
+      <origin rpy = "0 0 1.5708" xyz = "0 0 0" />
+    </collision>
+  </link>
+</robot>

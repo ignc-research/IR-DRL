@@ -58,7 +58,8 @@ class ModularDRLEnv(gym.Env):
         # misc
         dist_threshold_overwrite = env_config["dist_threshold_overwrite"]
 
-        # world attributes
+        # world attributes for yifan env
+        """
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
         robot_base_positions = [np.array([0.0, -0.12, 0.5])]
         robot_base_orientations = [np.array([0, 0, 0, 1])]
@@ -67,9 +68,13 @@ class ModularDRLEnv(gym.Env):
         box_measurements = [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
         sphere_measurements = [0.005, 0.02]
         moving_obstacles_vels = [0.1, 1]
-        #moving_obstacles_vels = [0.2, 0.2]
         moving_obstacles_directions = []
         moving_obstacles_trajectory_length = [0.2, 1]
+        """
+        # world attributes for table experiment
+        workspace_boundaries = [-2, 2, -2, 2, 0, 5]
+        robot_base_positions = [np.array([0, 0.8, 3.25])]
+        robot_base_orientations = [np.array([0, 0, 0, 1])]
 
         # robot attributes
         self.xyz_vels = [0.005]
@@ -83,7 +88,7 @@ class ModularDRLEnv(gym.Env):
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
         
-        
+        """
         self.world = WorldRegistry.get("RandomObstacle")(workspace_boundaries=workspace_boundaries,
                                          robot_base_positions=robot_base_positions,
                                          robot_base_orientations=robot_base_orientations,
@@ -95,6 +100,22 @@ class ModularDRLEnv(gym.Env):
                                          moving_obstacles_vels=moving_obstacles_vels,
                                          moving_obstacles_directions=moving_obstacles_directions,
                                          moving_obstacles_trajectory_length=moving_obstacles_trajectory_length)
+        """
+        self.world = WorldRegistry.get("TableExperiment")(workspace_boundaries=workspace_boundaries,
+                                         robot_base_positions=robot_base_positions,
+                                         robot_base_orientations=robot_base_orientations,
+                                         sim_step=self.sim_step,
+                                         num_obstacles=2,
+                                         obstacle_velocities=[1,2],
+                                         num_humans=1,
+                                         #human_positions=[np.array([1.8, 0, 1.4])],
+                                         human_positions=[np.array([0, 0, 0])],
+                                         #human_rotations=[np.array(pyb.getQuaternionFromEuler([0,0,np.pi/2]))],
+                                         human_rotations = [np.array([0, 0, 0, 1])],
+                                         human_trajectories=[[np.array([-2,2,1.4]), np.array([2, 2, 1.4])]],
+                                         #human_trajectories=[[]],
+                                         ee_start_overwrite=[np.array([0.6, 0.6, 1.55189431])],
+                                         target_overwrite=[np.array([0,0,0])])
         
         #self.world = TestcasesWorld(test_mode=2)
 

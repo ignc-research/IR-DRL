@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+
+<!-- This model is based on the one from "Biomechanics and motor control of human movement", David A. Winter
+
+    The segment mass data is calculated using the table 4.1 from the book.
+
+    This model's additional details (feet), which are implemented here, are given in
+        Terlemez, Ö., Ulbrich, S., Mandery, C., Do, M., Vahrenkamp, N., & Asfour, T. (2014, November).
+        "Master Motor Map (MMM)—Framework and toolkit for capturing, representing, and reproducing human 
+        motion on humanoid robots", in 2014 IEEE-RAS International Conference on Humanoid Robots (pp. 894-901)
+-->
+
+<robot name="mass_ratio" xmlns:xacro="https://www.ros.org/wiki/xacro">
+
+    <!-- Thorax -->
+    <xacro:property name="chest_mass_ratio"   value="0.21600" /> 
+    <!-- Abdomen -->
+    <xacro:property name="belly_mass_ratio"   value="0.13900" /> 
+    
+    <!-- Pelvis -->
+    <xacro:property name="pelvis_mass_ratio"  value="0.14200" /> 
+    <!-- Thigh -->
+    <xacro:property name="leg_mass_ratio"     value="0.10000" /> 
+    <!-- Leg -->
+    <xacro:property name="shin_mass_ratio"    value="0.04650" /> 
+    <!-- Foot w/o sole & toes -->
+    <xacro:property name="foot_mass_ratio"    value="0.00725" /> 
+    <!-- Sole -->
+    <xacro:property name="sole_mass_ratio"    value="0.00483" /> 
+    <!-- Toes -->
+    <xacro:property name="toes_mass_ratio"    value="0.00242" /> 
+    
+    <!-- Upper Arm -->
+    <xacro:property name="arm_mass_ratio"     value="0.02800" /> 
+    <!-- Forearm -->
+    <xacro:property name="forearm_mass_ratio" value="0.01600" /> 
+    <!-- Hand -->
+    <xacro:property name="hand_mass_ratio"    value="0.00600" /> 
+
+    <!-- Neck -->
+    <xacro:property name="neck_mass_ratio"    value="0.02209" /> 
+    <!-- Head -->
+    <xacro:property name="head_mass_ratio"    value="0.05891" /> 
+
+</robot>

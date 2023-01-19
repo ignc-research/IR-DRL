@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+
+<robot name="qolo" xmlns:xacro="https://www.ros.org/wiki/xacro">
+
+  	<xacro:include filename="macros.xacro"/>
+
+	<link name="qolo_main">
+		<inertial>
+			<origin rpy = "0 0 0" xyz = "-0.160 0 0.184" />
+			<mass value = "50" />
+			<inertia ixx = "22.23722770713"
+					 ixy = "-0.04006835911" 
+					 ixz = "-0.02300035044"
+					 iyy = "17.58011380849" 
+					 iyz = "-0.02387139307" 
+					 izz = "28.82981259528"/>
+		</inertial>
+
+		<xacro:read_stl_file 
+			filename="stl/qolo_main.stl"
+			scale="1" 
+			xyz="${[0, 0, 0]}"  
+			rpy="${[0, 0, 0]}"
+		/>
+	</link>
+
+	<link name="wheel_right">
+		<inertial>
+			<origin rpy = "0 0 0" xyz = "0 0 0" />
+			<mass value = "1.5" />
+			<inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+		</inertial>
+
+		<xacro:read_stl_file 
+			filename="stl/qolo_wheel.stl"
+			scale="1" 
+			xyz="${[0, 0, 0]}"  
+			rpy="${[pi/2, 0, 0]}"
+		/>
+  	</link>
+
+  	<xacro:joint_macro 
+		parent="qolo_main" 
+		child="wheel_right" 
+		type="continuous"
+		conn_origin="${[0, 0.20, 0]}"
+		conn_axis="${0, 1, 0}"
+	/>
+
+  	<link name="wheel_left">
+		<inertial>
+			<origin rpy = "0 0 0" xyz = "0 0 0" />
+			<mass value = "1.5" />
+			<inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+		</inertial>
+
+		<xacro:read_stl_file 
+			filename="stl/qolo_wheel.stl"
+			scale="1" 
+			xyz="${[0, 0, 0]}"  
+			rpy="${[-pi/2, 0, 0]}"
+		/>
+  	</link>
+
+  	<xacro:joint_macro 
+		parent="qolo_main" 
+		child="wheel_left" 
+		type="continuous"
+		conn_origin="${[0, -0.20, 0]}"
+		conn_axis="${0, 1, 0}"
+	/>
+
+  	<link name="bumper">
+		<inertial>
+			<origin rpy = "0 0 0" xyz = "0 0 0" />
+			<mass value = "1.5" />
+			<inertia ixx = "0.02155077848" 
+				 ixy = "0.00000859993"
+				 ixz = "0.00000332812"
+				 iyy = "0.03332543416"
+				 iyz = "0.00575422413"
+				 izz = "0.04216038950" />
+		</inertial>
+
+		<xacro:read_stl_file 
+			filename="stl/bumper.stl"
+			scale="1" 
+			xyz="${[0, 0, 0]}"  
+			rpy="${[0, 0, pi/2]}"
+		/>
+  	</link>
+
+  	<xacro:joint_macro 
+		parent="qolo_main" 
+		child="bumper" 
+		type="fixed"
+		conn_origin="${[0.035, 0, 0.015]}"
+	/>
+
+  	<link name="rider">
+		<inertial>
+			<origin rpy = "0 0 0" xyz = "0 0 0" />
+			<mass value = "72" />
+			<inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+		</inertial>
+
+		<xacro:read_stl_file 
+			filename="stl/rider.stl"
+			scale="1" 
+			xyz="${[0, 0, 0]}"  
+			rpy="${[0, 0, 0]}"
+		/>
+  	</link>
+
+  	<xacro:joint_macro 
+		parent="qolo_main" 
+		child="rider" 
+		type="fixed"
+		conn_origin="${[0, 0, 0]}"
+	/>
+
+</robot>

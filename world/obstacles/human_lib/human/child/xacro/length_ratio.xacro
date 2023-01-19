@@ -1,0 +1,127 @@
+<?xml version="1.0"?>
+
+<robot name="length_ratio" xmlns:xacro="https://www.ros.org/wiki/xacro">
+
+    <xacro:property name="leg_ratio" value="0.2370" /> 
+    <xacro:property name="shin_ratio" value="0.2185" />
+    <xacro:property name="torso_ratio" value="0.2735" />
+    <xacro:property name="head_neck_ratio" value="0.2363" />
+
+    <!-- Torso = Chest + Belly + Pelvis -->
+    <xacro:property name="chest_arm_ratio" value="${0.188/0.31 * torso_ratio}" />
+    <xacro:property name="chest_ratio"     value="${0.21/0.31 * torso_ratio}" />
+    <xacro:property name="belly_ratio"     value="${0.06/0.31 * torso_ratio}" />
+    <xacro:property name="pelvis_ratio"    value="${0.04/0.31 * torso_ratio}" />
+    
+    <xacro:property name="chest_width_ratio"  value="${chest_ratio * 0.11/0.21}" />
+    <xacro:property name="pelvis_width_ratio" value="${pelvis_ratio * 0.052/0.04}" />
+
+    <!-- Head + Neck -->
+    <xacro:property name="neck_ratio" value="${0.03/0.31 * torso_ratio}" />
+    <xacro:property name="head_ratio" value="${head_neck_ratio - neck_ratio}" />
+    
+    <!-- Arm -->
+    <xacro:property name="arm_ratio"     value="${0.188/0.31 * torso_ratio}" />
+    <xacro:property name="forearm_ratio" value="${0.145/0.31 * torso_ratio}" />
+    <xacro:property name="hand_ratio"    value="${0.108/0.31 * torso_ratio}" />
+
+    <!-- Foot -->
+    <xacro:property name="foot_ratio"       value="${shin_ratio * 0.039/0.246}" />
+    <xacro:property name="foot_width_ratio" value="${shin_ratio * 0.020/0.246}" />
+
+    <xacro:property name="sole_ratio" value="${foot_ratio * 0.048/0.039}" />
+    <xacro:property name="toe_ratio"  value="${sole_ratio / 2}" />
+
+    <!-- ============================================================================== -->
+    <!--    Child local proportions                                                     -->
+    <!-- ============================================================================== -->
+    <xacro:property name="local_neck" value="${[3.0711/2.7581, 1, 3.0711/2.8724]}" />
+    <xacro:property name="local_head" value="${[1, 1, 1]}" />
+
+    <!-- ============================================================================== -->
+    <!-- ========================= DO NOT CHANGE AFTER THIS LINE ====================== -->
+    <!-- ============================================================================== -->
+    <!-- * Scales stl files for desired ratios                                          -->
+    <!-- * Scales connection points for desired ratios                                  -->
+    <!--  -->
+    <!-- ============================================================================== -->
+    <!--    Scale stl files                                                             -->
+    <!-- ============================================================================== -->
+    <xacro:property name="stl_scale_chest"  value="${(chest_ratio * height)  / (1.75 * 0.21)}" />
+    <xacro:property name="stl_scale_belly"  value="${(belly_ratio * height)  / (1.75 * 0.06)}" />
+    <xacro:property name="stl_scale_pelvis" value="${(pelvis_ratio * height) / (1.75 * 0.04)}" />
+
+    <xacro:property name="stl_scale_neck" value="${(neck_ratio * height) / (1.75 * 0.03)}" />
+    <xacro:property name="stl_scale_head" value="${(head_ratio * height) / (1.75 * 0.13)}" />
+    
+    <xacro:property name="stl_scale_arm"     value="${(arm_ratio * height) / (1.75 * 0.188)}" />
+    <xacro:property name="stl_scale_forearm" value="${(forearm_ratio * height) / (1.75 * 0.145)}" />
+    <xacro:property name="stl_scale_hand"    value="${(hand_ratio * height) / (1.75 * 0.108)}" />
+
+    <xacro:property name="stl_scale_leg"  value="${(leg_ratio  * height) / (1.75 * 0.245)}" />
+    <xacro:property name="stl_scale_shin" value="${(shin_ratio * height) / (1.75 * 0.246)}" />
+    <xacro:property name="stl_scale_foot" value="${(foot_ratio * height) / (1.75 * 0.039)}" />
+
+    <xacro:property name="stl_scale_sole" value="${(sole_ratio * height) / (1.75 * 0.048)}" />
+    <xacro:property name="stl_scale_toes" value="${(toe_ratio  * height) / (1.75 * 0.024)}" />
+
+    <!-- ============================================================================== -->
+    <!--    Scale connection points (as [x, y, z])                                      -->
+    <!-- ============================================================================== -->
+    <!-- Torso -->
+    <xacro:property name="conn_chest_belly" 
+                    value="${[0, 0, 0]}" />
+    
+    <xacro:property name="conn_belly_pelvis" 
+                    value="${[0, -belly_ratio * height, 0]}" />
+
+    <!-- Leg -->
+    <xacro:property name="conn_pelvis_right_leg" 
+                    value="${[-pelvis_width_ratio * height,
+                              -pelvis_ratio * height, 
+                               0]}" />
+    
+    <xacro:property name="conn_pelvis_left_leg" 
+                    value="${[ pelvis_width_ratio * height,
+                              -pelvis_ratio * height, 
+                               0]}" />
+    
+    <xacro:property name="conn_leg_shin" 
+                    value="${[0, -leg_ratio * height, 0]}" />
+
+    <xacro:property name="conn_shin_foot" 
+                    value="${[0, -shin_ratio * height, 0]}" />
+
+    <xacro:property name="conn_foot_sole" 
+                    value="${[ 0, 
+                              -foot_ratio * height, 
+                               foot_width_ratio * height]}" />
+
+    <xacro:property name="conn_sole_toes" 
+                    value="${[0, 0, sole_ratio * height]}" />
+
+    <!-- Arm -->
+    <xacro:property name="conn_chest_right_arm" 
+                    value="${[-chest_width_ratio * height, 
+                               chest_arm_ratio * height,
+                               0]}" />
+
+    <xacro:property name="conn_chest_left_arm" 
+                    value="${[ chest_width_ratio * height, 
+                               chest_arm_ratio * height,
+                               0]}" />
+
+    <xacro:property name="conn_arm_forearm" 
+                    value="${[0, -arm_ratio * height, 0]}" />
+
+    <xacro:property name="conn_forearm_hand" 
+                    value="${[0, -forearm_ratio * height, 0]}" />
+
+    <!-- Head -->
+    <xacro:property name="conn_chest_neck" 
+                    value="${[0, chest_ratio * height, 0]}" />
+
+    <xacro:property name="conn_neck_head" 
+                    value="${[0, neck_ratio * height, 0]}" />
+
+</robot>

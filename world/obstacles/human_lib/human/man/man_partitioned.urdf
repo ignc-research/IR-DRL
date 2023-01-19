@@ -1,0 +1,607 @@
+<?xml version="1.0"?>
+
+<!-- This implements the reference model from
+https://mmm.humanoids.kit.edu/referencemodel.html
+with a height of H = 1.75. This model is based on the one from
+"Biomechanics and motor control of human movement", David A. Winter
+
+The segment mass data (only mass) is calculated using the table 4.1 from this book for
+a total body mass of 68 kg.
+
+This model's additional details (feet), which are implemented here, are given in
+Terlemez, Ö., Ulbrich, S., Mandery, C., Do, M., Vahrenkamp, N., & Asfour, T. (2014, November). Master Motor Map (MMM)—Framework and toolkit for capturing, representing, and reproducing human motion on humanoid robots. In 2014 IEEE-RAS International Conference on Humanoid Robots (pp. 894-901). IEEE.
+
+IMPORTANT NOTE: THE INERTIAL PROPERTIES ARE NOT CORRECT (PARTICULARLY THE ORIGINS)
+-->
+
+<robot name="human adult">
+
+  <link name="chest">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.18375 0" />
+      <mass value = "7.344" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/chest_front.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+<!-- 
+	downwards from the chest 
+	************************
+-->
+
+  <link name="belly">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.0525 0" />
+      <mass value = "4.726" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/belly_front.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="chest_to_belly" type="spherical">
+    <parent link="chest"/>
+    <child link="belly"/>
+    <origin xyz="0 0 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="pelvis">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.035 0" />
+      <mass value = "4.828" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/pelvis_front.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="belly_to_pelvis" type="spherical">
+    <parent link="belly"/>
+    <child link="pelvis"/>
+    <origin xyz="0 -0.105 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_leg">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.214375 0" />
+      <mass value = "6.8" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/leg_right.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="pelvis_to_right_leg" type="spherical">
+    <parent link="pelvis"/>
+    <child link="right_leg"/>
+    <origin xyz="-0.091 -0.07 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_leg">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.214375 0" />
+      <mass value = "6.8" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/leg_left.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="pelvis_to_left_leg" type="spherical">
+    <parent link="pelvis"/>
+    <child link="left_leg"/>
+    <origin xyz="0.091 -0.07 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_shin">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.21525 0" />
+      <mass value = "3.162" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/shin_right.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="right_leg_to_right_shin" type="continuous">
+    <parent link="right_leg"/>
+    <child link="right_shin"/>
+    <axis xyz="1 0 0"/>
+    <origin xyz="0 -0.42875 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_shin">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.21525 0" />
+      <mass value = "3.162" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/shin_left.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="left_leg_to_left_shin" type="continuous">
+    <parent link="left_leg"/>
+    <child link="left_shin"/>
+    <axis xyz="1 0 0"/>
+    <origin xyz="0 -0.42875 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_foot">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.034125 0" />
+      <mass value = "0.493" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/foot_right.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="right_shin_to_right_foot" type="spherical">
+    <parent link="right_shin"/>
+    <child link="right_foot"/>
+    <origin xyz="0 -0.4305 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_foot">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.034125 0" />
+      <mass value = "0.493" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/foot_left.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="left_shin_to_left_foot" type="spherical">
+    <parent link="left_shin"/>
+    <child link="left_foot"/>
+    <origin xyz="0 -0.4305 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+<!-- 
+	upwards from the chest 
+	**********************
+-->
+
+  <link name="right_arm">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.1645 0" />
+      <mass value = "1.904" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/arm_right.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="chest_to_right_arm" type="spherical">
+    <parent link="chest"/>
+    <child link="right_arm"/>
+    <origin xyz="-0.1925 0.329 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_arm">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.1645 0" />
+      <mass value = "1.904" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/arm_left.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="chest_to_left_arm" type="spherical">
+    <parent link="chest"/>
+    <child link="left_arm"/>
+    <origin xyz="0.1925 0.329 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_forearm">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.126875 0" />
+      <mass value = "1.088" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/arm_lower_right.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="right_arm_to_right_forearm" type="continuous">
+    <parent link="right_arm"/>
+    <child link="right_forearm"/>
+    <axis xyz="1 0 0"/>
+    <origin xyz="0 -0.329 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_forearm">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.126875 0" />
+      <mass value = "1.088" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/arm_lower_left.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="left_arm_to_left_forearm" type="continuous">
+    <parent link="left_arm"/>
+    <child link="left_forearm"/>
+    <axis xyz="1 0 0"/>
+    <origin xyz="0 -0.329 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_hand">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.0945 0" />
+      <mass value = "0.408" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/hand_right.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="right_forearm_to_right_hand" type="spherical">
+    <parent link="right_forearm"/>
+    <child link="right_hand"/>
+    <origin xyz="0 -0.25375 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_hand">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 -0.0945 0" />
+      <mass value = "0.408" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/hand_left.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="left_forearm_to_left_hand" type="spherical">
+    <parent link="left_forearm"/>
+    <child link="left_hand"/>
+    <origin xyz="0 -0.25375 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="neck">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.02625 0" />
+      <mass value = "0.75109" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/neck_front.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="chest_to_neck" type="spherical">
+    <parent link="chest"/>
+    <child link="neck"/>
+    <origin xyz="0 0.3675 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="head">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.11375 0" />
+      <mass value = "1.3352726666666666" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/head_front.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="neck_to_head" type="spherical">
+    <parent link="neck"/>
+    <child link="head"/>
+    <origin xyz="0 0.0525 0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+<!--
+    Feet
+    ****
+-->
+
+  <link name="right_sole">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0.042" />
+      <mass value = "0.32867" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "5.0001" iyz = "0" izz = "1.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/sole_right.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="right_foot_to_right_sole" type="continuous">
+    <parent link="right_foot"/>
+    <child link="right_sole"/>
+    <axis xyz="0 1 0"/>
+    <origin xyz="0 -0.06825 0.035"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_sole">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0.042" />
+      <mass value = "0.32867" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "5.0001" iyz = "0" izz = "1.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/sole_left.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="left_foot_to_left_sole" type="continuous">
+    <parent link="left_foot"/>
+    <child link="left_sole"/>
+    <axis xyz="0 1 0"/>
+    <origin xyz="0 -0.06825 0.035"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="right_toes">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0.02975" />
+      <mass value = "0.1643" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "5.0001" iyz = "0" izz = "1.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/toes_right.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="right_sole_to_right_toes" type="continuous">
+    <parent link="right_sole"/>
+    <child link="right_toes"/>
+    <axis xyz="1 0 0"/>
+    <origin xyz="0 0 0.084"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+  <link name="left_toes">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0 0.02975" />
+      <mass value = "0.1643" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "5.0001" iyz = "0" izz = "1.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/toes_left.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="left_sole_to_left_toes" type="continuous">
+    <parent link="left_sole"/>
+    <child link="left_toes"/>
+    <axis xyz="1 0 0"/>
+    <origin xyz="0 0 0.084"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+
+<!--
+    Fixed links for body shapes
+    ***************************
+-->
+
+  <link name="chest_back">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.18375 0" />
+      <mass value = "7.344" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+
+    <collision>
+      <geometry>
+        <mesh filename="stl/chest_back.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="chest_to_chest_back" type="fixed">
+    <parent link="chest"/>
+    <child link="chest_back"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+  <link name="belly_back">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.18375 0" />
+      <mass value = "4.726" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+
+    <collision>
+      <geometry>
+        <mesh filename="stl/belly_back.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="belly_to_belly_back" type="fixed">
+    <parent link="belly"/>
+    <child link="belly_back"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+  <link name="pelvis_back">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.18375 0" />
+      <mass value = "4.828" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/pelvis_back.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="pelvis_to_pelvis_back" type="fixed">
+    <parent link="pelvis"/>
+    <child link="pelvis_back"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+  <link name="neck_back">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.18375 0" />
+      <mass value = "0.75109" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+
+    <collision>
+      <geometry>
+        <mesh filename="stl/neck_back.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="neck_to_neck_back" type="fixed">
+    <parent link="neck"/>
+    <child link="neck_back"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+  <link name="head_back">
+    <inertial>
+      <origin rpy = "0 0 0" xyz = "0 0.18375 0" />
+      <mass value = "2.670545333333333" />
+      <inertia ixx = "5.0001" ixy = "0" ixz = "0" iyy = "1.0001" iyz = "0" izz = "5.0001" />
+    </inertial>
+    
+    <collision>
+      <geometry>
+        <mesh filename="stl/head_back.stl" scale="1 1 1"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="head_to_head_back" type="fixed">
+    <parent link="head"/>
+    <child link="head_back"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+</robot>
