@@ -1,7 +1,9 @@
-from .robot_implementations import *
-from .robot import Robot
+# import the individual implementations
+from .kr16 import KR16
+from .ur5 import UR5
+from robot.robot import Robot
 
-
+# define the registry
 class RobotRegistry:
     _robot_classes = {}
 
@@ -19,6 +21,6 @@ class RobotRegistry:
             return wrapped_class
         return inner_wrapper
 
-
+# register the available classes
 RobotRegistry.register('UR5')(UR5)
 RobotRegistry.register('KR16')(KR16)
