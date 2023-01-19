@@ -4,6 +4,7 @@ This repo implements a modular Gym env in which all relevant components, i.e. ro
 
 ## Dependencies
 
+- Python 3.10
 - numpy
 - stable_baselines3
 - pytorch

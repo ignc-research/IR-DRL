@@ -29,6 +29,8 @@ class MoreLoggingCustomCallback(BaseCallback):
         for name in goal_names:
             metrics_dict[name] = [[], False, False]  # values, bool for changing, bool for direction of change
         for metric in goal_metrics_total:
+            if metric[0] == "":  # skip non-metrics
+                continue
             metrics_dict[metric[0]][0].append(metric[1])  # actual values
             # technically the next two lines only need to be run once a metric name appears for the first time, but whatever
             metrics_dict[metric[0]][1] = metric[2]  # wether we're allowed to write back

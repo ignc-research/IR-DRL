@@ -16,8 +16,7 @@ from world.testcases import TestcasesWorld
 #   robots
 from robot import RobotRegistry
 #   sensors
-from sensor.joints_sensor import JointsSensor
-from sensor.position_and_rotation_sensor import PositionRotationSensor
+from sensor.positional import PositionalRegistry
 from sensor.lidar import LidarRegistry
 from sensor.camera import CameraRegistry
 #   goals
@@ -119,8 +118,8 @@ class ModularDRLEnv(gym.Env):
         # at this point we would generate all the sensors prescribed by the config for each robot and assign them to the robots
         # however, for now we simply generate the two necessary ones manually
         self.sensors = []
-        ur5_1_position_sensor = PositionRotationSensor(self.normalize_observations, True, True, self.sim_step, ur5_1, 7)
-        ur5_1_joint_sensor = JointsSensor(self.normalize_observations, True, True, self.sim_step, ur5_1)
+        ur5_1_position_sensor = PositionalRegistry.get("PositionRotation")(self.normalize_observations, True, True, self.sim_step, ur5_1, 7)
+        ur5_1_joint_sensor = PositionalRegistry.get("Joints")(self.normalize_observations, True, True, self.sim_step, ur5_1)
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 

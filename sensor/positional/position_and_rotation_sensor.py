@@ -5,6 +5,10 @@ from sensor.sensor import Sensor
 from robot.robot import Robot
 from time import time
 
+__all__ = [
+        'PositionRotationSensor'
+    ]
+
 class PositionRotationSensor(Sensor):
 
     def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, robot: Robot, link_id: int, quaternion: bool=True):
