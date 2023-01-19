@@ -20,6 +20,7 @@ from robot.kr16 import KR16
 from sensor.joints_sensor import JointsSensor
 from sensor.position_and_rotation_sensor import PositionRotationSensor
 from sensor.lidar import LidarSensorUR5
+from sensor.camera import CameraRegistry
 #   goals
 from goal.position_collision import PositionCollisionGoal
 
@@ -137,7 +138,13 @@ class ModularDRLEnv(gym.Env):
                                             render=False,
                                             indicator=True)
 
-        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor]
+        
+        ur5_1_camera_sensor = CameraRegistry.get('UR5_Bodycam')(
+                                            ur5_1, debug={'lines' : True},
+                                            camera_args={'fov' : 120},
+                                            )
+
+        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor, ur5_1_camera_sensor]
 
 
         # at this point we would generate all the goals needed and assign them to their respective robots
