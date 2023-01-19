@@ -22,3 +22,4 @@ class WorldRegistry:
 
 WorldRegistry.register('RandomObstacle')(RandomObstacleWorld)
 WorldRegistry.register('Testcases')(TestcasesWorld)
+WorldRegistry.register('TableExperiment')(TableExperiment)

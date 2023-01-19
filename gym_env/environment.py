@@ -2,6 +2,7 @@ import gym
 import numpy as np
 import pybullet as pyb
 from time import time
+import pandas as pd
 
 # import abstracts
 from robot.robot import Robot
@@ -42,6 +43,7 @@ class ModularDRLEnv(gym.Env):
         self.sim_step = 1 / 240  # in seconds -> 240 Hz
 
         # tracking variables
+        self.episodes = 0
         self.steps_current_episode = 0
         self.sim_time = 0
         self.cpu_time = 0
@@ -59,7 +61,6 @@ class ModularDRLEnv(gym.Env):
         dist_threshold_overwrite = env_config["dist_threshold_overwrite"]
 
         # world attributes for yifan env
-        """
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
         robot_base_positions = [np.array([0.0, -0.12, 0.5])]
         robot_base_orientations = [np.array([0, 0, 0, 1])]
@@ -75,6 +76,7 @@ class ModularDRLEnv(gym.Env):
         workspace_boundaries = [-2, 2, -2, 2, 0, 5]
         robot_base_positions = [np.array([0, 0.8, 3.25])]
         robot_base_orientations = [np.array([0, 0, 0, 1])]
+        """
 
         # robot attributes
         self.xyz_vels = [0.005]
@@ -88,7 +90,7 @@ class ModularDRLEnv(gym.Env):
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
         
-        """
+        
         self.world = WorldRegistry.get("RandomObstacle")(workspace_boundaries=workspace_boundaries,
                                          robot_base_positions=robot_base_positions,
                                          robot_base_orientations=robot_base_orientations,
@@ -116,6 +118,7 @@ class ModularDRLEnv(gym.Env):
                                          #human_trajectories=[[]],
                                          ee_start_overwrite=[np.array([0.6, 0.6, 1.55189431])],
                                          target_overwrite=[np.array([0,0,0])])
+        """
         
         #self.world = TestcasesWorld(test_mode=2)
 
@@ -229,6 +232,7 @@ class ModularDRLEnv(gym.Env):
         self.cpu_epoch = time()
         self.reward = 0
         self.reward_cumulative = 0
+        self.episodes += 1
 
         # build the world and robots
         # this is put into a loop that will only break if the generation process results in a collision free setup
@@ -409,7 +413,8 @@ class ModularDRLEnv(gym.Env):
             # logging to console or textfile
 
             # start log dict with env wide information
-            info = {"is_success": is_success, 
+            info = {"episodes": self.episodes,
+                    "is_success": is_success, 
                     "step": self.steps_current_episode,
                     "success_rate": np.average(self.success_stat),
                     "out_of_bounds_rate": np.average(self.out_of_bounds_stat),
@@ -440,10 +445,7 @@ class ModularDRLEnv(gym.Env):
                 print(info_string)
                 # write to textfile, in this case the entire log so far
                 if self.logging == 2:
-                    with open("./test.txt", "w") as outfile:
-                        for line in self.log:
-                            info_string = self._get_info_string(line)
-                            outfile.write(info_string+"\n")
+                    pd.DataFrame(self.log).to_csv("./test_csv.csv")
 
         return self._get_obs(), self.reward, done, info
 

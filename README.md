@@ -9,6 +9,7 @@ This repo implements a modular Gym env in which all relevant components, i.e. ro
 - stable_baselines3
 - pytorch
 - pybullet
+- pandas
 - tensorboard
 
 ## State of the code & plans
