@@ -3,6 +3,10 @@ import numpy as np
 import pybullet as pyb
 from random import choice
 
+__all__ = [
+    'TestcasesWorld'
+]
+
 class TestcasesWorld(World):
     """
     Implements the testcases as created by Yifan.

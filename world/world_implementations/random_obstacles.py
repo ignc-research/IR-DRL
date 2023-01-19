@@ -4,6 +4,10 @@ import numpy as np
 import pybullet as pyb
 from random import choice, shuffle
 
+__all__ = [
+    'RandomObstacleWorld'
+]
+
 class RandomObstacleWorld(World):
     """
     This class generates a world with random box and sphere shaped obstacles.
