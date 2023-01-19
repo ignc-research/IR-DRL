@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 import pybullet as pyb
 from gym import spaces
@@ -7,7 +6,6 @@ from sensor.sensor import Sensor
 import copy
 from time import time
 from abc import abstractmethod
-from robot.ur5 import UR5
 from .camera_utils import *
 
 class CameraArgs(TypedDict, total= False):
