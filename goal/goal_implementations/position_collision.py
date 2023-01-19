@@ -4,6 +4,10 @@ from robot.robot import Robot
 from gym.spaces import Box
 import pybullet as pyb
 
+__all__ = [
+    'PositionCollisionGoal'
+]
+
 class PositionCollisionGoal(Goal):
     """
     This class implements a goal of reaching a certain position while avoiding collisions.

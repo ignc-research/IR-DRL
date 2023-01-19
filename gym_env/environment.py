@@ -9,10 +9,9 @@ from sensor.sensor import Sensor
 from goal.goal import Goal
 from world.world import World
 
-# import implementations, new ones hav to be added here
+# import implementations, new ones hav to be added to the registries to work
 #   worlds
-from world.random_obstacles import RandomObstacleWorld
-from world.testcases import TestcasesWorld
+from world import WorldRegistry
 #   robots
 from robot import RobotRegistry
 #   sensors
@@ -20,7 +19,7 @@ from sensor.positional import PositionalRegistry
 from sensor.lidar import LidarRegistry
 from sensor.camera import CameraRegistry
 #   goals
-from goal.position_collision import PositionCollisionGoal
+from goal import GoalRegistry
 
 class ModularDRLEnv(gym.Env):
 
@@ -85,7 +84,7 @@ class ModularDRLEnv(gym.Env):
             pyb.setTimeStep(self.sim_step)
         
         
-        self.world = RandomObstacleWorld(workspace_boundaries=workspace_boundaries,
+        self.world = WorldRegistry.get("RandomObstacle")(workspace_boundaries=workspace_boundaries,
                                          robot_base_positions=robot_base_positions,
                                          robot_base_orientations=robot_base_orientations,
                                          sim_step=self.sim_step,
@@ -151,7 +150,7 @@ class ModularDRLEnv(gym.Env):
         # at this point we would generate all the goals needed and assign them to their respective robots
         # however, for the moment we simply generate the one we want for testing
         self.goals = []
-        ur5_1_goal = PositionCollisionGoal(robot=ur5_1,
+        ur5_1_goal = GoalRegistry.get('PositionCollision')(robot=ur5_1,
                                            normalize_rewards=self.normalize_rewards,
                                            normalize_observations=self.normalize_observations,
                                            train=self.train,

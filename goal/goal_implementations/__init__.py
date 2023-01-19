@@ -1,0 +1,1 @@
+from .position_collision import PositionCollisionGoal
