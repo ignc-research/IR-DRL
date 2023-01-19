@@ -133,9 +133,9 @@ class CameraBase(Sensor):
                 image = (0.2989 * r + 0.5870 * g + 0.1140 * b)*a
                 image = image[None]
             if self.camera_args['type'] in ['rgb']:
-                image = rgba.copy()[:, :, :3]
+                image = rgba[:, :, :3]
             if self.camera_args['type'] == 'rgbd':
-                image = rgba.copy()
+                image = rgba
                 image[:, :, 3] = depth
 
 
