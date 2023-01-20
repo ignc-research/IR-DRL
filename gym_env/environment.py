@@ -88,6 +88,7 @@ class ModularDRLEnv(gym.Env):
         # set up the PyBullet client
         disp = pyb.DIRECT if not self.display else pyb.GUI
         pyb.connect(disp)
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS,0)
         pyb.setAdditionalSearchPath("./assets/")
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
@@ -144,7 +145,7 @@ class ModularDRLEnv(gym.Env):
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
-        ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5')(normalize=self.normalize_observations,
+        ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5_Explainable')(normalize=self.normalize_observations,
                                             add_to_observation_space=True, 
                                             add_to_logging=False,
                                             sim_step=self.sim_step,
@@ -158,12 +159,11 @@ class ModularDRLEnv(gym.Env):
                                             indicator=True)
 
         
-        ur5_1_camera_sensor = CameraRegistry.get('Floating_FollowEffector')(
+        ur5_1_camera_sensor = CameraRegistry.get('OnBody_UR5')(
                                             ur5_1,
-                                            [0,1,1],
                                             camera_args={
                                                 'fov' : 120,
-                                                'type': 'grayscale'},
+                                                'type': 'rgbd'},
                                             )
 
         self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor, ur5_1_camera_sensor]

@@ -128,6 +128,7 @@ class CameraBase(Sensor):
                 viewMatrix= viewMatrix,
                 projectionMatrix= projectionMatrix,
             )
+            rgba, depth = np.array(rgba), np.array(depth) # for compatibility with older python versions
             if self.camera_args['type'] == 'grayscale':
                 r, g, b, a = rgba[:,:,0], rgba[:,:,1], rgba[:,:,2], rgba[:,:,3]/255
                 image = (0.2989 * r + 0.5870 * g + 0.1140 * b)*a
