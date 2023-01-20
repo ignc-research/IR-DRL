@@ -146,7 +146,7 @@ class ModularDRLEnv(gym.Env):
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
-        ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5')(normalize=self.normalize_observations,
+        ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5_Explainable')(normalize=self.normalize_observations,
                                             add_to_observation_space=True, 
                                             add_to_logging=False,
                                             sim_step=self.sim_step,

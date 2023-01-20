@@ -20,3 +20,4 @@ class LidarRegistry:
         return inner_wrapper
 
 LidarRegistry.register('LidarSensorUR5')(LidarSensorUR5)
+LidarRegistry.register('LidarSensorUR5_Explainable')(LidarSensorUR5_Explainable)

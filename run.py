@@ -82,7 +82,7 @@ def find_in_features(seq):
         else:
             return sub.in_features
 
-from explanability.explanation import ExplainPPO
+from explanability import ExplainPPO, VisualizeExplanations
 if __name__ == "__main__":
     if script_parameters["train"]:
         
@@ -119,16 +119,18 @@ if __name__ == "__main__":
         else:
             model = PPO.load(script_parameters["model_path"], env=env)
 
-        explain = ExplainPPO(env, model,)
+        # explainer = ExplainPPO(env, model, extractor_bias= 'camera')
+        # exp_visualizer = VisualizeExplanations(explainer)
+
 
         for i in range(30):
             obs = env.reset()
-            explain.close_open_figs()
-            fig, axs = explain.start_imshow_from_obs(obs,)
+            # exp_visualizer.close_open_figs()
+            # fig, axs = exp_visualizer.start_imshow_from_obs(obs,)
             done = False
             while not done:
                 act = model.predict(obs)[0]
                 obs, reward, done, info = env.step(act)
-                explain.update_imshow_from_obs(obs, fig, axs)
+                # exp_visualizer.update_imshow_from_obs(obs, fig, axs)
 
 
