@@ -40,7 +40,7 @@ class RandomObstacleWorld(World):
         """
         # TODO: add random rotations for the plates
 
-        super().__init__(workspace_boundaries, robot_base_positions, robot_base_orientations, sim_step)
+        super().__init__(workspace_boundaries, sim_step)
 
         self.num_static_obstacles = num_static_obstacles
         self.num_moving_obstacles = num_moving_obstacles
