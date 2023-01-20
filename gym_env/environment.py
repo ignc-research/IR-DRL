@@ -36,7 +36,7 @@ class ModularDRLEnv(gym.Env):
         self.show_auxillary_geometry_world = env_config["display_extra"]
         self.show_auxillary_geometry_goal = env_config["display_extra"]
         self.train = env_config["train"]
-        self.max_steps_per_episode = 1024
+        self.max_steps_per_episode = 256
         self.logging = env_config["logging"]  # 0:no logging, 1:logging for console, 2: logging for console and to csv file after each episode
         self.use_physics_sim = env_config["use_physics_sim"]  # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
         self.stat_buffer_size = 25  # length of the stat arrays in terms of episodes over which the average will be drawn for logging

@@ -12,13 +12,13 @@ from explanability import ExplainPPO, VisualizeExplanations
 # for now all the settings are done by hand here
 
 script_parameters = {
-    "train": False,
+    "train": True,
     "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into txt file at episode end
     "timesteps": 15e6,
     "save_freq": 3e4,
     "save_folder": "./models/weights",
     "save_name": "PPO_floating_fe_0",  # name for the model file, this will get automated later on
-    "num_envs": 16,
+    "num_envs": 48,
     "use_physics_sim": True,  # use actual physics sim or ignore forces and teleport robot to desired poses
     "control_mode": 1,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
     "normalize_observations": False,
