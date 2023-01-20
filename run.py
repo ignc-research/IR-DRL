@@ -6,8 +6,12 @@ from callbacks.callbacks import MoreLoggingCustomCallback
 import torch
 from os.path import isdir
 import numpy as np
-
+import zennit as z
+from zennit.composites import EpsilonGammaBox
+from zennit.canonizers import SequentialMergeBatchNorm
+from zennit.attribution import Gradient
 import argparse
+from typing import Callable
 
 # here the argparser will read in the config file in the future
 # and put the settings into the script_parameters dict
@@ -31,7 +35,7 @@ script_parameters = {
     "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
     "ppo_steps": 1024,  # steps per env until PPO updates
     "batch_size": 512,  # batch size for the ppo updates
-    "load_model": False,  # set to True when loading an existing model 
+    "load_model": True,  # set to True when loading an existing model 
     "model_path": './models_bennoEnv/weights/PPO_bodycam_0_8640000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
@@ -59,8 +63,26 @@ env_config_eval = {
     "display": True,
     "display_extra": True
 }
+    
+        
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.preprocessing import preprocess_obs, is_image_space
+from zennit.rules import Epsilon, Gamma
 
 
+#pos goal : 4, joints : 6 , pos and rot : 4, lidar : 25, camera : 256
+
+        
+        
+
+def find_in_features(seq):
+    for sub in seq:
+        if type(sub) is torch.nn.Sequential:
+            return find_in_features(sub)
+        else:
+            return sub.in_features
+
+from explanability.explanation import ExplainPPO
 if __name__ == "__main__":
     if script_parameters["train"]:
         
@@ -97,9 +119,16 @@ if __name__ == "__main__":
         else:
             model = PPO.load(script_parameters["model_path"], env=env)
 
+        explain = ExplainPPO(env, model,)
+
         for i in range(30):
             obs = env.reset()
+            explain.close_open_figs()
+            fig, axs = explain.start_imshow_from_obs(obs,)
             done = False
             while not done:
                 act = model.predict(obs)[0]
                 obs, reward, done, info = env.step(act)
+                explain.update_imshow_from_obs(obs, fig, axs)
+
+

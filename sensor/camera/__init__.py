@@ -1,6 +1,7 @@
 from .camera import CameraBase
 from .camera_implementations.static_cameras import *
 from .camera_implementations.on_robot_cameras import *
+from .camera_implementations.buddy_robot_cameras import *
 
 
 class CameraRegistry:
@@ -24,4 +25,5 @@ class CameraRegistry:
 CameraRegistry.register('OnBody_UR5')(OnBodyCameraUR5)
 CameraRegistry.register('Floating_General')(StaticFloatingCamera)
 CameraRegistry.register('Floating_FollowEffector')(StaticFloatingCameraFollowEffector)
+CameraRegistry.register('BuddyRobotCamera')(BuddyRobotCamera)
 
