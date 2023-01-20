@@ -88,6 +88,7 @@ class ModularDRLEnv(gym.Env):
         # set up the PyBullet client
         disp = pyb.DIRECT if not self.display else pyb.GUI
         pyb.connect(disp)
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS,0)
         pyb.setAdditionalSearchPath("./assets/")
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)

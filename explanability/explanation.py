@@ -21,6 +21,7 @@ class ExplainPPO:
 
     def __init__(self, env, model, current_extractor_name = None, composite = None, normalize_images = False, extractor_bias= 'camera'):
         self.policy = model.policy
+        self.env = env
         self.obs_space = env.observation_space
         self.normalize_images = normalize_images
         self.extractors = self.policy.features_extractor.extractors

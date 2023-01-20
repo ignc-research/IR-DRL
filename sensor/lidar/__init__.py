@@ -1,6 +1,5 @@
 from .lidar import LidarSensor
 from .lidar_implementations import *
-from .lidar_real import LidarSensorUR5Real
 
 class LidarRegistry:
     _lidar_classes = {}
