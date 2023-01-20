@@ -119,14 +119,14 @@ if __name__ == "__main__":
         else:
             model = PPO.load(script_parameters["model_path"], env=env)
 
-        explainer = ExplainPPO(env, model, extractor_bias= 'lidar')
-        exp_visualizer = VisualizeExplanations(explainer)
+        explainer = ExplainPPO(env, model, extractor_bias= 'camera')
+        exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')
 
 
         for i in range(30):
             obs = env.reset()
             exp_visualizer.close_open_figs()
-            fig, axs = exp_visualizer.start_imshow_from_obs(obs,)
+            fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action')
             done = False
             while not done:
                 act = model.predict(obs)[0]

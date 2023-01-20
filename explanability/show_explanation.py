@@ -90,13 +90,13 @@ class VisualizeExplanations:
             plt.ion()
             new_figs = self._start_imshow_rgbd(data,)
             self.open_figs.append(new_figs)
+            return self.open_figs[-1]
         if self.type_of_data == 'lidar':
             sensor_name = 'lidar' if sensor_name is None else sensor_name
             for sensor in self.explainer.env.sensors:
                 if isinstance(sensor, LidarSensor) and sensor_name in sensor.output_name:
                     return self._start_imshow_lidar(sensor, data)
         
-        return self.open_figs[-1]
 
     def update_imshow(self, data, fig = None, axs = None,):
         if self.type_of_data == 'rgbd':
@@ -105,13 +105,14 @@ class VisualizeExplanations:
             self._update_imshow_lidar(data)
 
 
-    def start_imshow_from_obs(self, obs, extractor_name = None):
-        data = self.explainer.explain_extractor(obs, extractor_name)
+    def start_imshow_from_obs(self, obs, value_or_action = 'value', extractor_name = None, **kwargs):
+        self.value_or_action = value_or_action
+        data = self.explainer.explain_extractor(obs, extractor_name, value_or_action=value_or_action, **kwargs)
         self.type_of_data = self.type_of_data if extractor_name is None else extractor_name.split('_')[0]
         return self.start_imshow(data,)
 
-    def update_imshow_from_obs(self, obs, fig = None, axs = None):
-        data = self.explainer.explain_extractor(obs,)
+    def update_imshow_from_obs(self, obs, fig = None, axs = None, **kwargs):
+        data = self.explainer.explain_extractor(obs, value_or_action= self.value_or_action, **kwargs)
         return self.update_imshow(data, fig, axs)
 
     def close_open_figs(self):
