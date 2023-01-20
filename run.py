@@ -4,14 +4,8 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from callbacks.callbacks import MoreLoggingCustomCallback
 import torch
-from os.path import isdir
-import numpy as np
-import zennit as z
-from zennit.composites import EpsilonGammaBox
-from zennit.canonizers import SequentialMergeBatchNorm
-from zennit.attribution import Gradient
-import argparse
-from typing import Callable
+from explanability import ExplainPPO, VisualizeExplanations
+
 
 # here the argparser will read in the config file in the future
 # and put the settings into the script_parameters dict
@@ -23,19 +17,19 @@ script_parameters = {
     "timesteps": 15e6,
     "save_freq": 3e4,
     "save_folder": "./models/weights",
-    "save_name": "PPO_bodycam_0",  # name for the model file, this will get automated later on
+    "save_name": "PPO_floating_fe_0",  # name for the model file, this will get automated later on
     "num_envs": 16,
     "use_physics_sim": True,  # use actual physics sim or ignore forces and teleport robot to desired poses
-    "control_mode": 2,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
+    "control_mode": 1,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
     "normalize_observations": False,
     "normalize_rewards": False,
-    "gamma": 0.99,
+    "gamma": 0.9918,
     "dist_threshold_overwrite": None,  # use this when continuing training to set the distance threhsold to the value that your agent had already reached
     "tensorboard_folder": "./models/tensorboard_logs/",
     "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
-    "ppo_steps": 1024,  # steps per env until PPO updates
+    "ppo_steps": 256,  # steps per env until PPO updates
     "batch_size": 512,  # batch size for the ppo updates
-    "load_model": True,  # set to True when loading an existing model 
+    "load_model": False,  # set to True when loading an existing model 
     "model_path": './models_bennoEnv/weights/PPO_bodycam_0_8640000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
@@ -63,26 +57,10 @@ env_config_eval = {
     "display": True,
     "display_extra": True
 }
-    
-        
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-from stable_baselines3.common.preprocessing import preprocess_obs, is_image_space
-from zennit.rules import Epsilon, Gamma
 
 
-#pos goal : 4, joints : 6 , pos and rot : 4, lidar : 25, camera : 256
 
-        
-        
 
-def find_in_features(seq):
-    for sub in seq:
-        if type(sub) is torch.nn.Sequential:
-            return find_in_features(sub)
-        else:
-            return sub.in_features
-
-from explanability import ExplainPPO, VisualizeExplanations
 if __name__ == "__main__":
     if script_parameters["train"]:
         
@@ -104,7 +82,6 @@ if __name__ == "__main__":
         # create or load model
         if not script_parameters["load_model"]:
             model = PPO("MultiInputPolicy", envs, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"], batch_size=script_parameters["batch_size"])
-            print(model.policy)
         else:
             model = PPO.load(script_parameters["model_path"], env=envs, tensorboard_log=script_parameters["tensorboard_folder"])
             # needs to be set on my pc when loading a model, dont know why, might not be needed on yours
@@ -116,6 +93,7 @@ if __name__ == "__main__":
         env = ModularDRLEnv(env_config_eval)
         if not script_parameters["load_model"]:
             model = PPO("MultiInputPolicy", env, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"])
+            print('new model')
         else:
             model = PPO.load(script_parameters["model_path"], env=env)
 
@@ -126,11 +104,11 @@ if __name__ == "__main__":
         for i in range(30):
             obs = env.reset()
             exp_visualizer.close_open_figs()
-            fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action')
+            fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action', grad_outputs=torch.eye(6)[[0]])
             done = False
             while not done:
                 act = model.predict(obs)[0]
                 obs, reward, done, info = env.step(act)
-                exp_visualizer.update_imshow_from_obs(obs, fig, axs)
+                exp_visualizer.update_imshow_from_obs(obs, fig, axs, grad_outputs=torch.eye(6)[[0]])
 
 

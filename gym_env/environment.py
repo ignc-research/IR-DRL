@@ -145,28 +145,31 @@ class ModularDRLEnv(gym.Env):
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
-        ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5_Explainable')(normalize=self.normalize_observations,
-                                            add_to_observation_space=True, 
-                                            add_to_logging=False,
-                                            sim_step=self.sim_step,
-                                            robot=ur5_1, 
-                                            indicator_buckets=9,
-                                            ray_start=0,
-                                            ray_end=0.3,
-                                            num_rays_side=10,
-                                            num_rays_circle_directions=6,
-                                            render=False,
-                                            indicator=True)
+        # ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5_Explainable')(normalize=self.normalize_observations,
+        #                                     add_to_observation_space=True, 
+        #                                     add_to_logging=False,
+        #                                     sim_step=self.sim_step,
+        #                                     robot=ur5_1, 
+        #                                     indicator_buckets=9,
+        #                                     ray_start=0,
+        #                                     ray_end=0.3,
+        #                                     num_rays_side=10,
+        #                                     num_rays_circle_directions=6,
+        #                                     render=False,
+        #                                     indicator=True)
 
         
-        ur5_1_camera_sensor = CameraRegistry.get('OnBody_UR5')(
-                                            ur5_1,
-                                            camera_args={
-                                                'fov' : 120,
-                                                'type': 'rgbd'},
-                                            )
+        ur5_1_camera_sensor = CameraRegistry.get('Floating_FollowEffector')(
+                                                    ur5_1,
+                                                    [0, 1, 0.5],
+                                                    camera_args={
+                                                        'fov' : 80,
+                                                        'type': 'rgbd',
+                                                        'height' : 64,
+                                                        'width' : 128},
+                                                    )
 
-        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor, ur5_1_camera_sensor]
+        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_camera_sensor]
 
 
         # at this point we would generate all the goals needed and assign them to their respective robots

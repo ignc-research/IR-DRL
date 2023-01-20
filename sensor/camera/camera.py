@@ -176,7 +176,7 @@ class CameraBase(Sensor):
         }
         low = 0
         high = 1 if self.normalize else 255
-        return {self.output_name : spaces.Box(low=low, high= high, shape=(128,128,nr_channels[self.camera_args['type']],), dtype=np.uint8),}
+        return {self.output_name : spaces.Box(low=low, high= high, shape=(self.camera_args['height'],self.camera_args['width'],nr_channels[self.camera_args['type']],), dtype=np.uint8),}
         
 
     def get_observation(self):
