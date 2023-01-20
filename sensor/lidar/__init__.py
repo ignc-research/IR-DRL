@@ -1,6 +1,6 @@
 from .lidar import LidarSensor
 from .lidar_implementations import *
-
+from .lidar_real import LidarSensorUR5Real
 
 class LidarRegistry:
     _lidar_classes = {}
@@ -20,3 +20,4 @@ class LidarRegistry:
         return inner_wrapper
 
 LidarRegistry.register('LidarSensorUR5')(LidarSensorUR5)
+LidarRegistry.register('LidarSensorUR5Real')(LidarSensorUR5Real)
