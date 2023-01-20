@@ -31,3 +31,30 @@ class UR5(Robot):
         self.joints_vel_delta = np.array([j[11] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
 
         self.moveto_joints(self.resting_pose_angles, False)     
+
+
+    def _solve_ik(self, xyz: np.ndarray, quat:Union[np.ndarray, None]):
+        """
+        Solves the UR5's inverse kinematics for the desired pose.
+        Returns the joint angles required.
+        This specific implementation for the UR5 projects the frequent out of bounds
+        solutions back into the allowed joint range by exploiting the
+        periodicity of the 2 pi range.
+
+        :param xyz: Vector containing the desired xyz position of the end effector.
+        :param quat: Vector containing the desired rotation of the end effector.
+        :return: Vector containing the joint angles required to reach the pose.
+        """
+        joints = pyb.calculateInverseKinematics(
+            bodyUniqueId=self.object_id,
+            endEffectorLinkIndex=self.end_effector_link_id,
+            targetPosition=xyz.tolist(),
+            targetOrientation=quat.tolist() if quat is not None else None,
+            lowerLimits=self.joints_limits_lower.tolist(),
+            upperLimits=self.joints_limits_upper.tolist(),
+            jointRanges=self.joints_range.tolist(),
+            maxNumIterations=100,
+            residualThreshold=.01)
+        joints = np.float32(joints)
+        joints = (joints + self.joints_limits_upper) % (self.joints_range) - self.joints_limits_upper  # projects out of bounds angles back to angles within the allowed joint range
+        return joints
