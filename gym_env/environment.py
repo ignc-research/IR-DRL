@@ -37,7 +37,7 @@ class ModularDRLEnv(gym.Env):
         self.show_auxillary_geometry_goal = env_config["display_extra"]
         self.train = env_config["train"]
         self.max_steps_per_episode = 1024
-        self.logging = env_config["logging"]  # 0:no logging, 1:logging for console, 2: logging for console and to text file after each episode
+        self.logging = env_config["logging"]  # 0:no logging, 1:logging for console, 2: logging for console and to csv file after each episode
         self.use_physics_sim = env_config["use_physics_sim"]  # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
         self.stat_buffer_size = 25  # length of the stat arrays in terms of episodes over which the average will be drawn for logging
         self.sim_step = 1 / 240  # in seconds -> 240 Hz
@@ -60,6 +60,7 @@ class ModularDRLEnv(gym.Env):
         # misc
         dist_threshold_overwrite = env_config["dist_threshold_overwrite"]
 
+        
         # world attributes for yifan env
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
         robot_base_positions = [np.array([0.0, -0.12, 0.5])]
@@ -71,13 +72,14 @@ class ModularDRLEnv(gym.Env):
         moving_obstacles_vels = [0.1, 1]
         moving_obstacles_directions = []
         moving_obstacles_trajectory_length = [0.2, 1]
+        robot_resting_angles = [np.array([0.0, np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2])]
         """
         # world attributes for table experiment
         workspace_boundaries = [-2, 2, -2, 2, 0, 5]
-        robot_base_positions = [np.array([0, 0.8, 3.25])]
+        robot_base_positions = [np.array([0, 0.8, 1.259])]
         robot_base_orientations = [np.array([0, 0, 0, 1])]
+        robot_resting_angles = [np.array([-np.pi,-np.pi/4,-np.pi/2,-3*np.pi/4,np.pi/2,0])] 
         """
-
         # robot attributes
         self.xyz_vels = [0.005]
         self.rpy_vels = [0.005]
@@ -92,8 +94,6 @@ class ModularDRLEnv(gym.Env):
         
         
         self.world = WorldRegistry.get("RandomObstacle")(workspace_boundaries=workspace_boundaries,
-                                         robot_base_positions=robot_base_positions,
-                                         robot_base_orientations=robot_base_orientations,
                                          sim_step=self.sim_step,
                                          num_static_obstacles=num_static_obstacles,
                                          num_moving_obstacles=num_moving_obstacles,
@@ -104,8 +104,6 @@ class ModularDRLEnv(gym.Env):
                                          moving_obstacles_trajectory_length=moving_obstacles_trajectory_length)
         """
         self.world = WorldRegistry.get("TableExperiment")(workspace_boundaries=workspace_boundaries,
-                                         robot_base_positions=robot_base_positions,
-                                         robot_base_orientations=robot_base_orientations,
                                          sim_step=self.sim_step,
                                          num_obstacles=2,
                                          obstacle_velocities=[1,2],
@@ -116,10 +114,10 @@ class ModularDRLEnv(gym.Env):
                                          human_rotations = [np.array([0, 0, 0, 1])],
                                          human_trajectories=[[np.array([-2,2,1.4]), np.array([2, 2, 1.4])]],
                                          #human_trajectories=[[]],
-                                         ee_start_overwrite=[np.array([0.6, 0.6, 1.55189431])],
-                                         target_overwrite=[np.array([0,0,0])])
+                                         ee_starts=[np.array([-0.6, 0.6, 1.55])],
+                                         targets=[np.array([0,0,0])])
         """
-        
+
         #self.world = TestcasesWorld(test_mode=2)
 
         # at this point robots would dynamically be created as needed by the config/the world
@@ -131,7 +129,7 @@ class ModularDRLEnv(gym.Env):
                    use_physics_sim=self.use_physics_sim,
                    base_position=robot_base_positions[0],
                    base_orientation=robot_base_orientations[0],
-                   resting_angles=np.array([0.0, np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2]),
+                   resting_angles=robot_resting_angles[0],
                    control_mode=self.control_mode[0],
                    xyz_delta=self.xyz_vels[0],
                    rpy_delta=self.rpy_vels[0])

@@ -8,7 +8,7 @@ class World(ABC):
     See the random obstacles world for examples.
     """
 
-    def __init__(self, workspace_boundaries:list, robot_base_positions:list, robot_base_orientations:list, sim_step: float):
+    def __init__(self, workspace_boundaries:list, sim_step: float):
 
         # list that will contain all PyBullet object ids with collision managed by this world simulation
         self.objects_ids = []
@@ -24,10 +24,6 @@ class World(ABC):
         # targets for goals that need to interact with the world
         self.position_targets = []
         self.rotation_targets = []
-
-        # robot base points
-        self.robot_base_positions = robot_base_positions
-        self.robot_base_orientations = robot_base_orientations
 
         # points for robot end effectors at episode start
         self.ee_starting_points = []
