@@ -11,6 +11,7 @@ This repo implements a modular Gym env in which all relevant components, i.e. ro
 - pybullet
 - pandas
 - tensorboard
+- zennit
 
 ## State of the code & plans
 
@@ -28,16 +29,16 @@ Implemented:
     - Position & Rotation
     - Joints
     - Lidar
+    - Camera (floating, floating & following, mounted on EE)
 - Worlds (Scenarios):
     - Random Obstacles (Yifan)
+    - Table Experiment with humans and random obstacles
 - Goal:
     - Position goal with collision avoidance (Yifan)
 
 Coming soon:
 - the three old testcases (one plate, two plates, moving plate)
 - variations of the testcases (different directions and angles)
-- camera sensor
-- camera in hand sensor
 
 ## Running the code
 
