@@ -185,7 +185,7 @@ class ModularDRLEnv(gym.Env):
                                            reward_success=10,
                                            reward_collision=-10,
                                            reward_distance_mult=-0.01,
-                                           dist_threshold_start=0.2,
+                                           dist_threshold_start=0.35,
                                            dist_threshold_end=0.01,
                                            dist_threshold_increment_start=0.02,
                                            dist_threshold_increment_end=0.008,
