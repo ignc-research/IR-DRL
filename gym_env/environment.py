@@ -61,7 +61,7 @@ class ModularDRLEnv(gym.Env):
         # misc
         dist_threshold_overwrite = env_config["dist_threshold_overwrite"]
 
-        """
+        
         # world attributes for yifan env
         workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
         robot_base_positions = [np.array([0.0, -0.12, 0.5])]
@@ -80,7 +80,7 @@ class ModularDRLEnv(gym.Env):
         robot_base_positions = [np.array([0, 0.0, 1.1])]
         robot_base_orientations = [np.array([0, 0, 0, 1])]
         robot_resting_angles = [np.array([-np.pi,-np.pi/4,-np.pi/2,-3*np.pi/4,np.pi/2,0])] 
-
+        """
         # robot attributes
         self.xyz_vels = [0.005]
         self.rpy_vels = [0.005]
@@ -93,7 +93,7 @@ class ModularDRLEnv(gym.Env):
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
         
-        """
+        
         self.world = WorldRegistry.get("RandomObstacle")(workspace_boundaries=workspace_boundaries,
                                          sim_step=self.sim_step,
                                          num_static_obstacles=num_static_obstacles,
@@ -120,7 +120,7 @@ class ModularDRLEnv(gym.Env):
                                          obstacle_positions=[],
                                          obstacle_trajectories=[],
                                          obstacle_training_schedule=True)
-
+        """
         #self.world = TestcasesWorld(test_mode=2)
 
         # at this point robots would dynamically be created as needed by the config/the world
