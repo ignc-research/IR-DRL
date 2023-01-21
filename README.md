@@ -11,6 +11,7 @@ This repo implements a modular Gym env in which all relevant components, i.e. ro
 - pybullet
 - pandas
 - tensorboard
+- zennit
 
 ## State of the code & plans
 
