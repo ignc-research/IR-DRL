@@ -118,6 +118,9 @@ class ModularDRLEnv(gym.Env):
                                          targets=[np.array([0,0,0])])
         """
 
+        # self.world = WorldRegistry.get("GeneratedWorld")(workspace_boundaries=workspace_boundaries,
+        #                                  sim_step=self.sim_step)
+
         #self.world = TestcasesWorld(test_mode=2)
 
         # at this point robots would dynamically be created as needed by the config/the world
@@ -158,15 +161,15 @@ class ModularDRLEnv(gym.Env):
                                             indicator=True)
 
         
-        ur5_1_camera_sensor = CameraRegistry.get('Floating_FollowEffector')(
-                                            ur5_1,
-                                            [0,1,1],
-                                            camera_args={
-                                                'fov' : 120,
-                                                'type': 'grayscale'},
-                                            )
+        # ur5_1_camera_sensor = CameraRegistry.get('Floating_FollowEffector')(
+        #                                     ur5_1,
+        #                                     [0,1,1],
+        #                                     camera_args={
+        #                                         'fov' : 120,
+        #                                         'type': 'grayscale'},
+        #                                     )
 
-        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor, ur5_1_camera_sensor]
+        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor]
 
 
         # at this point we would generate all the goals needed and assign them to their respective robots
