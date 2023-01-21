@@ -111,7 +111,7 @@ class RandomObstacleWorld(World):
                 self.obstacle_objects.append(sphere)
                 self.objects_ids.append(sphere.build())
 
-    def reset(self):
+    def reset(self, success_rate):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []

@@ -14,31 +14,39 @@ import argparse
 # for now all the settings are done by hand here
 
 script_parameters = {
-    "train": False,
-    "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into txt file at episode end
+    "train": True,
+    "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into csv file at episode end; if max_episodes is not -1 then the csv will contain the data for all episodes
     "timesteps": 15e6,
+    "max_steps_per_episode": 1024,
+    "max_episodes": 30,  # num episodes for eval
     "save_freq": 3e4,
     "save_folder": "./models/weights",
     "save_name": "PPO_bodycam_0",  # name for the model file, this will get automated later on
     "num_envs": 16,
     "use_physics_sim": True,  # use actual physics sim or ignore forces and teleport robot to desired poses
+    "sim_step": 1 / 240,  # seconds that pass per env step
     "control_mode": 2,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
     "normalize_observations": False,
     "normalize_rewards": False,
     "gamma": 0.99,
     "dist_threshold_overwrite": None,  # use this when continuing training to set the distance threhsold to the value that your agent had already reached
+    "stat_buffer_size": 25,  # number of past episodes for averaging success metrics
     "tensorboard_folder": "./models/tensorboard_logs/",
     "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
     "ppo_steps": 1024,  # steps per env until PPO updates
     "batch_size": 512,  # batch size for the ppo updates
     "load_model": False,  # set to True when loading an existing model 
-    "model_path": './models_bennoEnv/weights/PPO_bodycam_0_8640000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
+    "model_path": None,  # path for the model when loading one
 }
 
 # do not change the env_configs below
 env_config_train = {
     "train": True,
     "logging": 1,
+    "max_steps_per_episode": script_parameters["max_steps_per_episode"],
+    "max_episodes": -1,
+    "sim_step": script_parameters["sim_step"],
+    "stat_buffer_size": script_parameters["stat_buffer_size"],
     "use_physics_sim": script_parameters["use_physics_sim"],
     "control_mode": script_parameters["control_mode"],
     "normalize_observations": script_parameters["normalize_observations"],
@@ -51,6 +59,10 @@ env_config_train = {
 env_config_eval = {
     "train": False,
     "logging": script_parameters["logging"],
+    "max_steps_per_episode": script_parameters["max_steps_per_episode"],
+    "max_episodes": script_parameters["max_episodes"],
+    "sim_step": script_parameters["sim_step"],
+    "stat_buffer_size": script_parameters["stat_buffer_size"],
     "use_physics_sim": script_parameters["use_physics_sim"],
     "control_mode": script_parameters["control_mode"],
     "normalize_observations": script_parameters["normalize_observations"],
@@ -97,7 +109,7 @@ if __name__ == "__main__":
         else:
             model = PPO.load(script_parameters["model_path"], env=env)
 
-        for i in range(30):
+        while True:
             obs = env.reset()
             done = False
             while not done:
