@@ -157,6 +157,8 @@ class TableExperiment(World):
             elif success_rate < 0.6:
                 obs_mean = 4
             elif success_rate < 0.8:
+                obs_mean = 5
+            else:
                 obs_mean = 7
             self.num_obstacles = round(np.random.normal(loc=obs_mean, scale=1.5))
             self.num_obstacles = min(8, self.num_obstacles)
