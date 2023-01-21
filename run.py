@@ -27,7 +27,7 @@ script_parameters = {
     "dist_threshold_overwrite": None,  # use this when continuing training to set the distance threhsold to the value that your agent had already reached
     "tensorboard_folder": "./models/tensorboard_logs/",
     "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
-    "ppo_steps": 256,  # steps per env until PPO updates
+    "ppo_steps": 1024,  # steps per env until PPO updates
     "batch_size": 512,  # batch size for the ppo updates
     "load_model": False,  # set to True when loading an existing model 
     "model_path": './models_bennoEnv/weights/PPO_bodycam_0_8640000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
