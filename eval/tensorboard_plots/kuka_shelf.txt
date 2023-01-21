@@ -1,0 +1,20 @@
+Define length, width, and height as the lengths on the x-axis, y-axis, and z-axis, respectively
+All boards are axially aligned with the coordinate axes
+
+Format description:
+	plate [index]:	(length,width,height), 
+			(The x-axis coordinates of the center of the plate, The y-axis coordinates of the center of the plate, The z-axis coordinates of the center of the plate)
+plate 1:(1.0, 0.3, 0.06),
+	(0.0, 0.25, 0.6)
+plate 2:(1.0, 0.3, 0.06),
+	(0.0, 0.25, 1.1)
+plate 3:(1.0, 0.3, 0.06),
+	(0.0, 0.25, 1.6)
+plate 4:(0.06, 0.3, 1.0),
+	(-0.5, 0.25, 1.1)
+plate 5:(0.06, 0.3, 1.0),
+	(0.0, 0.25, 1.1)
+plate 6:(0.06, 0.3, 1.0),
+	(0.5, 0.25, 1.1)
+	
+All coordinates are world coordinate system	

@@ -6,8 +6,12 @@ from callbacks.callbacks import MoreLoggingCustomCallback
 import torch
 from os.path import isdir
 import numpy as np
-
+import zennit as z
+from zennit.composites import EpsilonGammaBox
+from zennit.canonizers import SequentialMergeBatchNorm
+from zennit.attribution import Gradient
 import argparse
+from typing import Callable
 
 # here the argparser will read in the config file in the future
 # and put the settings into the script_parameters dict
@@ -71,8 +75,26 @@ env_config_eval = {
     "display": True,
     "display_extra": True
 }
+    
+        
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.preprocessing import preprocess_obs, is_image_space
+from zennit.rules import Epsilon, Gamma
 
 
+#pos goal : 4, joints : 6 , pos and rot : 4, lidar : 25, camera : 256
+
+        
+        
+
+def find_in_features(seq):
+    for sub in seq:
+        if type(sub) is torch.nn.Sequential:
+            return find_in_features(sub)
+        else:
+            return sub.in_features
+
+from explanability import ExplainPPO, VisualizeExplanations
 if __name__ == "__main__":
     if script_parameters["train"]:
         
@@ -109,9 +131,18 @@ if __name__ == "__main__":
         else:
             model = PPO.load(script_parameters["model_path"], env=env)
 
+        explainer = ExplainPPO(env, model, extractor_bias= 'camera')
+        exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')
+
+
         while True:
             obs = env.reset()
+            exp_visualizer.close_open_figs()
+            fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action')
             done = False
             while not done:
                 act = model.predict(obs)[0]
                 obs, reward, done, info = env.step(act)
+                exp_visualizer.update_imshow_from_obs(obs, fig, axs)
+
+
