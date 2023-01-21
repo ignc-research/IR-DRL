@@ -5,6 +5,7 @@ from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from callbacks.callbacks import MoreLoggingCustomCallback
 import torch
 from explanability import ExplainPPO, VisualizeExplanations
+from time import sleep
 
 
 # here the argparser will read in the config file in the future
@@ -15,7 +16,7 @@ script_parameters = {
     "train": True,
     "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into csv file at episode end; if max_episodes is not -1 then the csv will contain the data for all episodes
     "timesteps": 15e6,
-    "max_steps_per_episode": 1024,
+    "max_steps_per_episode": 128,
     "max_episodes": 30,  # num episodes for eval
     "save_freq": 3e4,
     "save_folder": "./models/weights",
@@ -26,15 +27,15 @@ script_parameters = {
     "sim_step": 1 / 240,  # seconds that pass per env step
     "normalize_observations": False,
     "normalize_rewards": False,
-    "gamma": 0.9918,
+    "gamma": 0.9881,
     "dist_threshold_overwrite": None,  # use this when continuing training to set the distance threhsold to the value that your agent had already reached
-    "stat_buffer_size": 25,  # number of past episodes for averaging success metrics
+    "stat_buffer_size": 100,  # number of past episodes for averaging success metrics
     "tensorboard_folder": "./models/tensorboard_logs/",
     "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
-    "ppo_steps": 1024,  # steps per env until PPO updates
+    "ppo_steps": 256,  # steps per env until PPO updates
     "batch_size": 512,  # batch size for the ppo updates
-    "load_model": False,  # set to True when loading an existing model 
-    "model_path": './models_bennoEnv/weights/PPO_bodycam_0_8640000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
+    "load_model": True,  # set to True when loading an existing model 
+    "model_path": './models/weights/PPO_floating_fe_0_14400000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
 # do not change the env_configs below
@@ -107,6 +108,7 @@ if __name__ == "__main__":
             model = PPO("MultiInputPolicy", env, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"])
             print('new model')
         else:
+            print('load model')
             model = PPO.load(script_parameters["model_path"], env=env)
 
         explainer = ExplainPPO(env, model, extractor_bias= 'camera')
@@ -116,11 +118,12 @@ if __name__ == "__main__":
         while True:
             obs = env.reset()
             exp_visualizer.close_open_figs()
-            fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action', grad_outputs=torch.eye(6)[[0]])
+            fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action', grad_outputs=torch.eye(6)[[5]])
             done = False
             while not done:
                 act = model.predict(obs)[0]
                 obs, reward, done, info = env.step(act)
-                exp_visualizer.update_imshow_from_obs(obs, fig, axs, grad_outputs=torch.eye(6)[[0]])
+                exp_visualizer.update_imshow_from_obs(obs, fig, axs, grad_outputs=torch.eye(6)[[5]])
+                sleep(0.5)
 
 
