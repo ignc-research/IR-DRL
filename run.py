@@ -13,11 +13,7 @@ from explanability import ExplainPPO, VisualizeExplanations
 
 script_parameters = {
     "train": True,
-<<<<<<< HEAD
-    "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into txt file at episode end
-=======
     "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into csv file at episode end; if max_episodes is not -1 then the csv will contain the data for all episodes
->>>>>>> main
     "timesteps": 15e6,
     "max_steps_per_episode": 1024,
     "max_episodes": 30,  # num episodes for eval
@@ -26,12 +22,8 @@ script_parameters = {
     "save_name": "PPO_floating_fe_0",  # name for the model file, this will get automated later on
     "num_envs": 48,
     "use_physics_sim": True,  # use actual physics sim or ignore forces and teleport robot to desired poses
-<<<<<<< HEAD
     "control_mode": 1,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
-=======
     "sim_step": 1 / 240,  # seconds that pass per env step
-    "control_mode": 2,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
->>>>>>> main
     "normalize_observations": False,
     "normalize_rewards": False,
     "gamma": 0.9918,
@@ -42,11 +34,7 @@ script_parameters = {
     "ppo_steps": 1024,  # steps per env until PPO updates
     "batch_size": 512,  # batch size for the ppo updates
     "load_model": False,  # set to True when loading an existing model 
-<<<<<<< HEAD
     "model_path": './models_bennoEnv/weights/PPO_bodycam_0_8640000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
-=======
-    "model_path": None,  # path for the model when loading one
->>>>>>> main
 }
 
 # do not change the env_configs below
