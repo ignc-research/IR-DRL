@@ -3,6 +3,7 @@ import numpy as np
 from robot.robot import Robot
 from gym.spaces import Box
 import pybullet as pyb
+from functools import reduce
 
 __all__ = [
     'PositionCollisionGoal'
@@ -221,3 +222,48 @@ class PositionCollisionGoal(Goal):
         elif z > self.robot.world.z_max or z < self.robot.world.z_min:
             return True
         return False
+
+
+
+class PositionCollisionGoal_Extended(PositionCollisionGoal):
+
+    def __init__(self, robot: Robot, 
+                       normalize_rewards: bool, 
+                       normalize_observations: bool,
+                       train: bool,
+                       add_to_logging: bool,
+                       max_steps: int,
+                       continue_after_success:bool, 
+                       reward_success=10, 
+                       reward_collision=-10,
+                       reward_distance_mult=-0.01,
+                       dist_threshold_start=3e-1,
+                       dist_threshold_end=1e-2,
+                       dist_threshold_increment_start=1e-2,
+                       dist_threshold_increment_end=1e-3,
+                       dist_threshold_overwrite:float=None):
+
+        super().__init__(robot, False, normalize_observations, train,\
+             add_to_logging, max_steps, continue_after_success, reward_success, \
+                reward_collision, reward_distance_mult, dist_threshold_start, \
+                    dist_threshold_end, dist_threshold_increment_start, \
+                        dist_threshold_increment_end, dist_threshold_overwrite)
+        self.normalize_rewards_extended = normalize_rewards
+        self.last_positions = []
+
+    def reward(self, action, step):
+        reward, is_success, done, timeout, out_of_bounds = super().reward(self, action, step)
+
+        self.past_positions.insert(0, self.robot.position_rotation_sensor.position)
+        self.past_positions = self.past_positions[:10]
+        if len(self.past_positions) > 1:
+            smoothness = [a - b for a,b in zip(self.past_positions[:-1], self.past_positions[1:])]
+        
+        self.reward_value = reward
+        if self.normalize_rewards_extended:
+            self.reward_value = self.normalizing_constant_a_reward * self.reward_value + self.normalizing_constant_b_reward
+
+
+    def get_observation(self) -> dict:
+
+        return super().get_observation()

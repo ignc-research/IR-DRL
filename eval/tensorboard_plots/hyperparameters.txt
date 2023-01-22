@@ -1,0 +1,56 @@
+parameter: value[explanation]
+
+mean susscss bound: 1 for kuka env, not set for the ur5 env because the not reasonable randomly generated obstables..
+
+gamma: 0.99[Discount factor]
+
+gae-lambda: 0.95[Factor for trade-off of bias vs variance for Generalized Advantage Estimator]
+
+learning rate: 0.0003
+
+batch size: 256[Minibatch size]
+
+normalize_advantage: True[Whether to normalize or not the advantage]
+
+clip-range: 0.2[Clipping parameter]
+
+ent_coef: 0.0[entropy coefficient for the loss calculation]
+
+vf_coef: 0.5[Value function coefficient for the loss calculation]
+
+max_grad_norm: 0.5[The maximum value for the gradient clipping]
+
+Activation function: tanh[activation function in policy and value networks]
+
+optimizer:adam[The optimizer in policy and value networks to use]
+
+
+
+
+Epsilon Max Steps   & $10^5$        &Steps until epsilon reaches minimum        
+Epsilon End   & 0.05        &Minimum epsilon value   
+Memory Size  & $10^64$
+
+fix:
+	Linh:
+		- classical trj in ur5 ?
+		- dates, conf, place
+	
+
+	- mirror ur5 images
+	- all figure refs
+
+	- check related works
+	- add laser images of kuka and ur5
+	- include newly found related works
+	- Experiment
+	yifan:
+		- pb background, coordinates
+		- modifications on ur5
+	
+related work:
+	- static sensors: blind spot, obstcl outside occlusion
+	- IR proximity ?
+conclusion:
+	- end to end pose (more specific applc)
+

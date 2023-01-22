@@ -91,11 +91,13 @@ class World(ABC):
         pass
 
     @abstractmethod
-    def reset(self):
+    def reset(self, success_rate):
         """
         This method should reset all lists, arrays, variables etc. that handle the world to such a state that a new episode can be run.
         Meaning that after this method is done, build() can be called again.
         Don't reset the PyBullet simulation itself, that will be handled by the gym env.
+        Additionally, this method receives the success rate of the gym env as a value between 0 and 1. You could use this to
+        set certain parameters, e.g. to the make world become more complex as the agent's success rate increases.
         """
         pass
 

@@ -22,10 +22,10 @@ class Human(Obstacle):
         self.hand_raise_iter_max = 100
         self.hand_raise_iter_min = 0
         self.hand_raise_direction = 1
-        self.closeness_threshold = 1e-1
+        self.closeness_threshold = 2  # very large, but necessary
 
     def build(self) -> int:
-        self.human = Man(0, partitioned=False, timestep=self.sim_step, scaling=self.scale)
+        self.human = Man(0, partitioned=False, timestep=self.sim_step, scaling=self.scale, static=(len(self.trajectory)==0))
         self.human.resetGlobalTransformation(self.position_orig, pyb.getEulerFromQuaternion(self.rotation_orig.tolist()))
         self.object_id = self.human.body_id
         return self.human.body_id
@@ -44,7 +44,7 @@ class Human(Obstacle):
             direction_norm = direction / np.linalg.norm(direction)
 
             rpy = [
-                0, -np.arcsin(-direction_norm[2]) * (180 / np.pi), -np.arctan2(direction_norm[0], direction_norm[1]) * (180 / np.pi)
+                0, -np.arcsin(-direction_norm[2]), -np.arctan2(direction_norm[0], direction_norm[1])
             ]
 
             quat = np.array(pyb.getQuaternionFromEuler(rpy))

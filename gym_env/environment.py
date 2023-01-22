@@ -36,14 +36,15 @@ class ModularDRLEnv(gym.Env):
         self.show_auxillary_geometry_world = env_config["display_extra"]
         self.show_auxillary_geometry_goal = env_config["display_extra"]
         self.train = env_config["train"]
-        self.max_steps_per_episode = 1024
-        self.logging = env_config["logging"]  # 0:no logging, 1:logging for console, 2: logging for console and to csv file after each episode
+        self.max_steps_per_episode = env_config["max_steps_per_episode"]
+        self.max_episodes = env_config["max_episodes"]  # number of episodes after which the code will exit on its own, if set to -1 will continue indefinitely until stopped from the outside
+        self.logging = env_config["logging"]  # 0: no logging, 1: logging for console every episode, 2: logging for console every episode and to csv after maximum number of episodes has been reached or after every episode if max_episodes is -1
         self.use_physics_sim = env_config["use_physics_sim"]  # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
-        self.stat_buffer_size = 25  # length of the stat arrays in terms of episodes over which the average will be drawn for logging
-        self.sim_step = 1 / 240  # in seconds -> 240 Hz
+        self.stat_buffer_size = env_config["stat_buffer_size"]  # length of the stat arrays in terms of episodes over which the average will be drawn for logging
+        self.sim_step = env_config["sim_step"]  # in seconds -> inverse is frame rate in Hz
 
         # tracking variables
-        self.episodes = 0
+        self.episode = 0
         self.steps_current_episode = 0
         self.sim_time = 0
         self.cpu_time = 0
@@ -76,7 +77,7 @@ class ModularDRLEnv(gym.Env):
         """
         # world attributes for table experiment
         workspace_boundaries = [-2, 2, -2, 2, 0, 5]
-        robot_base_positions = [np.array([0, 0.8, 1.259])]
+        robot_base_positions = [np.array([0, 0.0, 1.1])]
         robot_base_orientations = [np.array([0, 0, 0, 1])]
         robot_resting_angles = [np.array([-np.pi,-np.pi/4,-np.pi/2,-3*np.pi/4,np.pi/2,0])] 
         """
@@ -103,21 +104,23 @@ class ModularDRLEnv(gym.Env):
                                          moving_obstacles_vels=moving_obstacles_vels,
                                          moving_obstacles_directions=moving_obstacles_directions,
                                          moving_obstacles_trajectory_length=moving_obstacles_trajectory_length)
-        """
-        self.world = WorldRegistry.get("TableExperiment")(workspace_boundaries=workspace_boundaries,
-                                         sim_step=self.sim_step,
-                                         num_obstacles=2,
-                                         obstacle_velocities=[1,2],
-                                         num_humans=1,
-                                         #human_positions=[np.array([1.8, 0, 1.4])],
-                                         human_positions=[np.array([0, 0, 0])],
-                                         #human_rotations=[np.array(pyb.getQuaternionFromEuler([0,0,np.pi/2]))],
-                                         human_rotations = [np.array([0, 0, 0, 1])],
-                                         human_trajectories=[[np.array([-2,2,1.4]), np.array([2, 2, 1.4])]],
-                                         #human_trajectories=[[]],
-                                         ee_starts=[np.array([-0.6, 0.6, 1.55])],
-                                         targets=[np.array([0,0,0])])
-        """
+
+        # self.world = WorldRegistry.get("TableExperiment")(workspace_boundaries=workspace_boundaries,
+        #                                  sim_step=self.sim_step,
+        #                                  num_obstacles=10,
+        #                                  obstacle_velocities=[],
+        #                                  num_humans=0,
+        #                                  #human_positions=[np.array([1.8, 0, 1.4])],
+        #                                  human_positions=[np.array([0, 0, 0])],
+        #                                  #human_rotations=[np.array(pyb.getQuaternionFromEuler([0,0,np.pi/2]))],
+        #                                  human_rotations = [np.array([0, 0, 0, 1])],
+        #                                  human_trajectories=[[np.array([-2,2,1.4]), np.array([2, 2, 1.4])]],
+        #                                  #human_trajectories=[[]],
+        #                                  human_reactive=[True],
+        #                                  ee_starts=[],
+        #                                  obstacle_positions=[],
+        #                                  obstacle_trajectories=[],
+        #                                  obstacle_training_schedule=True)
 
         #self.world = TestcasesWorld(test_mode=2)
 
@@ -145,28 +148,32 @@ class ModularDRLEnv(gym.Env):
         ur5_1.set_joint_sensor(ur5_1_joint_sensor)
         ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
 
-        ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5_Explainable')(normalize=self.normalize_observations,
-                                            add_to_observation_space=True, 
-                                            add_to_logging=False,
-                                            sim_step=self.sim_step,
-                                            robot=ur5_1, 
-                                            indicator_buckets=9,
-                                            ray_start=0,
-                                            ray_end=0.3,
-                                            num_rays_side=10,
-                                            num_rays_circle_directions=6,
-                                            render=False,
-                                            indicator=True)
+        # ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5_Explainable')(normalize=self.normalize_observations,
+        #                                     add_to_observation_space=True, 
+        #                                     add_to_logging=False,
+        #                                     sim_step=self.sim_step,
+        #                                     robot=ur5_1, 
+        #                                     indicator_buckets=9,
+        #                                     ray_start=0,
+        #                                     ray_end=0.3,
+        #                                     num_rays_side=10,
+        #                                     num_rays_circle_directions=6,
+        #                                     render=False,
+        #                                     indicator=True)
 
         
-        ur5_1_camera_sensor = CameraRegistry.get('OnBody_UR5')(
-                                            ur5_1,
-                                            camera_args={
-                                                'fov' : 120,
-                                                'type': 'rgbd'},
-                                            )
+        ur5_1_camera_sensor = CameraRegistry.get('Floating_FollowEffector')(
+                                                    ur5_1,
+                                                    [0, 1, 0.5],
+                                                    camera_args={
+                                                        'fov' : 45,
+                                                        'aspect' : 4,
+                                                        'type': 'rgbd',
+                                                        'height' : 64,
+                                                        'width' : 128},
+                                                    )
 
-        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor, ur5_1_camera_sensor]
+        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_camera_sensor]
 
 
         # at this point we would generate all the goals needed and assign them to their respective robots
@@ -182,7 +189,7 @@ class ModularDRLEnv(gym.Env):
                                            reward_success=10,
                                            reward_collision=-10,
                                            reward_distance_mult=-0.01,
-                                           dist_threshold_start=0.2,
+                                           dist_threshold_start=0.35,
                                            dist_threshold_end=0.01,
                                            dist_threshold_increment_start=0.02,
                                            dist_threshold_increment_end=0.008,
@@ -219,18 +226,23 @@ class ModularDRLEnv(gym.Env):
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(sum(self.action_space_dims),), dtype=np.float32)
 
     def reset(self):
+        # end execution if max episodes is reached
+        if self.max_episodes != -1 and self.episode >= self.max_episodes:
+            exit(0)
+
         # disable rendering for the setup to save time
-        #pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
 
         # reset the tracking variables
         self.steps_current_episode = 0
-        self.log = []
         self.sim_time = 0
         self.cpu_time = 0
         self.cpu_epoch = time()
         self.reward = 0
         self.reward_cumulative = 0
-        self.episodes += 1
+        self.episode += 1
+        if self.max_episodes == -1:  # if we have a finite amount of episodes, we want the log to hold everything, otherwise flush it for the next one
+            self.log = []  
 
         # build the world and robots
         # this is put into a loop that will only break if the generation process results in a collision free setup
@@ -245,7 +257,7 @@ class ModularDRLEnv(gym.Env):
             pyb.resetSimulation()
 
             # reset world attributes
-            self.world.reset()
+            self.world.reset(np.average(self.success_stat))
 
             # spawn robots in world
             for robot in self.robots:
@@ -299,7 +311,7 @@ class ModularDRLEnv(gym.Env):
                 goal.build_visual_aux()
 
         # turn rendering back on
-        #pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         return self._get_obs()
 
@@ -411,7 +423,7 @@ class ModularDRLEnv(gym.Env):
             # logging to console or textfile
 
             # start log dict with env wide information
-            info = {"episodes": self.episodes,
+            info = {"episodes": self.episode,
                     "is_success": is_success, 
                     "step": self.steps_current_episode,
                     "success_rate": np.average(self.success_stat),
@@ -443,7 +455,8 @@ class ModularDRLEnv(gym.Env):
                 print(info_string)
                 # write to textfile, in this case the entire log so far
                 if self.logging == 2:
-                    pd.DataFrame(self.log).to_csv("./test_csv.csv")
+                    if self.max_episodes == -1 or self.episode == self.max_episodes:
+                        pd.DataFrame(self.log).to_csv("./models/env_logs/episode_" + str(self.episode) + ".csv")
 
         return self._get_obs(), self.reward, done, info
 
