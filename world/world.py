@@ -30,8 +30,6 @@ class World(ABC):
 
         # list of robots, gets filled by register method down below
         self.robots_in_world = []  # all robots in world
-        self.robots_with_position = []  # all robots that need a position goal in the world
-        self.robots_with_orientation = []  # all robots that need a rotation goal in the world
 
         # collision attribute, for convenient outside access
         self.collision = False
@@ -47,10 +45,6 @@ class World(ABC):
             self.robots_in_world.append(robot)
             robot.id = id_counter
             id_counter += 1
-            if robot.goal.needs_a_position:
-                self.robots_with_position.append(robot)
-            elif robot.goal.needs_a_rotation:
-                self.robots_with_orientation.append(robot)
 
     def perform_collision_check(self):
         """

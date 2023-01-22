@@ -25,7 +25,9 @@ class Human(Obstacle):
         self.closeness_threshold = 2  # very large, but necessary
 
     def build(self) -> int:
-        self.human = Man(0, partitioned=False, timestep=self.sim_step, scaling=self.scale, static=(len(self.trajectory)==0))
+        self.human = Man(0, partitioned=False, timestep=self.sim_step, scaling=self.scale)
+        print(self.rotation_orig)
+        print(type(self.rotation_orig))
         self.human.resetGlobalTransformation(self.position_orig, pyb.getEulerFromQuaternion(self.rotation_orig.tolist()))
         self.object_id = self.human.body_id
         return self.human.body_id

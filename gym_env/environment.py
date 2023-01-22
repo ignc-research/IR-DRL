@@ -122,6 +122,9 @@ class ModularDRLEnv(gym.Env):
         #                                  obstacle_trajectories=[],
         #                                  obstacle_training_schedule=True)
 
+        # self.world = WorldRegistry.get("GeneratedWorld")(workspace_boundaries=workspace_boundaries,
+        #                                  sim_step=self.sim_step)
+
         #self.world = TestcasesWorld(test_mode=2)
 
         # at this point robots would dynamically be created as needed by the config/the world
