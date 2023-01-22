@@ -104,24 +104,24 @@ class ModularDRLEnv(gym.Env):
                                          moving_obstacles_vels=moving_obstacles_vels,
                                          moving_obstacles_directions=moving_obstacles_directions,
                                          moving_obstacles_trajectory_length=moving_obstacles_trajectory_length)
-        """
-        self.world = WorldRegistry.get("TableExperiment")(workspace_boundaries=workspace_boundaries,
-                                         sim_step=self.sim_step,
-                                         num_obstacles=10,
-                                         obstacle_velocities=[],
-                                         num_humans=0,
-                                         #human_positions=[np.array([1.8, 0, 1.4])],
-                                         human_positions=[np.array([0, 0, 0])],
-                                         #human_rotations=[np.array(pyb.getQuaternionFromEuler([0,0,np.pi/2]))],
-                                         human_rotations = [np.array([0, 0, 0, 1])],
-                                         human_trajectories=[[np.array([-2,2,1.4]), np.array([2, 2, 1.4])]],
-                                         #human_trajectories=[[]],
-                                         human_reactive=[True],
-                                         ee_starts=[],
-                                         obstacle_positions=[],
-                                         obstacle_trajectories=[],
-                                         obstacle_training_schedule=True)
-        """
+
+        # self.world = WorldRegistry.get("TableExperiment")(workspace_boundaries=workspace_boundaries,
+        #                                  sim_step=self.sim_step,
+        #                                  num_obstacles=10,
+        #                                  obstacle_velocities=[],
+        #                                  num_humans=0,
+        #                                  #human_positions=[np.array([1.8, 0, 1.4])],
+        #                                  human_positions=[np.array([0, 0, 0])],
+        #                                  #human_rotations=[np.array(pyb.getQuaternionFromEuler([0,0,np.pi/2]))],
+        #                                  human_rotations = [np.array([0, 0, 0, 1])],
+        #                                  human_trajectories=[[np.array([-2,2,1.4]), np.array([2, 2, 1.4])]],
+        #                                  #human_trajectories=[[]],
+        #                                  human_reactive=[True],
+        #                                  ee_starts=[],
+        #                                  obstacle_positions=[],
+        #                                  obstacle_trajectories=[],
+        #                                  obstacle_training_schedule=True)
+
         #self.world = TestcasesWorld(test_mode=2)
 
         # at this point robots would dynamically be created as needed by the config/the world
@@ -166,7 +166,8 @@ class ModularDRLEnv(gym.Env):
                                                     ur5_1,
                                                     [0, 1, 0.5],
                                                     camera_args={
-                                                        'fov' : 80,
+                                                        'fov' : 45,
+                                                        'aspect' : 4,
                                                         'type': 'rgbd',
                                                         'height' : 64,
                                                         'width' : 128},

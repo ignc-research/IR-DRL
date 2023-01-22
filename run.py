@@ -6,14 +6,14 @@ from callbacks.callbacks import MoreLoggingCustomCallback
 import torch
 from explanability import ExplainPPO, VisualizeExplanations
 from time import sleep
-
+from custom_policies.dropout_policy import DropoutMultiInputActorCriticPolicy
 
 # here the argparser will read in the config file in the future
 # and put the settings into the script_parameters dict
 # for now all the settings are done by hand here
 
 script_parameters = {
-    "train": True,
+    "train": False,
     "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into csv file at episode end; if max_episodes is not -1 then the csv will contain the data for all episodes
     "timesteps": 15e6,
     "max_steps_per_episode": 128,
@@ -28,14 +28,15 @@ script_parameters = {
     "normalize_observations": False,
     "normalize_rewards": False,
     "gamma": 0.9881,
-    "dist_threshold_overwrite": None,  # use this when continuing training to set the distance threhsold to the value that your agent had already reached
+    "dist_threshold_overwrite": 0.15,  # use this when continuing training to set the distance threhsold to the value that your agent had already reached
     "stat_buffer_size": 100,  # number of past episodes for averaging success metrics
     "tensorboard_folder": "./models/tensorboard_logs/",
-    "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
+    "cutom_policy" : DropoutMultiInputActorCriticPolicy, # "MultiInputPolicy",
+    "custom_policy_args": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
     "ppo_steps": 256,  # steps per env until PPO updates
     "batch_size": 512,  # batch size for the ppo updates
     "load_model": True,  # set to True when loading an existing model 
-    "model_path": './models/weights/PPO_floating_fe_0_14400000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
+    "model_path": './models_bennoEnv/weights/PPO_floating_fe_0_23040000_steps',  # path for the model when loading one, also used for the eval model when train is set to False
 }
 
 # do not change the env_configs below
@@ -94,7 +95,7 @@ if __name__ == "__main__":
 
         # create or load model
         if not script_parameters["load_model"]:
-            model = PPO("MultiInputPolicy", envs, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"], batch_size=script_parameters["batch_size"])
+            model = PPO(script_parameters["cutom_policy"], envs, policy_kwargs=script_parameters["custom_policy_args"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"], batch_size=script_parameters["batch_size"])
         else:
             model = PPO.load(script_parameters["model_path"], env=envs, tensorboard_log=script_parameters["tensorboard_folder"])
             # needs to be set on my pc when loading a model, dont know why, might not be needed on yours
@@ -105,25 +106,22 @@ if __name__ == "__main__":
     else:
         env = ModularDRLEnv(env_config_eval)
         if not script_parameters["load_model"]:
-            model = PPO("MultiInputPolicy", env, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"])
-            print('new model')
+            model = PPO(script_parameters["custom_policy"], env, policy_kwargs=script_parameters["custom_policy_args"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"])
         else:
-            print('load model')
             model = PPO.load(script_parameters["model_path"], env=env)
 
-        explainer = ExplainPPO(env, model, extractor_bias= 'camera')
-        exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')
-
-
+        # explainer = ExplainPPO(env, model, extractor_bias= 'camera')
+        # exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')
+        model.policy.eval()
         while True:
             obs = env.reset()
-            exp_visualizer.close_open_figs()
-            fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action', grad_outputs=torch.eye(6)[[5]])
+            # exp_visualizer.close_open_figs()
+            # fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action', grad_outputs=torch.eye(6)[[5]])
             done = False
             while not done:
+                obs['PositionGoal_ur5_1'] = torch.zeros_like(torch.tensor(obs['PositionGoal_ur5_1'])).numpy()
                 act = model.predict(obs)[0]
                 obs, reward, done, info = env.step(act)
-                exp_visualizer.update_imshow_from_obs(obs, fig, axs, grad_outputs=torch.eye(6)[[5]])
-                sleep(0.5)
+                # exp_visualizer.update_imshow_from_obs(obs, fig, axs, grad_outputs=torch.eye(6)[[5]])
 
 
