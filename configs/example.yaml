@@ -1,0 +1,321 @@
+# example config
+# explaines all attributes and lists all options
+
+# run attributes
+run:
+  # bool, determines whether a model is loaded
+  load_model: False  
+  # str, relative path of the model which is to be loaded if load_model is True
+  model_path: ""  
+  # int, number of past episodes that are used to calculate running average stats for env performance
+  stat_buffer_size: 25  
+  # attributes for training
+  train:
+    # int, number of parallel executions for training
+    num_envs : 16  
+    # int or str, maximum timesteps for this run, note: use a string if using scientific notation like 1e2
+    timesteps: "15e6"  
+    # int or str, steps after which a checkpoint of the current agent is saved (this is calculated per env, after the first env reaches this value a save will occur)
+    save_freq : "3e4"  
+    # str, folder in which saved checkpoints will be stored
+    save_folder: "./model/weights"  
+    # str, name of the model under which it will be saved
+    save_name: "PPO_default"
+    # int, steps until PPO updates the agent (this per env, meaning if one env reaches this value the agent updates)
+    ppo_steps: 1024  
+    # int, batch size of the PPO update, note: the PPO buffer is of size num_envs * ppo_steps, so best choose batch size as a natural divisor for that number for even batches
+    batch_size: 512
+    # float between 0 and 1, discount factor for DRL, the higher the more the trained agent will tend to weigh future rewards  
+    gamma: 0.99  
+    # str, folder in which tensorboard will log data during training
+    tensorboard_folder: "./models/tensorboard_logs"
+    # custom policy definition using the stable_baselines3 interface
+    custom_policy:
+      # bool, whether to use this custom policy or not
+      use: False
+      # str, determines the activation function in the policy, can be "ReLU" or "tanh"  TODO: add more options
+      activation_function: "ReLU"  
+      # layers: 
+      # directly under the layers header, write a key for each common layer you want and as value its number of neurons
+      # under the value function and policy headers, write a key for each layer you want those two to have and as value its respective number of neurons
+      # there don't need to be common layers, but both value function and policy function need at least one
+      # example: the following defines a custom policy with two shared layers, a value function end with one and a policy function end with three layers
+      # FYI: the standard PPO model is no common layers and both value and policy function having two layers of 64, the activation function is tanh
+      layers:
+        layer1: 128
+        layer2: 128
+        value_function:
+          layer1: 64
+        policy_function:
+          layer1: 32
+          layer2: 32
+          layer3: 16      
+  # attributes for evaluation
+  eval:
+    # int, number of episodes for this eval run, infinitely many if -1
+    max_episodes: -1  
+    # int, 0: no logging at all, 1: logging into console at the end of an episode, 
+    # 2: same as 1 + log for entire episode put into csv file in model/env_logs (if max_episodes is not -1 this will only happen at the end of the last episode such that the file contains all episodes)
+    logging: 1  
+
+# env attributes
+env:
+  #   general attributes
+  # int, maximum steps an episode can go on in this env
+  max_steps_per_episode: 1024  
+  # bool, whether to use PyBullet acurate physics sim for movement or not
+  use_physcis_sim: True
+  # float, time step of virtual simulated time in seconds for each env step, inverse is frame rate
+  sim_step: 0.00416666666  # 1/240 s <-> 240 Hz
+  # bool, whether to normalize observations or not
+  normalize_observations: False
+  # bool, whether to normalize rewards or not
+  normalize_rewards: False
+  
+  #   robots definition
+  robots:
+    robot:
+      # str, robot type, possible values: "UR5", "KR16", "Custom" ("Custom" needs more fields, see below for an example)
+      type: "UR5" 
+      # str, the name under which the robot will be run in the env, appears in logs and sensor names, make sure to give unique ones in order to avoid confusion
+      name: "ur5_1"
+      # floats, the xyz position where the base of the robot is mounted in the world
+      base_position: [0, 0, 0]
+      # floats, the rotation of the robot base w.r.t the world coordinate system, in degrees and roll-pitch-yaw format
+      base_rotation: [0, 0, 90]
+      # floats, the resting angles in degrees of the robot's joints a.k.a. its default pose, must be the same amount as the (movable) joints of the robot
+      resting_angles: [-180, -45, -90, -135, 90, 0]
+      # int, determines in which way the robot will be controlled by the agent, possible values: 0: inverse kinematics, 1: joint angles, 2: joint velocities
+      control_mode: 2
+      # float, determines the maximum xyz movement when using inverse kinematics
+      xyz_delta: 0.005
+      # float, determines the maximum rpy movement when using inverse kinematics
+      rpy_delta: 0.005
+
+      #   sensor definition
+      # here we define all the sensors that are bound to this specific robot
+      # for illustration purposes, this robot will have all availabe sensors at once (with the exception of sensors that belong to a robot but need another robot as reference, the examples for that are further below with the second example robot)
+      # note: any robot will by default have a position/rotation sensor for its end effector and a joints sensor
+      # you can however define position sensors for other parts of the robot here
+      sensors:
+        sensor:
+          type: "PositionRotation"
+          # int, every x steps the sensor will update its data, higher values get more fps for the simulation but lower accuracy
+          update_steps: 1
+          # whether to normalize this sensors output
+          normalize: False
+          # whether this sensor's output will be added to the observation space
+          add_to_observation_space: True
+          # whether this sensor's logging data will be collected
+          add_to_logging: True
+          # sensor type specific instructions
+          config:
+            # int, link id for which the position and rotation are to be reported
+            link_id: 6
+            # bool, whether to report rotation as quaternion (True) or rpy (False)
+            quaternion: True
+        sensor:
+          type: "LidarSensorUR5"
+          update_steps: 1
+          normalize: False
+          add_to_observation_space: True
+          add_to_logging: True
+          config:
+            # int, amount of values that the lidar indicator is able to report, the higher this value the finer the resolution of the raw lidar data
+            indicator_buckets: 6
+            # float, offset of the lidar rays from mesh center they're starting from
+            ray_start: 0
+            # float, end of the lidar as measured from the mesh center, ray length = this - ray_start
+            ray_end: 0.3
+            # int, number of directions in circle-wise fashion that lidar rays are sent to
+            num_rays_circle_directions: 10
+            # int, number of rays that go into one the above circle directions
+            num_rys_side: 10
+            # bool, whether to render the lidar rays in the PyBullet simulation
+            render: False
+            # bool, whether the output will report the indicator or raw measured distances
+            indicator: True
+        sensor:
+          type: "LidarSensorUR5_Explainable"
+          update_steps: 1
+          normalize: False
+          add_to_observation_space: True
+          add_to_logging: True
+          config:
+            indicator_buckets: 6
+            ray_start: 0
+            ray_end: 0.3
+            num_rays_circle_directions: 10
+            num_rys_side: 10
+            render: False
+            indicator: True
+        sensor:
+          type: "OnBodyCameraUR5"
+          update_steps: 1
+          normalize: False
+          add_to_observation_space: True
+          add_to_logging: True
+          config:
+            # str, camera name
+            name: "OnBody_ur5_1"
+            # int, image height
+            height: 128
+            # int, image width
+            width: 128
+            # str, camera type, can be "grayscale", "rgb" or "rgbd"
+            type: "grayscale"
+            # floats, up vector of the camera
+            up_vector: [0, 0, 1]
+            # float, field of view of the camera in degrees
+            fov: 60
+            # float, aspect ratio of the camera
+            aspect_ratio: 1
+            # float, distance of the near plane of the camera
+            near_val: 0.05
+            # float, distance of the far plane of the camera
+            far_val: 5
+            # floats, relative position of the camera w.r.t. to the robot's end effector, can also be empty (results in a default positioning)
+            position_relative_to_effector: []
+        sensor:
+          type: "StaticFloatingCameraFollowEffector"
+          update_steps: 1
+          normalize: False
+          add_to_observation_space: True
+          add_to_logging: True
+          config:
+            name: "EEFollow_ur5_1"
+            height: 128
+            width: 128
+            type: "grayscale"
+            up_vector: [0, 0, 1]
+            fov: 60
+            aspect_ratio: 1
+            near_val: 0.05
+            far_val: 5
+            # floats, position of the camera in world space
+            position: [2, 2, 1.5]
+
+      #   goal definition
+      # here we define the goal that this roboter is supposed to persue
+      # each robot can only have one goal at a time
+      # a robot can also have no goal at all, but at least one robot in the env must have a goal
+      goal:
+        type: "PositionCollisionGoal"
+        # bool, whether rewards are normalized
+        normalize_rewards: False
+        # bool, whether observations from this goal are normalized
+        normalize_observations: False
+        # bool, whether this goal adds anything to the observation space
+        add_to_observation_space: True
+        # bool, whether this goal's logging data is collected
+        add_to_logging: True
+        # bool, whether the robot can continue to do things or be frozen if it achieved success (only relevant if there are other robots with goals in the env)
+        continue_after_success: True
+        # goal type specific settings
+        config:
+          # float, reward given for reaching the position goal
+          reward_success: 10
+          # float, reward given for collision
+          reward_collision: -10
+          # float, multiplier for the reward given for distance to goal position
+          reward_distance_mult: -0.01
+          # float, initial distance threshold for position success
+          dist_threshold_start: 0.2
+          # float, final distance threshold for position success, also used when in env is in eval mode
+          dist_threshold_end : 0.01
+          # float, increment that is subtracted from current distance threshold when the threshold is high and env success rate is above 80%
+          dist_threshold_increment_start: 0.01
+          # float, increment that is subtracted from current distance threshold when the threshold is small and env success rate is above 80%
+          dist_threshold_increment_end: 0.001
+          # float, overwrite for the start of the distance threshold, works for both train and eval, useful for resuming training, does nothing if "None"
+          dist_threshold_overwrite: "None"
+
+    robot:
+        type: "Custom" 
+        name: "generated_1"
+        base_position: [0, 0, 0]
+        base_rotation: [0, 0, 90]
+        resting_angles: [-180, -45, -90, -135, 90, 0]
+        control_mode: 2
+        xyz_delta: 0.005
+        rpy_delta: 0.005
+        # attributes for custom robot generation
+        generation:
+          # BIG TODO
+          # How many Links do you want to create?
+          link_count: "2"
+          #please copy this part depending on the number of links you want to create
+          link_id: "1"
+          link_name: "link1"
+          link_id: "2"
+          link_name: "link2"
+          #end of link part
+
+        #   sensor definition
+        # for this robot we show all examples of robot-bound sensors that need another robot
+        # sensors of this type need another robot as reference
+        # therefore, robots with this sensor must ALWAYS be mentioned after the robot which this sensor is focusing on
+        sensors:
+          sensor:
+            type: "BuddyRobotCamera"  
+            update_steps: 1
+            normalize: False
+            add_to_observation_space: True
+            add_to_logging: True
+            config:
+              name: "BuddyCam_generated_1"
+              height: 128
+              width: 128
+              type: "grayscale"
+              up_vector: [0, 0, 1]
+              fov: 60
+              aspect_ratio: 1
+              near_val: 0.05
+              far_val: 5
+              # str or floats, robot or position in world space to focus on
+              # if str, must be the name of a robot that was mentioned above this one in the config
+              target: "ur5_1"
+
+  #   sensor definition
+  # here we will define all sensors that are not bound (in some way or another) to a robot, e.g. free floating cameras
+  # for illustration purposes, we will add all possible types of non-robot bound sensors
+  sensors:
+    sensor:
+      type: "StaticFloatingCamera"
+      update_steps: 1
+      normalize: False
+      add_to_observation_space: True
+      add_to_logging: True
+      config:
+        name: "free_floating_1"
+        height: 128
+        width: 128
+        type: "grayscale"
+        up_vector: [0, 0, 1]
+        fov: 60
+        aspect_ratio: 1
+        near_val: 0.05
+        far_val: 5
+        position: [-2, -2, 1.5]
+    
+  world:
+    type: "RandomObstacleWorld"
+    # floats, workspace boundaries in the following format: xmin, xmax, ymin, ymax, zmin, zmax
+    workspace_boundaries: [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
+    # type specific settings
+    config:
+      # int, number of static obstacles
+      num_static_obstacles: 3
+      # int, number of moving obstacles
+      num_moving_obstacles: 1
+      # floats, measurements of the three dimensions for random box obstacles
+      # format: widthmin, widthmax, lengthmin, lengthmax, heightmin, heightmax
+      box_measurements: [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
+      # floats, size of the random radii of sphere obstacles, format: rmin, rmax
+      sphere_measurements: [0.005, 0.02]
+      # floats, bounds for the random velocities of the moving obstacles, format: vmin, vmax
+      moving_obstacles_vels: [0.5, 2]
+      # lists of floats, directions for the moving obstacles, must either be the same length as num_moving_obstacles or empty (in which case directions will be generated randomly)
+      moving_obstacles_directions: []
+      # floats, bounds for the random trajectory lengths of the moving obstacles, format: tmin, tmax
+      moving_obstacles_trajectory_length: [0.05, 0.75]

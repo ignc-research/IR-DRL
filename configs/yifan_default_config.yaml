@@ -1,0 +1,90 @@
+# config that builds the env as Yifan had it
+run:
+  load_model: False  
+  model_path: ""  
+  stat_buffer_size: 25  
+  train:
+    num_envs : 16  
+    timesteps: "15e6"  
+    save_freq : "3e4"  
+    save_folder: "./model/weights"  
+    save_name: "PPO_default"
+    ppo_steps: 1024  
+    batch_size: 512
+    gamma: 0.99  
+    tensorboard_folder: "./models/tensorboard_logs"
+    custom_policy:
+      use: False
+      activation_function: "ReLU"  
+      layers:
+        layer1: 128
+        layer2: 128
+        value_function:
+          layer1: 64
+        policy_function:
+          layer1: 32
+          layer2: 32
+          layer3: 16      
+  eval:
+    max_episodes: -1  
+    logging: 1  
+
+env:
+  max_steps_per_episode: 1024  
+  use_physcis_sim: True  # strictly speaking the original code had this at False
+  sim_step: 0.00416666666  
+  normalize_observations: False
+  normalize_rewards: False
+  robots:
+    robot:
+      type: "UR5" 
+      name: "ur5_1"
+      base_position: [0, -0.12, 0.5]
+      base_rotation: [0, 0, 0]
+      resting_angles: [0, 90, -30, -120, -80, 90]
+      control_mode: 0
+      xyz_delta: 0.005
+      rpy_delta: 0.005
+      sensors:
+        sensor:
+          type: "LidarSensorUR5"
+          update_steps: 1
+          normalize: False
+          add_to_observation_space: True
+          add_to_logging: True
+          config:
+            indicator_buckets: 6
+            ray_start: 0
+            ray_end: 0.3
+            num_rays_circle_directions: 10
+            num_rys_side: 10
+            render: False
+            indicator: True
+      goal:
+        type: "PositionCollisionGoal"
+        normalize_rewards: False
+        normalize_observations: False
+        add_to_observation_space: True
+        add_to_logging: True
+        continue_after_success: True
+        config:
+          reward_success: 10
+          reward_collision: -10
+          reward_distance_mult: -0.01
+          dist_threshold_start: 0.2
+          dist_threshold_end : 0.01
+          dist_threshold_increment_start: 0.01
+          dist_threshold_increment_end: 0.001
+          dist_threshold_overwrite: "None"
+
+  world:
+    type: "RandomObstacleWorld"
+    workspace_boundaries: [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
+    config:
+      num_static_obstacles: 3
+      num_moving_obstacles: 1
+      box_measurements: [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
+      sphere_measurements: [0.005, 0.02]
+      moving_obstacles_vels: [0.5, 2]
+      moving_obstacles_directions: []
+      moving_obstacles_trajectory_length: [0.05, 0.75]
