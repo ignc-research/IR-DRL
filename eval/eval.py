@@ -395,18 +395,30 @@ class qual:
 
 
     def plot_trj(self):
-        csv_files = os.listdir(self.trj_pth)
-        # arr.sort()
-        print(csv_files)
-        max_el, n_runs = self.count_elems(arr)
+        data = pd.read_csv(self.trj_pth)
+        # for col in data.columns:
+        #     print(col)
+        episodes = data['episode'].values
+        comp_time = data['cpu_time'].values
+        exec_time = data['sim_time'].values
+        ee_pos = data['position_link_7_ur5_1'].values
+        print(len(comp_time))
+        # max_el = self.count_elems(episodes)
+
+        # count nr of occurences of each episode 
+        unique, counts = np.unique(episodes, return_counts=True)
+        # minimum ep occurance is max size for av arrays
+        max_el = min(counts)
+
         x_av = np.zeros(max_el)
         y_av = np.zeros(max_el)
         z_av = np.zeros(max_el)
 
-        runtime = np.zeros(n_runs)
-        tr_len = np.zeros(n_runs)
-        ee_v = np.zeros(n_runs)
-        smoothness = np.zeros(n_runs)
+        n_episodes = episodes[len(episodes)-1]
+        runtime = np.zeros(n_episodes)
+        tr_len = np.zeros(n_episodes)
+        ee_v = np.zeros(n_episodes)
+        smoothness = np.zeros(n_episodes)
 
         # file_id = np.zeros(n_runs)
         # global ax
@@ -417,47 +429,53 @@ class qual:
 
         n = 0
         # print(arr)
-        for f in arr:
-            if ".txt" in f and not "readme" in f:
-                txt_arr = np.loadtxt(self.trj_pth + f)
+        for run in unique:
+            # txt_arr = np.loadtxt(self.trj_pth + f)
+            # print(np.where(episodes==run)[0][0])
+            idx1 = np.where(episodes==run)[0][0]
+            idx2 = len(np.where(episodes==run)[0]) + idx1 - 1
+            print(idx1,idx2)
 
-                ts = txt_arr[:, 0:1].flatten()
-                # print(f)
-                duration = ts[len(ts) - 1] - ts[0]
-                runtime[n] = duration
-                # print(duration)
+            curr_comp_time = round(np.sum(comp_time[idx1:idx2]),2) #- comp_time[idx1]
+            curr_exec_time = round(exec_time[idx2]-exec_time[idx1],2) #- comp_time[idx1]
+            print(curr_exec_time,curr_comp_time)
+            # ts = txt_arr[:, 0:1].flatten()
+            # # print(f)
+            # duration = ts[len(ts) - 1] - ts[0]
+            # runtime[n] = duration
+            # # print(duration)
 
-                x = txt_arr[:, 1:2].flatten()
-                y = txt_arr[:, 2:3].flatten()
-                z = txt_arr[:, 3:4].flatten()
-                ev = txt_arr[:, 8:9].flatten()
+            # x = txt_arr[:, 1:2].flatten()
+            # y = txt_arr[:, 2:3].flatten()
+            # z = txt_arr[:, 3:4].flatten()
+            # ev = txt_arr[:, 8:9].flatten()
 
 
-                xm = self.unify_trajs(x, max_el)
-                ym = self.unify_trajs(y, max_el)
-                zm = self.unify_trajs(z, max_el)
+            # xm = self.unify_trajs(x, max_el)
+            # ym = self.unify_trajs(y, max_el)
+            # zm = self.unify_trajs(z, max_el)
 
-                x_av = np.add(x_av, xm)
-                y_av = np.add(y_av, ym)
-                z_av = np.add(z_av, zm)
+            # x_av = np.add(x_av, xm)
+            # y_av = np.add(y_av, ym)
+            # z_av = np.add(z_av, zm)
 
-                dist_array = (
-                    (x[:-1] - x[1:]) ** 2
-                    + (y[:-1] - y[1:]) ** 2
-                    + (z[:-1] - z[1:]) ** 2
-                )
+            # dist_array = (
+            #     (x[:-1] - x[1:]) ** 2
+            #     + (y[:-1] - y[1:]) ** 2
+            #     + (z[:-1] - z[1:]) ** 2
+            # )
 
-                cuur_smoothness = self.comp_smoothness(x,y,z)
-                curr_path_length = np.sum(np.sqrt(dist_array))
-                smoothness[n] = cuur_smoothness
-                tr_len[n] = curr_path_length
-                ee_v[n] = np.mean(ev)
+            # cuur_smoothness = self.comp_smoothness(x,y,z)
+            # curr_path_length = np.sum(np.sqrt(dist_array))
+            # smoothness[n] = cuur_smoothness
+            # tr_len[n] = curr_path_length
+            # ee_v[n] = np.mean(ev)
 
-                # file_id[n] = int(f.replace('.txt',''))
-                if plt_cfg["ql"] > 0:
-                    ax.plot3D(x, y, z, color=planner_stl[self.planner], alpha=0.2)
+            # # file_id[n] = int(f.replace('.txt',''))
+            # if plt_cfg["ql"] > 0:
+            #     ax.plot3D(x, y, z, color=planner_stl[self.planner], alpha=0.2)
 
-                n += 1
+            n += 1
 
         x_av /= n_runs
         y_av /= n_runs
@@ -515,18 +533,12 @@ class qual:
 
     # returns the minimum amount of steps in each file
     def count_elems(self, arr):
-        elements = np.zeros(30)
-        n = 0
-        for f in arr:
-            if ".txt" in f and not "readme" in f:
-                txt_arr = np.loadtxt(self.trj_pth + f)
-                x = txt_arr[:, 0:1]
-                elements[n] = len(x)
-                # if 'RRT' in self.trj_pth:
-                #     print(self.trj_pth,len(x))
-                n += 1
-
-        return int(min(elements)), n
+        # each_episode = range(1,arr[len(arr)-1])
+        # for e in each_episode:
+        #     print(e, arr.count_nonzero(e))
+        # return 0
+        unique, counts = np.unique(arr, return_counts=True)
+        print(unique,counts)
 
     # adjust dimensions of trj arrays
     def unify_trajs(self, trj, max_el):
@@ -553,11 +565,11 @@ def makeplot_qual(eval_path, robot):
         ax = plt.axes(projection="3d")
     # ax = plt.axes(projection="3d")
     for p in os.listdir(eval_path):
-        planner = p
+        filepath = eval_path + p
+        planner = p.replace('.csv','')
         # print(p, os.path.isdir(eval_path+'/'+p))
         title = robot + "_" + planner
-        filepath = eval_path + planner + "/"
-        if os.path.isdir(filepath) and planner in plt_cfg["planner"]:
+        if planner in plt_cfg["planner"]:
             if plt_cfg["ql"] == 1:
                 plt.figure(title)
             # create class obj
@@ -941,14 +953,14 @@ if __name__ == "__main__":
     plt_cfg["qt"] = 0
     # plt_cfg["planner"] = "DRL,DRL-JV,RRT,NC-RRT,DRL-AmirV9"
     # plt_cfg["planner"] = "NC-RRT,DRL,DRL-AmirV9"
-    plt_cfg["planner"] = "DRL"
+    plt_cfg["planner"] = "DRL-IK,DRL-JV"
 
     # # Ur 5 ----------------------------------------------------------
     # ur5_1 = makeplot_qual("../ur5/trajectory/testcase1/", "ur5_1")
     # ur5_2 = makeplot_qual("../ur5/trajectory/testcase2/", "ur5_2")
     # ur5_3 = makeplot_qual("../ur5/trajectory/testcase3/", "ur5_3")
 
-    ur5_1 = makeplot_qual("../ur5/trajectory/table_exp1/", "ur5_new")
+    ur5_1 = makeplot_qual("experiments/table_exp1/", "ur5_new")
 
 
     # # Kuka ----------------------------------------------------------
