@@ -29,8 +29,8 @@ class CameraBase(Sensor):
 
     def __init__(self, position: List = None, target: List = None, camera_args: CameraArgs = None, orientation: List = None,\
             debug : Dict[str, bool] = None, name : str = 'default', \
-            normalize: bool = False, add_to_observation_space: bool = True, add_to_logging: bool = False, sim_step: float = 0):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step)
+            normalize: bool = False, add_to_observation_space: bool = True, add_to_logging: bool = False, sim_step: float = 0, update_steps: int = 0):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
         self.pos = position if position is not None else [0,0,0]
         self.target = target if target is not None else [0,0,0]
         self.camera_args : CameraArgs
@@ -47,6 +47,8 @@ class CameraBase(Sensor):
         self._add_debug_params()
 
         self.camera = self._set_camera()
+
+        self.current_image = None
 
     def _parse_camera_args(self, camera_args : CameraArgs):
         default_camera_args : CameraArgs = {
@@ -180,11 +182,13 @@ class CameraBase(Sensor):
         
 
     def get_observation(self):
-        return {self.output_name : self._get_image()}
+        return {self.output_name : self.current_image}
 
-    def update(self):
+    def update(self, step):
         self.cpu_epoch = time()
-        self._adapt_to_environment()
+        if step % self.update_steps == 0:
+            self._adapt_to_environment()
+            self.current_image = self._get_image()
         self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()

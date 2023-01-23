@@ -7,7 +7,7 @@ class Sensor(ABC):
     See the joint or position sensor for examples.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int):
         
         super().__init__()
         
@@ -30,17 +30,20 @@ class Sensor(ABC):
         self.cpu_time = 0
         self.cpu_epoch = time()
 
-        # sets the simulation time step, the time that is supposed to pass in the simulation for every step of the env
-        # if this is lower than what
+        # set the update rate
+        # use this value to set the rate at which the sensor will update its data, useful to conserve fps
+        # see the joint sensor implementation for an example 
+        self.update_steps = update_steps
 
         # at the end of init the sensor should also update itself
         # self.update()  # add this in your subclass at the end of __init__ without the comment
 
     @abstractmethod
-    def update(self) -> dict:
+    def update(self, step) -> dict:
         """
         Updates sensor data by performing underlying data collection.
         This also includes any operations necessary to adapt the sensor's state to the changed environment, e.g. in case of moving sensors.
+        The method receives the current env step from outside, might be useful for certain things.
         Returns the current data.
         """
         pass

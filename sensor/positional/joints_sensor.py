@@ -11,9 +11,9 @@ __all__ = [
 
 class JointsSensor(Sensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step:float, robot: Robot):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps:int, robot: Robot):
 
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
         
         # set associated robot
         self.robot = robot
@@ -34,11 +34,12 @@ class JointsSensor(Sensor):
         #self.update()
 
 
-    def update(self) -> dict:
+    def update(self, step) -> dict:
         self.cpu_epoch = time()
-        self.joints_angles_prev = self.joints_angles
-        self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids])
-        self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / self.sim_step
+        if step % self.update_steps == 0:
+            self.joints_angles_prev = self.joints_angles
+            self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids])
+            self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / self.sim_step
         self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()

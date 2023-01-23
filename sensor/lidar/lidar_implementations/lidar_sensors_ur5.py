@@ -18,8 +18,8 @@ class LidarSensorUR5(LidarSensor):
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, robot, indicator_buckets, render, indicator)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, render, indicator)
 
         # lidar setup attributes
         self.ray_start = ray_start  # offset of the ray start from the mesh center
@@ -152,8 +152,8 @@ class LidarSensorUR5_Explainable(LidarSensor):
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, robot, indicator_buckets, render, indicator)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, render, indicator)
         # lidar setup attributes
         self.ray_start = ray_start  # offset of the ray start from the mesh center
         self.ray_end = ray_end  # end of the ray, meaning ray length = ray_end - ray_start
@@ -317,8 +317,8 @@ class LidarSensorUR5Real(LidarSensor):
     Lidar class adapted for the use with the UR5 with a realistic lidar setup. Features rays coming from a spot where a plausible lidar sensor could be mounted in real life.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, render: bool = False, indicator: bool = True):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, robot, indicator_buckets, render, indicator)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, render: bool = False, indicator: bool = True):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, render, indicator)
 
         # lidar setup attributes
         self.ray_start = ray_start  # offset of the ray start from the mesh center

@@ -11,9 +11,9 @@ __all__ = [
 
 class PositionRotationSensor(Sensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, robot: Robot, link_id: int, quaternion: bool=True):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, link_id: int, quaternion: bool=True):
 
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
 
         # WARNING: this position sensor will not return the position as part of the observation space
         # because absolute position is not useful for the model
@@ -48,16 +48,17 @@ class PositionRotationSensor(Sensor):
         self.rotation = None
         self.position_velocity = np.zeros(3)
 
-    def update(self):
+    def update(self, step):
         self.cpu_epoch = time()
-        self.position_prev = self.position
-        ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
-        self.position = np.array(ee_link_state[4])
-        self.rotation = ee_link_state[5]  # TODO: think about whether this maybe should be entry 1
-        if not self.quaternion:
-            self.rotation = pyb.getEulerFromQuaternion(self.rotation)
-        self.rotation = np.array(self.rotation)
-        self.position_velocity = (self.position - self.position_prev) / self.sim_step
+        if step % self.update_steps == 0:
+            self.position_prev = self.position
+            ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
+            self.position = np.array(ee_link_state[4])
+            self.rotation = ee_link_state[5]  # TODO: think about whether this maybe should be entry 1
+            if not self.quaternion:
+                self.rotation = pyb.getEulerFromQuaternion(self.rotation)
+            self.rotation = np.array(self.rotation)
+            self.position_velocity = (self.position - self.position_prev) / self.sim_step
         self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()
