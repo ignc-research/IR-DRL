@@ -16,8 +16,6 @@ class RandomObstacleWorld(World):
     """
 
     def __init__(self, workspace_boundaries: list=[-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], 
-                       robot_base_positions: list=[np.array([0.0, -0.12, 0.5])],
-                       robot_base_orientations: list=[np.array([0, 0, 0, 1])],
                        sim_step: float=1/240,
                        num_static_obstacles: int=3, 
                        num_moving_obstacles: int=1,

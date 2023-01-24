@@ -151,15 +151,15 @@ class TableExperiment(World):
 
         if self.obstacle_training_schedule:
             if success_rate < 0.2:
-                obs_mean = 1
+                obs_mean = 0
             elif success_rate < 0.4:
-                obs_mean = 2
+                obs_mean = 1
             elif success_rate < 0.6:
-                obs_mean = 4
+                obs_mean = 2
             elif success_rate < 0.8:
-                obs_mean = 5
+                obs_mean = 3
             else:
-                obs_mean = 7
+                obs_mean = 5
             self.num_obstacles = round(np.random.normal(loc=obs_mean, scale=1.5))
             self.num_obstacles = min(8, self.num_obstacles)
             self.num_obstacles = max(0, self.num_obstacles)
