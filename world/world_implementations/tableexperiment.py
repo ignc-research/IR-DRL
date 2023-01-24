@@ -196,6 +196,9 @@ class TableExperiment(World):
             return [(None, None)]
 
     def create_position_target(self) -> list:
+        # in contrast to other worlds, we will not check if for robots that need goals
+        # this world only supports one robot with a position goal
+
         # use the preset targets if there are some
         if self.targets:
             self.position_targets = self.targets

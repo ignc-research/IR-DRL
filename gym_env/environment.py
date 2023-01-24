@@ -425,6 +425,9 @@ class ModularDRLEnv(gym.Env):
             # start log dict with env wide information
             info = {"episodes": self.episode,
                     "is_success": is_success, 
+                    "collision": collision,
+                    "timeout": timeout,
+                    "out_of_bounds": out_of_bounds,
                     "step": self.steps_current_episode,
                     "success_rate": np.average(self.success_stat),
                     "out_of_bounds_rate": np.average(self.out_of_bounds_stat),
