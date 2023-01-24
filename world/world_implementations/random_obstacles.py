@@ -16,8 +16,6 @@ class RandomObstacleWorld(World):
     """
 
     def __init__(self, workspace_boundaries: list=[-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], 
-                       robot_base_positions: list=[np.array([0.0, -0.12, 0.5])],
-                       robot_base_orientations: list=[np.array([0, 0, 0, 1])],
                        sim_step: float=1/240,
                        num_static_obstacles: int=3, 
                        num_moving_obstacles: int=1,
@@ -131,7 +129,7 @@ class RandomObstacleWorld(World):
         
     def create_ee_starting_points(self):
         for robot in self.robots_in_world:
-            if robot in self.robots_with_position:
+            if robot.goal.needs_a_position:
                 rando = np.random.rand(3)
                 x = (self.x_min + self.x_max) / 2 + 0.5 * (rando[0] - 0.5) * (self.x_max - self.x_min)
                 y = (self.y_min + self.y_max) / 2 + 0.5 * (rando[1] - 0.5) * (self.y_max - self.y_min)
@@ -146,7 +144,7 @@ class RandomObstacleWorld(World):
 
     def create_position_target(self):
         for idx, robot in enumerate(self.robots_in_world):
-            if robot in self.robots_with_position:
+            if robot.goal.needs_a_position:
                 while True:
                     rando = np.random.rand(3)
                     x = self.x_min + rando[0] * (self.x_max - self.x_min)
