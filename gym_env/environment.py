@@ -50,10 +50,11 @@ class ModularDRLEnv(gym.Env):
         self.cpu_time = 0
         self.cpu_epoch = time()
         self.log = []
-        self.success_stat = [False]
-        self.out_of_bounds_stat = [False]
-        self.timeout_stat = [False]
-        self.collision_stat = [False]
+        # fill the stats with a few entries to make early iterations more robust
+        self.success_stat = [False, False, False, False]
+        self.out_of_bounds_stat = [False, False, False, False]
+        self.timeout_stat = [False, False, False, False]
+        self.collision_stat = [False, False, False, False]
         self.goal_metrics = []
         self.reward = 0
         self.reward_cumulative = 0
@@ -81,6 +82,7 @@ class ModularDRLEnv(gym.Env):
         robot_base_orientations = [np.array([0, 0, 0, 1])]
         robot_resting_angles = [np.array([-np.pi,-np.pi/4,-np.pi/2,-3*np.pi/4,np.pi/2,0])] 
         """
+
         # robot attributes
         self.xyz_vels = [0.005]
         self.rpy_vels = [0.005]
@@ -107,7 +109,7 @@ class ModularDRLEnv(gym.Env):
         """
         self.world = WorldRegistry.get("TableExperiment")(workspace_boundaries=workspace_boundaries,
                                          sim_step=self.sim_step,
-                                         num_obstacles=10,
+                                         num_obstacles=0,
                                          obstacle_velocities=[],
                                          num_humans=0,
                                          #human_positions=[np.array([1.8, 0, 1.4])],
@@ -120,7 +122,7 @@ class ModularDRLEnv(gym.Env):
                                          ee_starts=[],
                                          obstacle_positions=[],
                                          obstacle_trajectories=[],
-                                         obstacle_training_schedule=True)
+                                         obstacle_training_schedule=False)
         """
         #self.world = TestcasesWorld(test_mode=2)
 
