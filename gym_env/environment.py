@@ -16,32 +16,39 @@ from world import WorldRegistry
 #   robots
 from robot import RobotRegistry
 #   sensors
-from sensor.positional import PositionalRegistry
-from sensor.lidar import LidarRegistry
-from sensor.camera import CameraRegistry
+from sensor import SensorRegistry
 #   goals
 from goal import GoalRegistry
 
 class ModularDRLEnv(gym.Env):
 
     def __init__(self, env_config):
-
-        # here the parser for the env_config (a python dict for the external YAML file) will appear at some point
-        # for now, the attributes needed to get this prototype to run are set manually here
         
-        # general env attributes
-        self.normalize_observations = env_config["normalize_observations"]
-        self.normalize_rewards = env_config["normalize_rewards"]
-        self.display = env_config["display"]
-        self.show_auxillary_geometry_world = env_config["display_extra"]
-        self.show_auxillary_geometry_goal = env_config["display_extra"]
+        #   general env attributes
+        # run mode
         self.train = env_config["train"]
+        # flag for normalizing observations
+        self.normalize_observations = env_config["normalize_observations"]
+        # flag for normalizing rewards
+        self.normalize_rewards = env_config["normalize_rewards"]
+        # flag for rendering
+        self.display = env_config["display"]
+        # flag for rendering auxillary geometry spawned by the scenario
+        self.show_auxillary_geometry_world = env_config["display_extra"]
+        # flag for rendering auxillary geometry spawned by the goals
+        self.show_auxillary_geometry_goal = env_config["display_extra"]
+        # maximum steps in an episode before timeout
         self.max_steps_per_episode = env_config["max_steps_per_episode"]
-        self.max_episodes = env_config["max_episodes"]  # number of episodes after which the code will exit on its own, if set to -1 will continue indefinitely until stopped from the outside
-        self.logging = env_config["logging"]  # 0: no logging, 1: logging for console every episode, 2: logging for console every episode and to csv after maximum number of episodes has been reached or after every episode if max_episodes is -1
-        self.use_physics_sim = env_config["use_physics_sim"]  # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
-        self.stat_buffer_size = env_config["stat_buffer_size"]  # length of the stat arrays in terms of episodes over which the average will be drawn for logging
-        self.sim_step = env_config["sim_step"]  # in seconds -> inverse is frame rate in Hz
+        # number of episodes after which the code will exit on its own, if set to -1 will continue indefinitely until stopped from the outside
+        self.max_episodes = env_config["max_episodes"]  
+        # 0: no logging, 1: logging for console every episode, 2: logging for console every episode and to csv after maximum number of episodes has been reached or after every episode if max_episodes is -1
+        self.logging = env_config["logging"] 
+        # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
+        self.use_physics_sim = env_config["use_physics_sim"]  
+        # length of the stat arrays in terms of episodes over which the average will be drawn for logging
+        self.stat_buffer_size = env_config["stat_buffer_size"]  
+        # in seconds -> inverse is frame rate in Hz
+        self.sim_step = env_config["sim_step"]  
 
         # tracking variables
         self.episode = 0
@@ -59,35 +66,6 @@ class ModularDRLEnv(gym.Env):
         self.reward = 0
         self.reward_cumulative = 0
 
-        # misc
-        dist_threshold_overwrite = env_config["dist_threshold_overwrite"]
-
-        
-        # world attributes for yifan env
-        workspace_boundaries = [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
-        robot_base_positions = [np.array([0.0, -0.12, 0.5])]
-        robot_base_orientations = [np.array([0, 0, 0, 1])]
-        num_static_obstacles = 3
-        num_moving_obstacles = 1
-        box_measurements = [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
-        sphere_measurements = [0.005, 0.02]
-        moving_obstacles_vels = [0.1, 1]
-        moving_obstacles_directions = []
-        moving_obstacles_trajectory_length = [0.2, 1]
-        robot_resting_angles = [np.array([0.0, np.pi/2, -np.pi/6, -2*np.pi/3, -4*np.pi/9, np.pi/2])]
-        """
-        # world attributes for table experiment
-        workspace_boundaries = [-2, 2, -2, 2, 0, 5]
-        robot_base_positions = [np.array([0, 0.0, 1.1])]
-        robot_base_orientations = [np.array([0, 0, 0, 1])]
-        robot_resting_angles = [np.array([-np.pi,-np.pi/4,-np.pi/2,-3*np.pi/4,np.pi/2,0])] 
-        """
-
-        # robot attributes
-        self.xyz_vels = [0.005]
-        self.rpy_vels = [0.005]
-        self.control_mode = [env_config["control_mode"]]
-
         # set up the PyBullet client
         disp = pyb.DIRECT if not self.display else pyb.GUI
         pyb.connect(disp)
@@ -95,108 +73,69 @@ class ModularDRLEnv(gym.Env):
         pyb.setAdditionalSearchPath("./assets/")
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
-        
-        
-        self.world = WorldRegistry.get("RandomObstacle")(workspace_boundaries=workspace_boundaries,
-                                         sim_step=self.sim_step,
-                                         num_static_obstacles=num_static_obstacles,
-                                         num_moving_obstacles=num_moving_obstacles,
-                                         box_measurements=box_measurements,
-                                         sphere_measurements=sphere_measurements,
-                                         moving_obstacles_vels=moving_obstacles_vels,
-                                         moving_obstacles_directions=moving_obstacles_directions,
-                                         moving_obstacles_trajectory_length=moving_obstacles_trajectory_length)
-        """
-        self.world = WorldRegistry.get("TableExperiment")(workspace_boundaries=workspace_boundaries,
-                                         sim_step=self.sim_step,
-                                         num_obstacles=0,
-                                         obstacle_velocities=[],
-                                         num_humans=0,
-                                         #human_positions=[np.array([1.8, 0, 1.4])],
-                                         human_positions=[np.array([0, 0, 0])],
-                                         #human_rotations=[np.array(pyb.getQuaternionFromEuler([0,0,np.pi/2]))],
-                                         human_rotations = [np.array([0, 0, 0, 1])],
-                                         human_trajectories=[[np.array([-2,2,1.4]), np.array([2, 2, 1.4])]],
-                                         #human_trajectories=[[]],
-                                         human_reactive=[True],
-                                         ee_starts=[],
-                                         obstacle_positions=[],
-                                         obstacle_trajectories=[],
-                                         obstacle_training_schedule=False)
-        """
 
-        #self.world = TestcasesWorld(test_mode=2)
+        # init world from config
+        world_type = env_config["world"]["type"]
+        world_config = env_config["world"]["config"]
+        
+        self.world = WorldRegistry.get(world_type)(world_config)
 
-        # at this point robots would dynamically be created as needed by the config/the world
-        # however, for now we generate one manually
+        # init robots and their associated sensors and goals from config
         self.robots = []
-        ur5_1 = RobotRegistry.get('UR5')(name="ur5_1", 
-                   world=self.world,
-                   sim_step=self.sim_step,
-                   use_physics_sim=self.use_physics_sim,
-                   base_position=robot_base_positions[0],
-                   base_orientation=robot_base_orientations[0],
-                   resting_angles=robot_resting_angles[0],
-                   control_mode=self.control_mode[0],
-                   xyz_delta=self.xyz_vels[0],
-                   rpy_delta=self.rpy_vels[0])
-        self.robots.append(ur5_1)
-        ur5_1.id = 0
-
-        # at this point we would generate all the sensors prescribed by the config for each robot and assign them to the robots
-        # however, for now we simply generate the two necessary ones manually
         self.sensors = []
-        ur5_1_position_sensor = PositionalRegistry.get("PositionRotation")(self.normalize_observations, True, True, self.sim_step, ur5_1, 7)
-        ur5_1_joint_sensor = PositionalRegistry.get("Joints")(self.normalize_observations, True, True, self.sim_step, ur5_1)
-        ur5_1.set_joint_sensor(ur5_1_joint_sensor)
-        ur5_1.set_position_rotation_sensor(ur5_1_position_sensor)
+        id_counter = 0
+        for robo_entry in env_config["robots"]:
+            robo_type = robo_entry["type"]
+            robo_config = robo_entry["config"]
+            robot = RobotRegistry(robo_type)(robo_config)
+            self.robots.append(robot)
+            robot.id = id_counter
+            id_counter += 1
 
-        ur5_1_lidar_sensor = LidarRegistry.get('LidarSensorUR5_Explainable')(normalize=self.normalize_observations,
-                                            add_to_observation_space=True, 
-                                            add_to_logging=False,
-                                            sim_step=self.sim_step,
-                                            robot=ur5_1, 
-                                            indicator_buckets=9,
-                                            ray_start=0,
-                                            ray_end=0.3,
-                                            num_rays_side=10,
-                                            num_rays_circle_directions=6,
-                                            render=False,
-                                            indicator=True)
+            # create the two mandatory sensors
+            joint_sens_config = {"normalize_observations": self.normalize_observations, "add_to_observation_space": True, 
+                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot}
+            posrot_sens_config = {"normalize_observations": self.normalize_observations, "add_to_observation_space": True, 
+                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot,
+                                 "link_id": robot.end_effector_link_id, "quaternion": True}
+            new_rob_joints_sensor = SensorRegistry("Joints")(joint_sens_config)
+            new_rob_posrot_sensor = SensorRegistry("PositionRotation")(posrot_sens_config)
+            robot.set_joint_sensor(new_rob_joints_sensor)
+            robot.set_position_rotation_sensor(new_rob_posrot_sensor)
+            self.sensors.append(new_rob_posrot_sensor)
+            self.sensors.append(new_rob_joints_sensor)
 
-        
-        ur5_1_camera_sensor = CameraRegistry.get('Floating_FollowEffector')(
-                                            ur5_1,
-                                            [0,1,1],
-                                            camera_args={
-                                                'fov' : 120,
-                                                'type': 'grayscale'},
-                                            )
+            # create the sensors indicated by the config
+            for sensor_entry in robo_entry["sensors"]:
+                sensor_type = sensor_entry["type"]
+                sensor_config = sensor_config["config"]
+                sensor_config["robot"] = robot
+                sensor_config["normalize"] = self.normalize_observations
+                # deal with robot bound sensors that refer to other robots
+                if "target_robot" in sensor_config:
+                    # go through the list of existing robots
+                    for other_robot in self.robots:
+                        # find the one whose name matches the target
+                        if other_robot.name == sensor_config["target_robot"]:
+                            sensor_config["target_robot"] = other_robot
+                new_sensor = SensorRegistry(sensor_type)(sensor_config)
+                self.sensors.append(new_sensor)
+            
+            # create the goal indicated by the config
+            goal_type = robo_entry["goal"]["type"]
+            goal_config = robo_entry["goal"]["config"]
+            goal_config["robot"] = robot
+            new_goal = GoalRegistry(goal_type)(goal_config)
+            self.goals.append(new_goal)
 
-        self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor]
+        # init sensors that don't belong to a robot
+        for sensor_entry in env_config["sensors"]:
+            sensor_type = sensor_entry["type"]
+            sensor_config = sensor_entry["config"]
+            new_sensor = SensorRegistry(sensor_type)(sensor_config)
+            self.sensors.append(new_sensor)
 
-
-        # at this point we would generate all the goals needed and assign them to their respective robots
-        # however, for the moment we simply generate the one we want for testing
-        self.goals = []
-        ur5_1_goal = GoalRegistry.get('PositionCollision')(robot=ur5_1,
-                                           normalize_rewards=self.normalize_rewards,
-                                           normalize_observations=self.normalize_observations,
-                                           train=self.train,
-                                           add_to_logging=True,
-                                           max_steps=self.max_steps_per_episode,
-                                           continue_after_success=False, 
-                                           reward_success=10,
-                                           reward_collision=-10,
-                                           reward_distance_mult=-0.01,
-                                           dist_threshold_start=0.2,
-                                           dist_threshold_end=0.01,
-                                           dist_threshold_increment_start=0.02,
-                                           dist_threshold_increment_end=0.008,
-                                           dist_threshold_overwrite=dist_threshold_overwrite)
-        self.goals.append(ur5_1_goal)
-        ur5_1.set_goal(ur5_1_goal)
-
+        # register robots with the world
         self.world.register_robots(self.robots)
 
         # construct observation space from sensors and goals
