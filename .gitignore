@@ -6,6 +6,9 @@
 
 # Created by https://www.gitignore.io/api/macos,linux,django,python,pycharm
 
+### personal YAML configs ###
+configs/*benno*
+
 ### Models ###
 models/
 models_on_body/

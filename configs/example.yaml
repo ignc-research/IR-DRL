@@ -63,7 +63,7 @@ env:
   # int, maximum steps an episode can go on in this env
   max_steps_per_episode: 1024  
   # bool, whether to use PyBullet acurate physics sim for movement or not
-  use_physcis_sim: True
+  use_physics_sim: True
   # float, time step of virtual simulated time in seconds for each env step, inverse is frame rate
   sim_step: 0.00416666666  # 1/240 s <-> 240 Hz
   # int, number of past episodes that are used to calculate running average stats for env performance
@@ -78,20 +78,21 @@ env:
     robot1:  # you need to increment the robot field names here, otherwise they will overwrite each other
       # str, robot type, possible values: "UR5", "KR16", "Custom" ("Custom" needs more fields, see below for an example)
       type: "UR5" 
-      # str, the name under which the robot will be run in the env, appears in logs and sensor names, make sure to give unique ones in order to avoid confusion
-      name: "ur5_1"
-      # floats, the xyz position where the base of the robot is mounted in the world
-      base_position: [0, 0, 0]
-      # floats, the rotation of the robot base w.r.t the world coordinate system, in degrees and roll-pitch-yaw format
-      base_rotation: [0, 0, 90]
-      # floats, the resting angles in degrees of the robot's joints a.k.a. its default pose, must be the same amount as the (movable) joints of the robot
-      resting_angles: [-180, -45, -90, -135, 90, 0]
-      # int, determines in which way the robot will be controlled by the agent, possible values: 0: inverse kinematics, 1: joint angles, 2: joint velocities
-      control_mode: 2
-      # float, determines the maximum xyz movement when using inverse kinematics
-      xyz_delta: 0.005
-      # float, determines the maximum rpy movement when using inverse kinematics
-      rpy_delta: 0.005
+      config:
+        # str, the name under which the robot will be run in the env, appears in logs and sensor names, make sure to give unique ones in order to avoid confusion
+        name: "ur5_1"
+        # floats, the xyz position where the base of the robot is mounted in the world
+        base_position: [0, 0, 0]
+        # floats, the rotation of the robot base w.r.t the world coordinate system, in degrees and roll-pitch-yaw format
+        base_orientation: [0, 0, 90]
+        # floats, the resting angles in degrees of the robot's joints a.k.a. its default pose, must be the same amount as the (movable) joints of the robot
+        resting_angles: [-180, -45, -90, -135, 90, 0]
+        # int, determines in which way the robot will be controlled by the agent, possible values: 0: inverse kinematics, 1: joint angles, 2: joint velocities
+        control_mode: 2
+        # float, determines the maximum xyz movement when using inverse kinematics
+        xyz_delta: 0.005
+        # float, determines the maximum rpy movement when using inverse kinematics
+        rpy_delta: 0.005
 
       #   sensor definition
       # here we define all the sensors that are bound to this specific robot
@@ -101,27 +102,30 @@ env:
       sensors:
         sensor1:  # same as the robot field name above
           type: "PositionRotation"
-          # int, every x steps the sensor will update its data, higher values get more fps for the simulation but lower accuracy
-          update_steps: 1
-          # whether to normalize this sensors output
-          normalize: False
-          # whether this sensor's output will be added to the observation space
-          add_to_observation_space: True
-          # whether this sensor's logging data will be collected
-          add_to_logging: True
-          # sensor type specific instructions
           config:
+            # int, every x steps the sensor will update its data, higher values get more fps for the simulation but lower accuracy
+            update_steps: 1
+            # whether to normalize this sensors output
+            normalize: False
+            # whether this sensor's output will be added to the observation space
+            add_to_observation_space: True
+            # whether this sensor's logging data will be collected
+            add_to_logging: True
+
+            # sensor type specific instructions
             # int, link id for which the position and rotation are to be reported
             link_id: 6
             # bool, whether to report rotation as quaternion (True) or rpy (False)
             quaternion: True
         sensor2:
           type: "LidarSensorUR5"
-          update_steps: 1
-          normalize: False
-          add_to_observation_space: True
-          add_to_logging: True
           config:
+            update_steps: 1
+            normalize: False
+            add_to_observation_space: True
+            add_to_logging: True
+
+            # sensor type specific instructions
             # int, amount of values that the lidar indicator is able to report, the higher this value the finer the resolution of the raw lidar data
             indicator_buckets: 6
             # float, offset of the lidar rays from mesh center they're starting from
@@ -131,32 +135,34 @@ env:
             # int, number of directions in circle-wise fashion that lidar rays are sent to
             num_rays_circle_directions: 10
             # int, number of rays that go into one the above circle directions
-            num_rys_side: 10
+            num_rays_side: 10
             # bool, whether to render the lidar rays in the PyBullet simulation
             render: False
             # bool, whether the output will report the indicator or raw measured distances
             indicator: True
         sensor3:
           type: "LidarSensorUR5_Explainable"
-          update_steps: 1
-          normalize: False
-          add_to_observation_space: True
-          add_to_logging: True
           config:
+            update_steps: 1
+            normalize: False
+            add_to_observation_space: True
+            add_to_logging: True
             indicator_buckets: 6
             ray_start: 0
             ray_end: 0.3
             num_rays_circle_directions: 10
-            num_rys_side: 10
+            num_rays_side: 10
             render: False
             indicator: True
         sensor4:
           type: "OnBodyCameraUR5"
-          update_steps: 1
-          normalize: False
-          add_to_observation_space: True
-          add_to_logging: True
           config:
+            update_steps: 1
+            normalize: False
+            add_to_observation_space: True
+            add_to_logging: True
+
+            # sensor type specific instructions
             # str, camera name
             name: "OnBody_ur5_1"
             # int, image height
@@ -179,11 +185,11 @@ env:
             position_relative_to_effector: []
         sensor5:
           type: "StaticFloatingCameraFollowEffector"
-          update_steps: 1
-          normalize: False
-          add_to_observation_space: True
-          add_to_logging: True
           config:
+            update_steps: 1
+            normalize: False
+            add_to_observation_space: True
+            add_to_logging: True
             name: "EEFollow_ur5_1"
             height: 128
             width: 128
@@ -201,19 +207,20 @@ env:
       # each robot can only have one goal at a time
       # a robot can also have no goal at all, but at least one robot in the env must have a goal
       goal:
-        type: "PositionCollisionGoal"
-        # bool, whether rewards are normalized
-        normalize_rewards: False
-        # bool, whether observations from this goal are normalized
-        normalize_observations: False
-        # bool, whether this goal adds anything to the observation space
-        add_to_observation_space: True
-        # bool, whether this goal's logging data is collected
-        add_to_logging: True
-        # bool, whether the robot can continue to do things or be frozen if it achieved success (only relevant if there are other robots with goals in the env)
-        continue_after_success: True
-        # goal type specific settings
+        type: "PositionCollision"
         config:
+          # bool, whether rewards are normalized
+          normalize_rewards: False
+          # bool, whether observations from this goal are normalized
+          normalize_observations: False
+          # bool, whether this goal adds anything to the observation space
+          add_to_observation_space: True
+          # bool, whether this goal's logging data is collected
+          add_to_logging: True
+          # bool, whether the robot can continue to do things or be frozen if it achieved success (only relevant if there are other robots with goals in the env)
+          continue_after_success: True
+          
+          # goal type specific settings
           # float, reward given for reaching the position goal
           reward_success: 10
           # float, reward given for collision
@@ -234,14 +241,15 @@ env:
     robot2:
         type: "Custom" 
         name: "generated_1"
-        base_position: [0, 0, 0]
-        base_rotation: [0, 0, 90]
-        resting_angles: [-180, -45, -90, -135, 90, 0]
-        control_mode: 2
-        xyz_delta: 0.005
-        rpy_delta: 0.005
-        # attributes for custom robot generation
-        generation:
+        config:
+          base_position: [0, 0, 0]
+          base_orientation: [0, 0, 90]
+          resting_angles: [-180, -45, -90, -135, 90, 0]
+          control_mode: 2
+          xyz_delta: 0.005
+          rpy_delta: 0.005
+
+          # attributes for custom robot generation
           # BIG TODO
           # How many Links do you want to create?
           link_count: "2"
@@ -258,12 +266,12 @@ env:
         # therefore, robots with this sensor must ALWAYS be mentioned after the robot which this sensor is focusing on
         sensors:
           sensor1:
-            type: "BuddyRobotCamera"  
-            update_steps: 1
-            normalize: False
-            add_to_observation_space: True
-            add_to_logging: True
-            config:
+            type: "BuddyRobotCamera" 
+            config: 
+              update_steps: 1
+              normalize: False
+              add_to_observation_space: True
+              add_to_logging: True
               name: "BuddyCam_generated_1"
               height: 128
               width: 128
@@ -283,11 +291,11 @@ env:
   sensors:
     sensor1:
       type: "StaticFloatingCamera"
-      update_steps: 1
-      normalize: False
-      add_to_observation_space: True
-      add_to_logging: True
       config:
+        update_steps: 1
+        normalize: False
+        add_to_observation_space: True
+        add_to_logging: True
         name: "free_floating_1"
         height: 128
         width: 128
@@ -300,11 +308,12 @@ env:
         position: [-2, -2, 1.5]
     
   world:
-    type: "RandomObstacleWorld"
-    # floats, workspace boundaries in the following format: xmin, xmax, ymin, ymax, zmin, zmax
-    workspace_boundaries: [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
-    # type specific settings
+    type: "RandomObstacle"
     config:
+      # floats, workspace boundaries in the following format: xmin, xmax, ymin, ymax, zmin, zmax
+      workspace_boundaries: [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
+      
+      # type specific settings
       # int, number of static obstacles
       num_static_obstacles: 3
       # int, number of moving obstacles

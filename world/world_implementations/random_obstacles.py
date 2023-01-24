@@ -14,18 +14,9 @@ class RandomObstacleWorld(World):
     The obstacles will be placed between the p
     Depending on the configuration, some of these can be moving in various directions at various speeds
     """
-
-    def __init__(self, workspace_boundaries: list=[-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], 
-                       sim_step: float=1/240,
-                       num_static_obstacles: int=3, 
-                       num_moving_obstacles: int=1,
-                       box_measurements: list=[0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125],
-                       sphere_measurements: list=[0.005, 0.02],
-                       moving_obstacles_vels: list=[0.5, 2],
-                       moving_obstacles_directions: list=[],
-                       moving_obstacles_trajectory_length: list=[0.05, 0.75]
-                       ):
+    def __init__(self, world_config):
         """
+        The world config contains the following parameters:
         :param workspace_boundaries: List of 6 floats containing the bounds of the workspace in the following order: xmin, xmax, ymin, ymax, zmin, zmax
         :param num_static_obstacles: int number that is the amount of static obstacles in the world
         :param num_moving_obstacles: int number that is the amount of moving obstacles in the world
@@ -38,19 +29,19 @@ class RandomObstacleWorld(World):
         """
         # TODO: add random rotations for the plates
 
-        super().__init__(workspace_boundaries, sim_step)
+        super().__init__(world_config)
 
-        self.num_static_obstacles = num_static_obstacles
-        self.num_moving_obstacles = num_moving_obstacles
+        self.num_static_obstacles = world_config["num_static_obstacles"]
+        self.num_moving_obstacles = world_config["num_moving_obstacles"]
 
-        self.box_l_min, self.box_l_max, self.box_w_min, self.box_w_max, self.box_h_min, self.box_h_max = box_measurements
-        self.sphere_r_min, self.sphere_r_max = sphere_measurements
+        self.box_l_min, self.box_l_max, self.box_w_min, self.box_w_max, self.box_h_min, self.box_h_max = world_config["box_measurements"]
+        self.sphere_r_min, self.sphere_r_max = world_config["sphere_measurements"]
 
-        self.vel_min, self.vel_max = moving_obstacles_vels
+        self.vel_min, self.vel_max = world_config["moving_obstacles_vels"]
 
-        self.allowed_directions = moving_obstacles_directions
+        self.allowed_directions = world_config["moving_obstacles_directions"]
 
-        self.trajectory_length_min, self.trajectory_length_max = moving_obstacles_trajectory_length
+        self.trajectory_length_min, self.trajectory_length_max = world_config["moving_obstacles_trajectory_length"]
 
         self.obstacle_objects = []  # list to access the obstacle python objects
 

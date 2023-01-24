@@ -8,30 +8,30 @@ class Goal(ABC):
     See the position goal for examples.
     """
 
-    def __init__(self, robot:Robot, normalize_rewards:bool, normalize_observations:bool, train:bool, add_to_observation_space: bool, add_to_logging:bool, max_steps:int, continue_after_success:bool=False):
+    def __init__(self, goal_config):
 
         # each goal needs to have a robot assigned for which it is valid
-        self.robot = robot
+        self.robot = goal_config["robot"]
 
         # bool for training or evaluation, useful for when the goal has to change if it's in training
-        self.train = train
+        self.train = goal_config["train"]
 
         # the maximum steps which the env has to fulfill this goal
-        self.max_steps = max_steps
+        self.max_steps = goal_config["max_steps"]
 
         # wether the robot associated with this goal can continue to receive actions after the goal has been fulfilled (only relevant for multi robot setups)
-        self.continue_after_success = continue_after_success
+        self.continue_after_success = goal_config["continue_after_success"]
 
         # determines whether the rewards and observations given by this goal will be normalized
-        self.normalize_rewards = normalize_rewards 
-        self.normalize_observations = normalize_observations
+        self.normalize_rewards = goal_config["normalize_rewards"]
+        self.normalize_observations = goal_config["normalize_observations"]
 
         # this bool determines whether the goal will add an entry to the observation space
         # this is necessary for goals such as the position goal which will add relative position of its assigned robot's ee to the goal
-        self.add_to_observation_space = add_to_observation_space
+        self.add_to_observation_space = goal_config["add_to_observation_space"]
 
         # this bool determines wether the goal will add to logging
-        self.add_to_logging = add_to_logging
+        self.add_to_logging = goal_config["add_to_logging"]
 
         # name of the performance metric that this goal has, is used for external logging
         # overwrite this in your subclass

@@ -77,63 +77,81 @@ class ModularDRLEnv(gym.Env):
         # init world from config
         world_type = env_config["world"]["type"]
         world_config = env_config["world"]["config"]
+        world_config["sim_step"] = self.sim_step
         
         self.world = WorldRegistry.get(world_type)(world_config)
 
         # init robots and their associated sensors and goals from config
         self.robots = []
         self.sensors = []
+        self.goals = []
         id_counter = 0
-        for robo_entry in env_config["robots"]:
+        for robo_entry_outer in env_config["robots"]:
+            robo_entry = env_config["robots"][robo_entry_outer]
             robo_type = robo_entry["type"]
             robo_config = robo_entry["config"]
-            robot = RobotRegistry(robo_type)(robo_config)
-            self.robots.append(robot)
-            robot.id = id_counter
+            # add some necessary attributes
+            robo_config["id"] = id_counter
+            robo_config["use_physics_sim"] = self.use_physics_sim
+            robo_config["world"] = self.world
+            robo_config["sim_step"] = self.sim_step
             id_counter += 1
+            robot = RobotRegistry.get(robo_type)(robo_config)
+            self.robots.append(robot)
 
             # create the two mandatory sensors
-            joint_sens_config = {"normalize_observations": self.normalize_observations, "add_to_observation_space": True, 
+            joint_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
                                  "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot}
-            posrot_sens_config = {"normalize_observations": self.normalize_observations, "add_to_observation_space": True, 
+            posrot_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
                                  "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot,
                                  "link_id": robot.end_effector_link_id, "quaternion": True}
-            new_rob_joints_sensor = SensorRegistry("Joints")(joint_sens_config)
-            new_rob_posrot_sensor = SensorRegistry("PositionRotation")(posrot_sens_config)
+            new_rob_joints_sensor = SensorRegistry.get("Joints")(joint_sens_config)
+            new_rob_posrot_sensor = SensorRegistry.get("PositionRotation")(posrot_sens_config)
             robot.set_joint_sensor(new_rob_joints_sensor)
             robot.set_position_rotation_sensor(new_rob_posrot_sensor)
             self.sensors.append(new_rob_posrot_sensor)
             self.sensors.append(new_rob_joints_sensor)
 
             # create the sensors indicated by the config
-            for sensor_entry in robo_entry["sensors"]:
-                sensor_type = sensor_entry["type"]
-                sensor_config = sensor_config["config"]
-                sensor_config["robot"] = robot
-                sensor_config["normalize"] = self.normalize_observations
-                # deal with robot bound sensors that refer to other robots
-                if "target_robot" in sensor_config:
-                    # go through the list of existing robots
-                    for other_robot in self.robots:
-                        # find the one whose name matches the target
-                        if other_robot.name == sensor_config["target_robot"]:
-                            sensor_config["target_robot"] = other_robot
-                new_sensor = SensorRegistry(sensor_type)(sensor_config)
-                self.sensors.append(new_sensor)
+            if "sensors" in robo_entry:
+                for sensor_entry_outer in robo_entry["sensors"]:
+                    sensor_entry = robo_entry["sensors"][sensor_entry_outer]
+                    sensor_type = sensor_entry["type"]
+                    sensor_config = sensor_entry["config"]
+                    sensor_config["sim_step"] = self.sim_step
+                    sensor_config["robot"] = robot
+                    sensor_config["normalize"] = self.normalize_observations
+                    # deal with robot bound sensors that refer to other robots
+                    if "target_robot" in sensor_config:
+                        # go through the list of existing robots
+                        for other_robot in self.robots:
+                            # find the one whose name matches the target
+                            if other_robot.name == sensor_config["target_robot"]:
+                                sensor_config["target_robot"] = other_robot
+                                break
+                    new_sensor = SensorRegistry.get(sensor_type)(sensor_config)
+                    self.sensors.append(new_sensor)
             
-            # create the goal indicated by the config
-            goal_type = robo_entry["goal"]["type"]
-            goal_config = robo_entry["goal"]["config"]
-            goal_config["robot"] = robot
-            new_goal = GoalRegistry(goal_type)(goal_config)
-            self.goals.append(new_goal)
+            if "goal" in robo_entry:
+                # create the goal indicated by the config
+                goal_type = robo_entry["goal"]["type"]
+                goal_config = robo_entry["goal"]["config"]
+                goal_config["robot"] = robot
+                goal_config["train"] = self.train
+                goal_config["max_steps"] = self.max_steps_per_episode
+                new_goal = GoalRegistry.get(goal_type)(goal_config)
+                self.goals.append(new_goal)
+                robot.set_goal(new_goal)
 
         # init sensors that don't belong to a robot
-        for sensor_entry in env_config["sensors"]:
-            sensor_type = sensor_entry["type"]
-            sensor_config = sensor_entry["config"]
-            new_sensor = SensorRegistry(sensor_type)(sensor_config)
-            self.sensors.append(new_sensor)
+        if "sensors" in env_config:
+            for sensor_entry in env_config["sensors"]:
+                sensor_type = sensor_entry["type"]
+                sensor_config = sensor_entry["config"]
+                sensor_config["sim_step"] = self.sim_step
+                sensor_config["normalize"] = self.normalize_observations
+                new_sensor = SensorRegistry.get(sensor_type)(sensor_config)
+                self.sensors.append(new_sensor)
 
         # register robots with the world
         self.world.register_robots(self.robots)
@@ -152,14 +170,14 @@ class ModularDRLEnv(gym.Env):
 
         # construct action space from robots
         # the action space will be a vector with the length of all robot's control dimensions added up
-        # e.g. if one robot needs 4 values for its control and another 10,
+        # e.g. if one robot needs 4 values for its control and another 6,
         # the action space will be a 10-vector with the first 4 elements working for robot 1 and the last 6 for robot 2
         self.action_space_dims = []
         for idx, robot in enumerate(self.robots):
             joints_dims, ik_dims = robot.get_action_space_dims()
-            if self.control_mode[idx]:  # aka if self.control_mode[idx] != 0
+            if robot.control_mode:  # aka if self.control_mode[idx] == 1 or == 2
                 self.action_space_dims.append(joints_dims)
-            else:
+            else:  # == 0
                 self.action_space_dims.append(ik_dims)
         
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(sum(self.action_space_dims),), dtype=np.float32)
@@ -293,7 +311,7 @@ class ModularDRLEnv(gym.Env):
 
         # update the sensor data
         for sensor in self.sensors:
-            sensor.update()
+            sensor.update(self.steps_current_episode)
 
         # update the collision model
         self.world.perform_collision_check()

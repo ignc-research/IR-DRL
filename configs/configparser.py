@@ -15,6 +15,8 @@ def walk_dict_and_convert_to_our_format(node):
                 if "orientation" in key or "rotation" in key:
                     item = pyb.getQuaternionFromEuler(item)
             node[key] = np.array(item)
+        elif item == "None":
+            node[key] = None
 
 
 def parse_config(filepath, train):
@@ -67,11 +69,16 @@ def parse_config(filepath, train):
     walk_dict_and_convert_to_our_format(config_raw["env"])
 
     env_config = config_raw["env"].copy()
+    env_config["train"] = train
+    env_config["display"] = True
+    env_config["display_extra"] = True
     env_config["max_episodes"] = config_raw["run"]["eval"]["max_episodes"]
     env_config["logging"] = config_raw["run"]["eval"]["logging"]
     if train:
         env_config["max_episodes"] = -1
         env_config["logging"] = 1
+        env_config["display"] = False
+        env_config["display_extra"] = False
 
     del config_raw["run"]["eval"]
 
