@@ -1,5 +1,6 @@
 # example config
 # explaines all attributes and lists all options
+# note: please use plain written numbers, don't use scientific notation like 3e-4 or something like that
 
 # run attributes
 run:
@@ -13,10 +14,10 @@ run:
   train:
     # int, number of parallel executions for training
     num_envs : 16  
-    # int or str, maximum timesteps for this run, note: use a string if using scientific notation like 1e2
-    timesteps: "15e6"  
-    # int or str, steps after which a checkpoint of the current agent is saved (this is calculated per env, after the first env reaches this value a save will occur)
-    save_freq : "3e4"  
+    # int, maximum timesteps for this run, note: use a string if using scientific notation like 1e2
+    timesteps: 15000000  
+    # int, steps after which a checkpoint of the current agent is saved (this is calculated per env, after the first env reaches this value a save will occur)
+    save_freq : 30000
     # str, folder in which saved checkpoints will be stored
     save_folder: "./model/weights"  
     # str, name of the model under which it will be saved
