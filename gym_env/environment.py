@@ -124,6 +124,7 @@ class ModularDRLEnv(gym.Env):
                                          obstacle_trajectories=[],
                                          obstacle_training_schedule=False)
         """
+
         #self.world = TestcasesWorld(test_mode=2)
 
         # at this point robots would dynamically be created as needed by the config/the world
@@ -164,11 +165,12 @@ class ModularDRLEnv(gym.Env):
                                             indicator=True)
 
         
-        ur5_1_camera_sensor = CameraRegistry.get('OnBody_UR5')(
+        ur5_1_camera_sensor = CameraRegistry.get('Floating_FollowEffector')(
                                             ur5_1,
+                                            [0,1,1],
                                             camera_args={
                                                 'fov' : 120,
-                                                'type': 'rgbd'},
+                                                'type': 'grayscale'},
                                             )
 
         self.sensors = [ur5_1_joint_sensor, ur5_1_position_sensor, ur5_1_lidar_sensor]
