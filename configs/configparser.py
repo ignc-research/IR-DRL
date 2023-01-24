@@ -11,10 +11,24 @@ def walk_dict_and_convert_to_our_format(node):
             #node[key] = np.array(item)
             if "orientation" in key or "rotation" in key or "angle" in key:
                 # convert to radians
-                item = [x * np.pi/180 for x in item]
-                if "orientation" in key or "rotation" in key:
-                    item = pyb.getQuaternionFromEuler(item)
-            node[key] = np.array(item)
+                # check if we have a nested list one or two levels deep
+                if len(item) > 0 and type(item[0]) == list:
+                    # check for next level (maximum level of nested lists we allow)
+                    if len(item[0]) > 0 and item[0][0] == list:  # two-nested
+                        item = [[[x * np.pi/180 for x in inner] for inner in outer] for outer in item]
+                        if "orientation" in key or "rotation" in key:
+                            item = [[pyb.getQuaternionFromEuler(inner) for inner in outer] for outer in item]
+                        node[key] = item
+                    else:  # one-nested
+                        item = [[x * np.pi/180 for x in inner] for inner in item]
+                        if "orientation" in key or "rotation" in key:
+                            item = [pyb.getQuaternionFromEuler(inner) for inner in item]
+                        node[key] = item
+                else:  # not nested
+                    item = [x * np.pi/180 for x in item]
+                    if "orientation" in key or "rotation" in key:
+                        item = pyb.getQuaternionFromEuler(item)
+                    node[key] = item
         elif item == "None":
             node[key] = None
 

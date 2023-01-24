@@ -29,13 +29,13 @@ class Robot(ABC):
         self.sim_step = robot_config["sim_step"]
 
         # base position
-        self.base_position = robot_config["base_position"]
+        self.base_position = np.array(robot_config["base_position"])
 
         # base orientation
-        self.base_orientation = robot_config["base_orientation"]
+        self.base_orientation = np.array(robot_config["base_orientation"])
 
         # resting pose angles
-        self.resting_pose_angles = robot_config["resting_angles"]
+        self.resting_pose_angles = np.array(robot_config["resting_angles"])
 
         # use physics sim or simply teleport for movement
         self.use_physics_sim = robot_config["use_physics_sim"]

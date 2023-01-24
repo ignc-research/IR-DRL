@@ -188,7 +188,7 @@ class ModularDRLEnv(gym.Env):
             exit(0)
 
         # disable rendering for the setup to save time
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        #pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
 
         # reset the tracking variables
         self.steps_current_episode = 0
