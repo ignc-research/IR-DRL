@@ -1,3 +1,23 @@
+# parse command line args
+from argparse import ArgumentParser
+from configs.configparser import parse_config
+
+# parse the three arguments
+parser = ArgumentParser(prog = "Modular DRL Robot Gym Env",
+                        description = "Builds and runs a modular gym env for simulated robots using a config file.")
+parser.add_argument("configfile", help="Path to the config yaml you want to use.")
+mode = parser.add_mutually_exclusive_group(required=True)
+mode.add_argument("--train", action="store_true", help="Runs the env in train mode.")
+mode.add_argument("--eval", action="store_true", help="Runs the env in eval mode.")
+
+args = parser.parse_args()
+
+# fetch the config and parse it into python objects
+run_config, env_config = parse_config(args.configfile, args.train)
+
+print(env_config)
+
+# we import the rest here because this takes quite some time and we want the arg parsing to be fast and responsive
 from gym_env.environment import ModularDRLEnv
 from stable_baselines3 import PPO, TD3, SAC
 from stable_baselines3.common.vec_env import SubprocVecEnv
@@ -10,73 +30,7 @@ import zennit as z
 from zennit.composites import EpsilonGammaBox
 from zennit.canonizers import SequentialMergeBatchNorm
 from zennit.attribution import Gradient
-import argparse
-from typing import Callable
-
-# here the argparser will read in the config file in the future
-# and put the settings into the script_parameters dict
-# for now all the settings are done by hand here
-
-script_parameters = {
-    "train": True,
-    "logging": 1,  # 0: no logging at all, 1: console output on episode end (default as before), 2: same as one 1 + entire log for episode put into csv file at episode end; if max_episodes is not -1 then the csv will contain the data for all episodes
-    "timesteps": 15e6,
-    "max_steps_per_episode": 1024,
-    "max_episodes": 30,  # num episodes for eval
-    "save_freq": 3e4,
-    "save_folder": "./models/weights",
-    "save_name": "PPO_bodycam_0",  # name for the model file, this will get automated later on
-    "num_envs": 16,
-    "use_physics_sim": True,  # use actual physics sim or ignore forces and teleport robot to desired poses
-    "sim_step": 1 / 240,  # seconds that pass per env step
-    "control_mode": 2,  # robot controlled by inverse kinematics (0), joint angles (1) or joint velocities (2)
-    "normalize_observations": False,
-    "normalize_rewards": False,
-    "gamma": 0.99,
-    "dist_threshold_overwrite": None,  # use this when continuing training to set the distance threhsold to the value that your agent had already reached
-    "stat_buffer_size": 25,  # number of past episodes for averaging success metrics
-    "tensorboard_folder": "./models/tensorboard_logs/",
-    "custom_policy": None,  # custom NN sizes, e.g. dict(activation_fn=torch.nn.ReLU, net_arch=[256, dict(vf=[256, 256], pi=[128, 128])])
-    "ppo_steps": 1024,  # steps per env until PPO updates
-    "batch_size": 512,  # batch size for the ppo updates
-    "load_model": False,  # set to True when loading an existing model 
-    "model_path": None,  # path for the model when loading one
-}
-
-# do not change the env_configs below
-env_config_train = {
-    "train": True,
-    "logging": 1,
-    "max_steps_per_episode": script_parameters["max_steps_per_episode"],
-    "max_episodes": -1,
-    "sim_step": script_parameters["sim_step"],
-    "stat_buffer_size": script_parameters["stat_buffer_size"],
-    "use_physics_sim": script_parameters["use_physics_sim"],
-    "control_mode": script_parameters["control_mode"],
-    "normalize_observations": script_parameters["normalize_observations"],
-    "normalize_rewards": script_parameters["normalize_rewards"],
-    "dist_threshold_overwrite": script_parameters["dist_threshold_overwrite"],
-    "display": False,
-    "display_extra": False
-}
-
-env_config_eval = {
-    "train": False,
-    "logging": script_parameters["logging"],
-    "max_steps_per_episode": script_parameters["max_steps_per_episode"],
-    "max_episodes": script_parameters["max_episodes"],
-    "sim_step": script_parameters["sim_step"],
-    "stat_buffer_size": script_parameters["stat_buffer_size"],
-    "use_physics_sim": script_parameters["use_physics_sim"],
-    "control_mode": script_parameters["control_mode"],
-    "normalize_observations": script_parameters["normalize_observations"],
-    "normalize_rewards": script_parameters["normalize_rewards"],
-    "dist_threshold_overwrite": script_parameters["dist_threshold_overwrite"],
-    "display": True,
-    "display_extra": True
-}
-    
-        
+from typing import Callable          
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.preprocessing import preprocess_obs, is_image_space
 from zennit.rules import Epsilon, Gamma
@@ -95,41 +49,42 @@ def find_in_features(seq):
             return sub.in_features
 
 from explanability import ExplainPPO, VisualizeExplanations
+
 if __name__ == "__main__":
-    if script_parameters["train"]:
+    if run_config["train"]:
         
         def return_train_env_outer():
             def return_train_env_inner():
-                env = ModularDRLEnv(env_config_train)
+                env = ModularDRLEnv(env_config)
                 return env
             return return_train_env_inner
         
         # create parallel envs
-        envs = SubprocVecEnv([return_train_env_outer() for i in range(script_parameters["num_envs"])])
+        envs = SubprocVecEnv([return_train_env_outer() for i in range(run_config["num_envs"])])
 
         # callbacks
-        checkpoint_callback = CheckpointCallback(save_freq=script_parameters["save_freq"], save_path=script_parameters["save_folder"], name_prefix=script_parameters["save_name"])
+        checkpoint_callback = CheckpointCallback(save_freq=run_config["save_freq"], save_path=run_config["save_folder"], name_prefix=run_config["save_name"])
         more_logging_callback = MoreLoggingCustomCallback()
 
         callback = CallbackList([checkpoint_callback, more_logging_callback])
 
         # create or load model
-        if not script_parameters["load_model"]:
-            model = PPO("MultiInputPolicy", envs, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"], batch_size=script_parameters["batch_size"])
+        if not run_config["load_model"]:
+            model = PPO("MultiInputPolicy", envs, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"], batch_size=run_config["batch_size"])
             print(model.policy)
         else:
-            model = PPO.load(script_parameters["model_path"], env=envs, tensorboard_log=script_parameters["tensorboard_folder"])
+            model = PPO.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
             # needs to be set on my pc when loading a model, dont know why, might not be needed on yours
             model.policy.optimizer.param_groups[0]["capturable"] = True
 
-        model.learn(total_timesteps=script_parameters["timesteps"], callback=callback, tb_log_name=script_parameters["save_name"], reset_num_timesteps=False)
+        model.learn(total_timesteps=run_config["timesteps"], callback=callback, tb_log_name=run_config["save_name"], reset_num_timesteps=False)
 
     else:
-        env = ModularDRLEnv(env_config_eval)
-        if not script_parameters["load_model"]:
-            model = PPO("MultiInputPolicy", env, policy_kwargs=script_parameters["custom_policy"], verbose=1, gamma=script_parameters["gamma"], tensorboard_log=script_parameters["tensorboard_folder"], n_steps=script_parameters["ppo_steps"])
+        env = ModularDRLEnv(env_config)
+        if not run_config["load_model"]:
+            model = PPO("MultiInputPolicy", env, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"])
         else:
-            model = PPO.load(script_parameters["model_path"], env=env)
+            model = PPO.load(run_config["model_path"], env=env)
 
         explainer = ExplainPPO(env, model, extractor_bias= 'camera')
         exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')

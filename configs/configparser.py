@@ -20,14 +20,14 @@ def walk_dict_and_convert_to_our_format(node):
 def parse_config(filepath, train):
     with open(filepath, "r") as infile:
         config_raw = yaml.safe_load(infile)
-
-    # set train status
-    config_raw["run"]["train_status"] = train
-
+    
+    # copy keys a layer up
+    for key in config_raw["run"]["train"]:
+        config_raw["run"][key] = config_raw["run"]["train"][key]
 
     # convert the dict description of custom policy to actual format used by sb3
     if not config_raw["run"]["train"]["custom_policy"]["use"]:
-        config_raw["run"]["train"]["custom_policy"] = None
+        config_raw["run"]["custom_policy"] = None
     else:
         # get activation function
         if config_raw["run"]["train"]["custom_policy"]["activation_function"] == "ReLU":
@@ -50,15 +50,31 @@ def parse_config(filepath, train):
                     vf_pi_dict["pi"].append(config_raw["run"]["train"]["custom_policy"]["layers"][key][key2])
         net_arch.append(vf_pi_dict)
         pol_dict["net_arch"] = net_arch
-        config_raw["run"]["train"]["custom_policy"] = pol_dict
+        config_raw["run"]["custom_policy"] = pol_dict
 
-          
+    # set some defaults for train or eval
+    if train:
+        config_raw["run"]["display"] = False
+        config_raw["run"]["display_extra"] = False
+    else:
+        config_raw["run"]["display"] = True
+        config_raw["run"]["display_extra"] = True
 
-    run_config = config_raw["run"].copy()
+    # set train status
+    config_raw["run"]["train"] = train
 
-    # convert all lists to numpy
+    # convert all lists to numpy, angles to radians and rpy to quaternion
     walk_dict_and_convert_to_our_format(config_raw["env"])
 
     env_config = config_raw["env"].copy()
+    env_config["max_episodes"] = config_raw["run"]["eval"]["max_episodes"]
+    env_config["logging"] = config_raw["run"]["eval"]["logging"]
+    if train:
+        env_config["max_episodes"] = -1
+        env_config["logging"] = 1
+
+    del config_raw["run"]["eval"]
+
+    run_config = config_raw["run"].copy()
 
     return run_config, env_config

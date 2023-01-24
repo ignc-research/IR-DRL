@@ -2,7 +2,6 @@
 run:
   load_model: False  
   model_path: ""  
-  stat_buffer_size: 25  
   train:
     num_envs : 16  
     timesteps: 15000000 
@@ -33,10 +32,11 @@ env:
   max_steps_per_episode: 1024  
   use_physcis_sim: True  # strictly speaking the original code had this at False
   sim_step: 0.00416666666  
+  stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
   robots:
-    robot:
+    robot1:
       type: "UR5" 
       name: "ur5_1"
       base_position: [0, -0.12, 0.5]
@@ -46,7 +46,7 @@ env:
       xyz_delta: 0.005
       rpy_delta: 0.005
       sensors:
-        sensor:
+        sensor1:
           type: "LidarSensorUR5"
           update_steps: 1
           normalize: False
@@ -79,8 +79,8 @@ env:
 
   world:
     type: "RandomObstacleWorld"
-    workspace_boundaries: [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
     config:
+      workspace_boundaries: [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
       num_static_obstacles: 3
       num_moving_obstacles: 1
       box_measurements: [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
