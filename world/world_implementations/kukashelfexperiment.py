@@ -5,6 +5,7 @@ from world.obstacles.human import Human
 from world.obstacles.pybullet_shapes import Box
 from world.obstacles.shelf.shelf import ShelfObstacle
 from random import choice
+from util.quaternion_util import rotate_vector
 
 __all__ = [
     'KukaShelfExperiment'
@@ -24,7 +25,8 @@ class KukaShelfExperiment(World):
                        humans_trajectories: list,
                        target_pos_override: list=[],
                        target_rot_override: list=[],
-                       start_override: list=[]):
+                       start_override: list=[],
+                       shelf_params: dict={}):
         super().__init__(workspace_boundaries, sim_step)
 
         # positions and rotations of the shelves as numpy arrays
@@ -43,13 +45,16 @@ class KukaShelfExperiment(World):
         self.start_override = [np.array(position) for position in start_override]
 
         # shelf params
-        self.shelf_params = {
-            "rows": 5,
-            "cols": 5,
-            "element_size": .5,
-            "shelf_depth": .5,
-            "wall_thickness": .01
-        }
+        if not shelf_params:
+            self.shelf_params = {
+                "rows": 5,  #x
+                "cols": 5,  #+y
+                "element_size": .5,
+                "shelf_depth": .5, # +z
+                "wall_thickness": .01
+            }
+        else:
+            self.shelf_params = shelf_params
 
         # keep track of objects
         self.obstacle_objects = []
@@ -96,7 +101,22 @@ class KukaShelfExperiment(World):
             self.position_targets = [random_target]
             return [random_target]
         else:
-            pass  # TODO later
+            # pick a random shelf from the ones in the sim
+            idx = choice(list(range(len(self.shelves_position))))
+            shelf_pos = self.shelves_position[idx]
+            shelf_rot = self.shelves_rotations[idx]
+            # get random shelf drawer
+            col = choice(list(range(self.shelf_params["cols"])))
+            row = choice(list(range(self.shelf_params["rows"])))
+            # calculate local x y z coordinate
+            z = self.shelf_params["shelf_depth"] / 2  # in the middle of the free space
+            x = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + col * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
+            y = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + row * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
+            local_target = np.array([x, y, z])
+            target = rotate_vector(local_target, shelf_rot) + shelf_pos
+            self.position_targets = [target]
+
+            return [target]
 
     def create_rotation_target(self) -> list:
         if self.target_rot_override:

@@ -86,7 +86,13 @@ env:
       humans_positions: [[-1.5, 0, 1.4]]
       humans_rotations: [[0, 0, 0]]
       humans_trajectories: [[]]
-      target_pos_override: [[0.5, 0.5, 0.5]]
-      target_rot_override: [[]]
+      target_pos_override: []
+      target_rot_override: []
       start_override: []
+      shelf_params:
+        rows: 5
+        cols: 5
+        element_size: 0.5
+        shelf_depth: 0.5
+        wall_thickness: 0.01
       
