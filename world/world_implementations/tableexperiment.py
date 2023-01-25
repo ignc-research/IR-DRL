@@ -15,23 +15,36 @@ class TableExperiment(World):
     Implements the table experiment with humans and moving obstacles by Kolja and Kai.
     """
 
-    def __init__(self, world_config):
-        super().__init__(world_config)
+    def __init__(self, workspace_boundaries: list, 
+                       sim_step: float,
+                       num_obstacles: int,
+                       obstacle_velocities: list,
+                       num_humans: int,
+                       human_positions: list,
+                       human_rotations: list,
+                       human_trajectories: list,
+                       human_reactive: list,
+                       ee_starts: list=[],
+                       targets: list=[],
+                       obstacle_positions: list=[],
+                       obstacle_trajectories: list=[],
+                       obstacle_training_schedule: bool=False):
+        super().__init__(workspace_boundaries, sim_step)
         # INFO: if multiple robot base positions are given, we will assume that the first one is the main one for the experiment
         # also, we will always assume that the robot base is set up at 0,0,z
         # this will make generating obstacle easier
 
-        self.num_obstacles = world_config["num_obstacles"]
-        self.num_humans = world_config["num_humans"]
-        self.obstacle_velocities = world_config["obstacle_velocities"]
+        self.num_obstacles = num_obstacles
+        self.num_humans = num_humans
+        self.obstacle_velocities = obstacle_velocities
 
         # all of the following lists serve as overwrites for env functionality
         # useful for getting a repeatable starting point for evaluation
         # if left as empty lists the env will generate random ones, useful for training
-        self.ee_starts = [np.array(ele) for ele in world_config["ee_starts"]]
-        self.targets = [np.array(ele) for ele in world_config["targets"]]
-        self.obstacle_positions = [np.array(ele) for ele in world_config["obstacle_positions"]]
-        self.obstacle_trajectories = [[np.array(ele) for ele in traj] for traj in world_config["obstacle_trajectories"]]
+        self.ee_starts = [np.array(ele) for ele in ee_starts]
+        self.targets = [np.array(ele) for ele in targets]
+        self.obstacle_positions = [np.array(ele) for ele in obstacle_positions]
+        self.obstacle_trajectories = [[np.array(ele) for ele in traj] for traj in obstacle_trajectories]
 
         # table bounds, used for placing obstacles at random
         self.table_bounds_low = [-0.7, -0.7, 1.09]
@@ -43,17 +56,17 @@ class TableExperiment(World):
 
         # handle human stuff
         self.humans = []
-        self.human_positions = [np.array(ele) for ele in world_config["human_positions"]]
-        self.human_rotations = [np.array(ele) for ele in world_config["human_rotations"]]
-        self.human_trajectories = [[np.array(ele) for ele in traj] for traj in world_config["human_trajectories"]]
-        self.human_reactive = world_config["human_reactive"]  # list of bools that determines if the human in question will raise his arm if the robot gets near enough
+        self.human_positions = [np.array(ele) for ele in human_positions]
+        self.human_rotations = [np.array(ele) for ele in human_rotations]
+        self.human_trajectories = [[np.array(ele) for ele in traj] for traj in human_trajectories]
+        self.human_reactive = human_reactive  # list of bools that determines if the human in question will raise his arm if the robot gets near enough
         self.human_ee_was_near = [False for i in range(self.num_humans)]  # see update method
         self.near_threshold = 0.5
 
         self.obstacle_objects = []
 
         # wether num obstacles will be overwritten automatically depending on env success rate, might be useful for training
-        self.obstacle_training_schedule = world_config["obstacle_training_schedule"]
+        self.obstacle_training_schedule = obstacle_training_schedule
         
     def build(self):
         # ground plate
