@@ -215,8 +215,6 @@ env:
           normalize_rewards: False
           # bool, whether observations from this goal are normalized
           normalize_observations: False
-          # bool, whether this goal adds anything to the observation space
-          add_to_observation_space: True
           # bool, whether this goal's logging data is collected
           add_to_logging: True
           # bool, whether the robot can continue to do things or be frozen if it achieved success (only relevant if there are other robots with goals in the env)

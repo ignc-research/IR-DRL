@@ -14,8 +14,22 @@ class PositionCollisionGoal(Goal):
     The reward function follows Yifan's code.
     """
 
-    def __init__(self, goal_config):
-        super().__init__(goal_config)
+    def __init__(self, robot: Robot, 
+                       normalize_rewards: bool, 
+                       normalize_observations: bool,
+                       train: bool,
+                       add_to_logging: bool,
+                       max_steps: int,
+                       continue_after_success:bool, 
+                       reward_success=10, 
+                       reward_collision=-10,
+                       reward_distance_mult=-0.01,
+                       dist_threshold_start=3e-1,
+                       dist_threshold_end=1e-2,
+                       dist_threshold_increment_start=1e-2,
+                       dist_threshold_increment_end=1e-3,
+                       dist_threshold_overwrite:float=None):
+        super().__init__(robot, normalize_rewards, normalize_observations, train, True, add_to_logging, max_steps, continue_after_success)
 
         # set output name for observation space
         self.output_name = "PositionGoal_" + self.robot.name
@@ -25,20 +39,20 @@ class PositionCollisionGoal(Goal):
         self.needs_a_rotation = False
 
         # set the reward that's given if the ee reaches the goal position and for collision
-        self.reward_success = goal_config["reward_success"]
-        self.reward_collision = goal_config["reward_collision"]
+        self.reward_success = reward_success
+        self.reward_collision = reward_collision
         
         # multiplicator for the distance reward
-        self.reward_distance_mult = goal_config["reward_distance_mult"]
+        self.reward_distance_mult = reward_distance_mult
 
         # set the distance thresholds and the increments for changing them
-        self.distance_threshold = goal_config["dist_threshold_start"] if self.train else goal_config["dist_threshold_end"]
-        if goal_config["dist_threshold_overwrite"]:  # allows to set a different startpoint from the outside
-            self.distance_threshold = goal_config["dist_threshold_overwrite"]
-        self.distance_threshold_start = goal_config["dist_threshold_start"]
-        self.distance_threshold_end = goal_config["dist_threshold_end"]
-        self.distance_threshold_increment_start = goal_config["dist_threshold_increment_start"]
-        self.distance_threshold_increment_end = goal_config["dist_threshold_increment_end"]
+        self.distance_threshold = dist_threshold_start if self.train else dist_threshold_end
+        if dist_threshold_overwrite:  # allows to set a different startpoint from the outside
+            self.distance_threshold = dist_threshold_overwrite
+        self.distance_threshold_start = dist_threshold_start
+        self.distance_threshold_end = dist_threshold_end
+        self.distance_threshold_increment_start = dist_threshold_increment_start
+        self.distance_threshold_increment_end = dist_threshold_increment_end
 
         # set up normalizing constants for faster normalizing
         #     reward
