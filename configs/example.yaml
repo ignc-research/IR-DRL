@@ -17,7 +17,7 @@ run:
     # int, steps after which a checkpoint of the current agent is saved (this is calculated per env, after the first env reaches this value a save will occur)
     save_freq : 30000
     # str, folder in which saved checkpoints will be stored
-    save_folder: "./model/weights"  
+    save_folder: "./models/weights"  
     # str, name of the model under which it will be saved
     save_name: "PPO_default"
     # int, steps until PPO updates the agent (this per env, meaning if one env reaches this value the agent updates)
