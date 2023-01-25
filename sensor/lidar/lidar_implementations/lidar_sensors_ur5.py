@@ -18,14 +18,14 @@ class LidarSensorUR5(LidarSensor):
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """
 
-    def __init__(self, sensor_config):
-        super().__init__(sensor_config)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, render, )
 
         # lidar setup attributes
-        self.ray_start = sensor_config["ray_start"]  # offset of the ray start from the mesh center
-        self.ray_end = sensor_config["ray_end"]  # end of the ray, meaning ray length = ray_end - ray_start
-        self.num_rays_circle_directions = sensor_config["num_rays_circle_directions"]  # number of directions that the circle is divided into for the sideways rays
-        self.num_rays_side = sensor_config["num_rays_side"]  # rays to cast per sideways direction
+        self.ray_start = ray_start  # offset of the ray start from the mesh center
+        self.ray_end = ray_end  # end of the ray, meaning ray length = ray_end - ray_start
+        self.num_rays_circle_directions = num_rays_circle_directions  # number of directions that the circle is divided into for the sideways rays
+        self.num_rays_side = num_rays_side  # rays to cast per sideways direction
 
     def get_observation_space_element(self) -> dict:
         return {self.output_name: Box(low=-1, high=1, shape=(1 + 4 * self.num_rays_circle_directions,), dtype=np.float32)}

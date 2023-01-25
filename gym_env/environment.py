@@ -79,7 +79,7 @@ class ModularDRLEnv(gym.Env):
         world_config = env_config["world"]["config"]
         world_config["sim_step"] = self.sim_step
         
-        self.world = WorldRegistry.get(world_type)(world_config)
+        self.world = WorldRegistry.get(world_type)(**world_config)
 
         # init robots and their associated sensors and goals from config
         self.robots = []
@@ -91,12 +91,12 @@ class ModularDRLEnv(gym.Env):
             robo_type = robo_entry["type"]
             robo_config = robo_entry["config"]
             # add some necessary attributes
-            robo_config["id"] = id_counter
+            robo_config["id_num"] = id_counter
             robo_config["use_physics_sim"] = self.use_physics_sim
             robo_config["world"] = self.world
             robo_config["sim_step"] = self.sim_step
             id_counter += 1
-            robot = RobotRegistry.get(robo_type)(robo_config)
+            robot = RobotRegistry.get(robo_type)(**robo_config)
             self.robots.append(robot)
 
             # create the two mandatory sensors
@@ -129,7 +129,7 @@ class ModularDRLEnv(gym.Env):
                             if other_robot.name == sensor_config["target_robot"]:
                                 sensor_config["target_robot"] = other_robot
                                 break
-                    new_sensor = SensorRegistry.get(sensor_type)(sensor_config)
+                    new_sensor = SensorRegistry.get(sensor_type)(**sensor_config)
                     self.sensors.append(new_sensor)
             
             if "goal" in robo_entry:
@@ -150,7 +150,7 @@ class ModularDRLEnv(gym.Env):
                 sensor_config = sensor_entry["config"]
                 sensor_config["sim_step"] = self.sim_step
                 sensor_config["normalize"] = self.normalize_observations
-                new_sensor = SensorRegistry.get(sensor_type)(sensor_config)
+                new_sensor = SensorRegistry.get(sensor_type)(**sensor_config)
                 self.sensors.append(new_sensor)
 
         # register robots with the world

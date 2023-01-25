@@ -163,24 +163,25 @@ env:
             add_to_logging: True
 
             # sensor type specific instructions
-            # str, camera name
-            name: "OnBody_ur5_1"
-            # int, image height
-            height: 128
-            # int, image width
-            width: 128
-            # str, camera type, can be "grayscale", "rgb" or "rgbd"
-            type: "grayscale"
-            # floats, up vector of the camera
-            up_vector: [0, 0, 1]
-            # float, field of view of the camera in degrees
-            fov: 60
-            # float, aspect ratio of the camera
-            aspect_ratio: 1
-            # float, distance of the near plane of the camera
-            near_val: 0.05
-            # float, distance of the far plane of the camera
-            far_val: 5
+            camera_args:
+              # str, camera name
+              name: "OnBody_ur5_1"
+              # int, image height
+              height: 128
+              # int, image width
+              width: 128
+              # str, camera type, can be "grayscale", "rgb" or "rgbd"
+              type: "grayscale"
+              # floats, up vector of the camera
+              up_vector: [0, 0, 1]
+              # float, field of view of the camera in degrees
+              fov: 60
+              # float, aspect ratio of the camera
+              aspect_ratio: 1
+              # float, distance of the near plane of the camera
+              near_val: 0.05
+              # float, distance of the far plane of the camera
+              far_val: 5
             # floats, relative position of the camera w.r.t. to the robot's end effector, can also be empty (results in a default positioning)
             position_relative_to_effector: []
         sensor5:
@@ -191,14 +192,15 @@ env:
             add_to_observation_space: True
             add_to_logging: True
             name: "EEFollow_ur5_1"
-            height: 128
-            width: 128
-            type: "grayscale"
-            up_vector: [0, 0, 1]
-            fov: 60
-            aspect_ratio: 1
-            near_val: 0.05
-            far_val: 5
+            camera_args:
+              height: 128
+              width: 128
+              type: "grayscale"
+              up_vector: [0, 0, 1]
+              fov: 60
+              aspect_ratio: 1
+              near_val: 0.05
+              far_val: 5
             # floats, position of the camera in world space
             position: [2, 2, 1.5]
 
@@ -273,14 +275,15 @@ env:
               add_to_observation_space: True
               add_to_logging: True
               name: "BuddyCam_generated_1"
-              height: 128
-              width: 128
-              type: "grayscale"
-              up_vector: [0, 0, 1]
-              fov: 60
-              aspect_ratio: 1
-              near_val: 0.05
-              far_val: 5
+              camera_args:
+                height: 128
+                width: 128
+                type: "grayscale"
+                up_vector: [0, 0, 1]
+                fov: 60
+                aspect_ratio: 1
+                near_val: 0.05
+                far_val: 5
               # str or floats, robot or position in world space to focus on
               # if str, must be the name of a robot that was mentioned above this one in the config
               target: "ur5_1"
@@ -297,14 +300,15 @@ env:
         add_to_observation_space: True
         add_to_logging: True
         name: "free_floating_1"
-        height: 128
-        width: 128
-        type: "grayscale"
-        up_vector: [0, 0, 1]
-        fov: 60
-        aspect_ratio: 1
-        near_val: 0.05
-        far_val: 5
+        camera_args:
+          height: 128
+          width: 128
+          type: "grayscale"
+          up_vector: [0, 0, 1]
+          fov: 60
+          aspect_ratio: 1
+          near_val: 0.05
+          far_val: 5
         position: [-2, -2, 1.5]
     
   world:

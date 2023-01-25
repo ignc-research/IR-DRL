@@ -11,12 +11,12 @@ __all__ = [
 
 class JointsSensor(Sensor):
 
-    def __init__(self, sensor_config):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot):
 
-        super().__init__(sensor_config)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
         
         # set associated robot
-        self.robot = sensor_config["robot"]
+        self.robot = robot
 
         # set output data field name
         self.output_name = "joints_angles_" + self.robot.name

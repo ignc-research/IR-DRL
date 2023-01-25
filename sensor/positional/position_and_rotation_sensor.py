@@ -11,9 +11,9 @@ __all__ = [
 
 class PositionRotationSensor(Sensor):
 
-    def __init__(self, sensor_config):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, link_id: int, quaternion: bool=True):
 
-        super().__init__(sensor_config)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
 
         # WARNING: this position sensor will not return the position as part of the observation space
         # because absolute position is not useful for the model
@@ -21,22 +21,22 @@ class PositionRotationSensor(Sensor):
         # the robot position is still stored as a class attribute here
 
         # set associated robot
-        self.robot = sensor_config["robot"]
+        self.robot = robot
 
         # set output data field names
-        self.output_name_rotation = "rotation_link_" + str(sensor_config["link_id"]) + "_" + self.robot.name
+        self.output_name_rotation = "rotation_link_" + str(link_id) + "_" + self.robot.name
         # the position field is pointless as an absolute value and therefore not used in the get_data() method
         # the relative vector between target and current position will be added to the env observation space
         # by the position goal using this sensor's data (same goes for the rotation goal)
-        self.output_name_position = "position_link_" + str(sensor_config["link_id"]) + "_" + self.robot.name
-        self.output_name_velocity = "velocity_link_" + str(sensor_config["link_id"]) + "_" + self.robot.name
+        self.output_name_position = "position_link_" + str(link_id) + "_" + self.robot.name
+        self.output_name_velocity = "velocity_link_" + str(link_id) + "_" + self.robot.name
         self.output_name_time = "position_rotation_sensor_cpu_time_" + self.robot.name
 
         # set the link of the robot for which data is to be gathered
-        self.link_id = sensor_config["link_id"]
+        self.link_id = link_id
 
         # set whether the rotation is reported as quaternion or rpy
-        self.quaternion = sensor_config["quaternion"]
+        self.quaternion = quaternion
         # set normalization constants (only needed if using rpy)
         if not self.quaternion:
             self.normalizing_constant_a = 2 / np.array([2*np.pi, 2*np.pi, 2*np.pi])  # pi is max, -pi is min

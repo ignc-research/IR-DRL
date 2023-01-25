@@ -7,24 +7,24 @@ class Sensor(ABC):
     See the joint or position sensor for examples.
     """
 
-    def __init__(self, sensor_config):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int):
         
         super().__init__()
         
         # determines whether the output of the sensor is normalized to be between -1 and 1 (or alternatively between 0 and 1, if that makes more sense for a particular type of sensor)
         # note: class variables as well as the logging output should still be unnormalized, only the output of get_data() should be changed by this
-        self.normalize = sensor_config["normalize"]
+        self.normalize = normalize
         
         # determines wether this sensor will create a field for the observation space, default is yes
         # useful to set to false if you need the sensor data for something (e.g. logging) but don't want the model to have access to it
-        self.add_to_observation_space = sensor_config["add_to_observation_space"]
+        self.add_to_observation_space = add_to_observation_space
 
         # determines wether a sensor will output logging data
         # useful to set to false if you need the sensor data for your model but don't want it in the logs
-        self.add_to_logging = sensor_config["add_to_logging"]
+        self.add_to_logging = add_to_logging
 
         # time that passes per sim(=env) step
-        self.sim_step = sensor_config["sim_step"]
+        self.sim_step = sim_step
 
         # use these two variables to determine relative CPU (aka real-world) time, useful for performance measuring
         self.cpu_time = 0
@@ -33,7 +33,7 @@ class Sensor(ABC):
         # set the update rate
         # use this value to set the rate at which the sensor will update its data, useful to conserve fps
         # see the joint sensor implementation for an example 
-        self.update_steps = sensor_config["update_steps"]
+        self.update_steps = update_steps
 
         # at the end of init the sensor should also update itself
         # self.update()  # add this in your subclass at the end of __init__ without the comment
