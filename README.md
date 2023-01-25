@@ -15,8 +15,7 @@ This repo implements a modular Gym env in which all relevant components, i.e. ro
 
 ## State of the code & plans
 
-For now, the basic setup with random obstacles, targets and a UR5 robot trying to reach them is implemented and hardcoded into the \_\_init\_\_ of the gym env. In the future, it will be possible to swap robots, scenarios and sensors via a config.
-However, the basic capability to do that easily is already there, it just needs to be done by hand (initializing the objects and adding them to the list of sensors, robots etc.).
+The gym env is now fully modular and can be controlled by pre-written YAML config files.
 
 To implement your own sensors, scenarios, robots or goals refer to the existing implementations. Both the abstract base classes and the implementations feature explicit instructions and commentary for writing your own version.
 
@@ -42,4 +41,4 @@ Coming soon:
 
 ## Running the code
 
-To start training or evaluation, run ```python run.py```. What will be run is determined by a few parameters in the run.py file. They are commented and explained at the top of the file.
+To start training or evaluation, run ```python run.py configfile --train|--eval```. configfile should be the path to a valid YAML config file (see the examples in /configs/) while --train and --eval determine the mode the env will run in.
