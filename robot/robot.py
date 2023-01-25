@@ -12,33 +12,43 @@ class Robot(ABC):
     See the ur5 robot for examples.
     """
 
-    def __init__(self, robot_config):
+    def __init__(self, name: str,
+                       id_num: int,
+                       world: World,
+                       sim_step: float,
+                       use_physics_sim: bool,
+                       base_position: Union[list, np.ndarray], 
+                       base_orientation: Union[list, np.ndarray], 
+                       resting_angles: Union[list, np.ndarray], 
+                       control_mode: int, 
+                       xyz_delta: float,
+                       rpy_delta: float):
         super().__init__()
 
         # set name
-        self.name = robot_config["name"]
+        self.name = name
 
         # set id field, this will be given by the world containing this robot
         # it's used by other objects such as goals to access the correct robot's data when it's in some list somewhere
-        self.id = robot_config["id"]
+        self.id = id_num
 
         # set world
-        self.world = robot_config["world"]
+        self.world = world
 
         # set sim step
-        self.sim_step = robot_config["sim_step"]
+        self.sim_step = sim_step
 
         # base position
-        self.base_position = np.array(robot_config["base_position"])
+        self.base_position = np.array(base_position)
 
         # base orientation
-        self.base_orientation = np.array(robot_config["base_orientation"])
+        self.base_orientation = np.array(base_orientation)
 
         # resting pose angles
-        self.resting_pose_angles = np.array(robot_config["resting_angles"])
+        self.resting_pose_angles = np.array(resting_angles)
 
         # use physics sim or simply teleport for movement
-        self.use_physics_sim = robot_config["use_physics_sim"]
+        self.use_physics_sim = use_physics_sim
 
         # link ids, these have to be set in your subclass!
         self.end_effector_link_id = None
@@ -55,7 +65,7 @@ class Robot(ABC):
         #   0: inverse kinematics
         #   1: joint angles
         #   2: joint velocities
-        self.control_mode = robot_config["control_mode"]
+        self.control_mode = control_mode
 
         # goal associated with the robot
         self.goal = None
@@ -67,8 +77,8 @@ class Robot(ABC):
         self.position_rotation_sensor = None
 
         # maximum deltas on movements, will be used in Inverse Kinematics control
-        self.xyz_delta = robot_config["xyz_delta"]
-        self.rpy_delta = robot_config["rpy_delta"]
+        self.xyz_delta = xyz_delta
+        self.rpy_delta = rpy_delta
 
         # velocity and force attributes
         self.joints_vel_delta = None  # must be written to in the build method after loading the URDF with a PyBullet call, see the ur5 implementation for an example
