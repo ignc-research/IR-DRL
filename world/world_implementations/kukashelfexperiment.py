@@ -88,11 +88,12 @@ class KukaShelfExperiment(World):
             random_start = choice(self.start_override)
             return [(random_start, None)]
         else:
-            pass  # TODO later
+            return [(None, None)]
 
     def create_position_target(self) -> list:
         if self.target_pos_override:
             random_target = choice(self.target_pos_override)
+            self.position_targets = [random_target]
             return [random_target]
         else:
             pass  # TODO later
@@ -100,6 +101,7 @@ class KukaShelfExperiment(World):
     def create_rotation_target(self) -> list:
         if self.target_rot_override:
             random_rot = choice(self.target_rot_override)
+            self.rotation_targets = [random_rot]
             return [random_rot]
         else:
             pass  # TODO later

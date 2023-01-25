@@ -57,17 +57,11 @@ class LidarSensorUR5(LidarSensor):
         rays_starts = []
         rays_ends = []
 
-        # get link states
-        # link IDs hardcoded for the URDF file we use
-        linkState_ee = pyb.getLinkState(self.robot.object_id, 7)
-        linkState_wrist1 = pyb.getLinkState(self.robot.object_id, 4)
-        linkState_wrist2 = pyb.getLinkState(self.robot.object_id, 5)
-        linkState_wrist3 = pyb.getLinkState(self.robot.object_id, 6)
-        linkState_arm3 = pyb.getLinkState(self.robot.object_id, 3)
-
-        # deal with all activated links
+        # deal with all activated links:
+        # get the local frames, then use a local definition of the rays to translate them into the global coordinate system
         # end effector forwards ray:
         if self.activated_links[0]:
+            linkState_ee = pyb.getLinkState(self.robot.object_id, 7)
             frame_ee = np.eye(4)
             frame_ee[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_ee[5]), (3,3))
             frame_ee[0:3, 3] = linkState_ee[4]
@@ -77,6 +71,7 @@ class LidarSensorUR5(LidarSensor):
 
         # wrist 3 rays (half circle)
         if self.activated_links[3]:
+            linkState_wrist3 = pyb.getLinkState(self.robot.object_id, 6)
             frame_wrist3 = np.eye(4)
             frame_wrist3[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist3[5]), (3,3))
             frame_wrist3[0:3, 3] = linkState_wrist3[4]
@@ -89,6 +84,7 @@ class LidarSensorUR5(LidarSensor):
         
         # wrist 2 rays (half circle)
         if self.activated_links[2]:
+            linkState_wrist2 = pyb.getLinkState(self.robot.object_id, 5)
             frame_wrist2 = np.eye(4)
             frame_wrist2[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist2[5]), (3,3))
             frame_wrist2[0:3, 3] = linkState_wrist2[4]
@@ -104,6 +100,7 @@ class LidarSensorUR5(LidarSensor):
 
         # wrist 1 rays (half circle)
         if self.activated_links[1]:
+            linkState_wrist1 = pyb.getLinkState(self.robot.object_id, 4)
             frame_wrist1 = np.eye(4)
             frame_wrist1[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist1[5]), (3,3))
             frame_wrist1[0:3, 3] = linkState_wrist1[4]
@@ -116,6 +113,7 @@ class LidarSensorUR5(LidarSensor):
 
         # arm 3 rays (full circle)
         if self.activated_links[4]:
+            linkState_arm3 = pyb.getLinkState(self.robot.object_id, 3)
             frame_arm3 = np.eye(4)
             frame_arm3[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_arm3[5]), (3,3))
             frame_arm3[0:3, 3] = linkState_arm3[4]
