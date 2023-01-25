@@ -248,17 +248,17 @@ env:
           control_mode: 2
           xyz_delta: 0.005
           rpy_delta: 0.005
-
-          # attributes for custom robot generation
-          # BIG TODO
-          # How many Links do you want to create?
-          link_count: "2"
-          #please copy this part depending on the number of links you want to create
-          link_id: "1"
-          link_name: "link1"
-          link_id: "2"
-          link_name: "link2"
-          #end of link part
+          generated:
+            # attributes for custom robot generation
+            # BIG TODO
+            # How many Links do you want to create?
+            link_count: "2"
+            #please copy this part depending on the number of links you want to create
+            link_id: "1"
+            link_name: "link1"
+            link_id: "2"
+            link_name: "link2"
+            #end of link part
 
         #   sensor definition
         # for this robot we show all examples of robot-bound sensors that need another robot

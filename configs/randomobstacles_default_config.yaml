@@ -56,8 +56,8 @@ env:
             indicator_buckets: 6
             ray_start: 0
             ray_end: 0.3
-            num_rays_circle_directions: 10
-            num_rays_side: 10
+            num_rays_circle_directions: 7
+            num_rays_side: 7
             render: False
             indicator: True
       goal:

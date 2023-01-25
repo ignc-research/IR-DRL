@@ -8,10 +8,10 @@ class Obstacle(ABC):
     def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float) -> None:
         
         # current and initial position
-        self.position = position
-        self.rotation = rotation
-        self.position_orig = position
-        self.rotation_orig = rotation
+        self.position = np.array(position)
+        self.rotation = np.array(rotation)
+        self.position_orig = np.array(position)
+        self.rotation_orig = np.array(rotation)
 
         # pybullet object id, gets set through build method
         self.object_id = None
@@ -20,7 +20,7 @@ class Obstacle(ABC):
         # if this has no element, the obstacle will not move
         # if this has one element, the obstalce will move towards it and stay there
         # for two or more elements the obstacle will loop between the two or more points
-        self.trajectory = trajectory
+        self.trajectory = [np.array(ele) for ele in trajectory]
         self.move_step = move_step
         self.trajectory_idx = -1
         self.closeness_threshold = 1e-3  # to determine if two positions are the same
