@@ -140,6 +140,8 @@ env:
             render: False
             # bool, whether the output will report the indicator or raw measured distances
             indicator: True
+            # list, allows to configure which links will be equipped with lidar, see class file for details
+            activated_links: [0, 1, 2, 3, 4]
         sensor3:
           type: "LidarSensorUR5_Explainable"
           config:

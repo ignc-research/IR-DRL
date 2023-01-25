@@ -60,6 +60,7 @@ env:
             num_rays_side: 7
             render: False
             indicator: True
+            activated_links: [0, 1, 2, 3, 4]
       goal:
         type: "PositionCollision"
         config:
