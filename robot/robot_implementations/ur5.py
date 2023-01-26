@@ -56,5 +56,5 @@ class UR5(Robot):
             maxNumIterations=100,
             residualThreshold=.01)
         joints = np.float32(joints)
-        joints = (joints + self.joints_limits_upper) % (self.joints_range) - self.joints_limits_upper  # projects out of bounds angles back to angles within the allowed joint range
+        #joints = (joints + self.joints_limits_upper) % (self.joints_range) - self.joints_limits_upper  # projects out of bounds angles back to angles within the allowed joint range
         return joints

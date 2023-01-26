@@ -12,8 +12,8 @@ class TestcasesWorld(World):
     Implements the testcases as created by Yifan.
     """
 
-    def __init__(self, test_mode: int):
-        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.4], [], [])  # this class will run base position and orientation managing on its own
+    def __init__(self, sim_step:float, env_id:int, test_mode: int):
+        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.4], sim_step, env_id)
 
         self.test_mode = test_mode # 0: random, 1: one plate, 2: moving obstacle, 3: two plates
         self.current_test_mode = 0  # for random

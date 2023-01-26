@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import pybullet as pyb
 from world.world import World
-from time import time
+from time import process_time
 
 class Robot(ABC):
     """
@@ -129,7 +129,7 @@ class Robot(ABC):
         This vector will always have the size given by get_action_space_dims and will contain values from -1 to 1.
         The method will return its execution time on the cpu.
         """
-        cpu_epoch = time()
+        cpu_epoch = process_time()
         if self.control_mode == 0:  
             # control via inverse kinematics:
             # actions are small changes in xyz and rpy of the robot's end effector
@@ -185,7 +185,7 @@ class Robot(ABC):
                 self.moveto_joints_vels(new_joint_vels)
         
         # returns execution time, gets used in gym env to log the times here
-        return time() - cpu_epoch
+        return process_time() - cpu_epoch
 
     def moveto_joints_vels(self, desired_joints_velocities: np.ndarray):
         """

@@ -1,6 +1,6 @@
 # parse command line args
 from argparse import ArgumentParser
-from configs.configparser import parse_config
+from util.configparser import parse_config
 
 # parse the three arguments
 parser = ArgumentParser(prog = "Modular DRL Robot Gym Env",
@@ -32,6 +32,7 @@ from typing import Callable
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.preprocessing import preprocess_obs, is_image_space
 from zennit.rules import Epsilon, Gamma
+from time import sleep
 
 
 #pos goal : 4, joints : 6 , pos and rot : 4, lidar : 25, camera : 256
@@ -51,14 +52,15 @@ def find_in_features(seq):
 if __name__ == "__main__":
     if run_config["train"]:
         
-        def return_train_env_outer():
+        def return_train_env_outer(i):
             def return_train_env_inner():
+                env_config["env_id"] = i
                 env = ModularDRLEnv(env_config)
                 return env
             return return_train_env_inner
         
         # create parallel envs
-        envs = SubprocVecEnv([return_train_env_outer() for i in range(run_config["num_envs"])])
+        envs = SubprocVecEnv([return_train_env_outer(i) for i in range(run_config["num_envs"])])
 
         # callbacks
         checkpoint_callback = CheckpointCallback(save_freq=run_config["save_freq"], save_path=run_config["save_folder"], name_prefix=run_config["save_name"])
@@ -78,6 +80,7 @@ if __name__ == "__main__":
         model.learn(total_timesteps=run_config["timesteps"], callback=callback, tb_log_name=run_config["save_name"], reset_num_timesteps=False)
 
     else:
+        env_config["env_id"] = 0
         env = ModularDRLEnv(env_config)
         if not run_config["load_model"]:
             model = PPO("MultiInputPolicy", env, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"])
@@ -86,14 +89,13 @@ if __name__ == "__main__":
 
         #explainer = ExplainPPO(env, model, extractor_bias= 'camera')
         #exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')
-
-
         while True:
             obs = env.reset()
             #exp_visualizer.close_open_figs()
             #fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action')
             done = False
             while not done:
+                sleep(run_config["display_delay"])
                 act = model.predict(obs)[0]
                 obs, reward, done, info = env.step(act)
                 #exp_visualizer.update_imshow_from_obs(obs, fig, axs)

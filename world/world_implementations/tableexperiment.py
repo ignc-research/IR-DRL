@@ -17,6 +17,7 @@ class TableExperiment(World):
 
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
+                       env_id: int,
                        num_obstacles: int,
                        obstacle_velocities: list,
                        num_humans: int,
@@ -29,7 +30,7 @@ class TableExperiment(World):
                        obstacle_positions: list=[],
                        obstacle_trajectories: list=[],
                        obstacle_training_schedule: bool=False):
-        super().__init__(workspace_boundaries, sim_step)
+        super().__init__(workspace_boundaries, sim_step, env_id)
         # INFO: if multiple robot base positions are given, we will assume that the first one is the main one for the experiment
         # also, we will always assume that the robot base is set up at 0,0,z
         # this will make generating obstacle easier

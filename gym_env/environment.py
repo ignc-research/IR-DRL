@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import pybullet as pyb
-from time import time
+from time import process_time
 import pandas as pd
 
 # import abstracts
@@ -49,13 +49,15 @@ class ModularDRLEnv(gym.Env):
         self.stat_buffer_size = env_config["stat_buffer_size"]  
         # in seconds -> inverse is frame rate in Hz
         self.sim_step = env_config["sim_step"]  
+        # the env id, this is used to recognize this env when running multiple in parallel, is used for some file related stuff
+        self.env_id = env_config["env_id"]
 
         # tracking variables
         self.episode = 0
         self.steps_current_episode = 0
         self.sim_time = 0
         self.cpu_time = 0
-        self.cpu_epoch = time()
+        self.cpu_epoch = process_time()
         self.log = []
         # fill the stats with a few entries to make early iterations more robust
         self.success_stat = [False, False, False, False]
@@ -77,6 +79,7 @@ class ModularDRLEnv(gym.Env):
         # init world from config
         world_type = env_config["world"]["type"]
         world_config = env_config["world"]["config"]
+        world_config["env_id"] = self.env_id
         world_config["sim_step"] = self.sim_step
         
         self.world = WorldRegistry.get(world_type)(**world_config)
@@ -194,7 +197,7 @@ class ModularDRLEnv(gym.Env):
         self.steps_current_episode = 0
         self.sim_time = 0
         self.cpu_time = 0
-        self.cpu_epoch = time()
+        self.cpu_reset_epoch = process_time()
         self.reward = 0
         self.reward_cumulative = 0
         self.episode += 1
@@ -288,6 +291,9 @@ class ModularDRLEnv(gym.Env):
 
     def step(self, action):
         
+        if self.steps_current_episode == 0:
+            self.cpu_epoch = process_time()
+
         # convert to numpy
         action = np.array(action)
         
@@ -357,7 +363,7 @@ class ModularDRLEnv(gym.Env):
 
         # update tracking variables and stats
         self.sim_time += self.sim_step
-        self.cpu_time = time() - self.cpu_epoch
+        self.cpu_time = process_time() - self.cpu_epoch
         self.steps_current_episode += 1
         if done:
             self.success_stat.append(is_success)
@@ -380,7 +386,8 @@ class ModularDRLEnv(gym.Env):
             # logging to console or textfile
 
             # start log dict with env wide information
-            info = {"episodes": self.episode,
+            info = {"env_id": self.env_id,
+                    "episodes": self.episode,
                     "is_success": is_success, 
                     "collision": collision,
                     "timeout": timeout,
@@ -391,7 +398,8 @@ class ModularDRLEnv(gym.Env):
                     "timeout_rate": np.average(self.timeout_stat),
                     "collision_rate": np.average(self.collision_stat),
                     "sim_time": self.sim_time,
-                    "cpu_time": self.cpu_time}
+                    "cpu_time_steps": self.cpu_time,
+                    "cpu_time_full": self.cpu_time + self.cpu_epoch - self.cpu_reset_epoch}
             # get robot execution times
             for idx, robot in enumerate(self.robots):
                 if not self.active_robots[idx]:

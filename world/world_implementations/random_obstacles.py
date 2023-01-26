@@ -14,8 +14,9 @@ class RandomObstacleWorld(World):
     The obstacles will be placed between the p
     Depending on the configuration, some of these can be moving in various directions at various speeds
     """
-    def __init__(self, workspace_boundaries: list=[-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], 
-                       sim_step: float=1/240,
+    def __init__(self, workspace_boundaries: list, 
+                       sim_step: float,
+                       env_id: int,
                        num_static_obstacles: int=3, 
                        num_moving_obstacles: int=1,
                        box_measurements: list=[0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125],
@@ -38,7 +39,7 @@ class RandomObstacleWorld(World):
         """
         # TODO: add random rotations for the plates
 
-        super().__init__(workspace_boundaries, sim_step)
+        super().__init__(workspace_boundaries, sim_step, env_id)
 
         self.num_static_obstacles = num_static_obstacles
         self.num_moving_obstacles = num_moving_obstacles

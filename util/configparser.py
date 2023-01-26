@@ -9,6 +9,8 @@ def walk_dict_and_convert_to_our_format(node):
             walk_dict_and_convert_to_our_format(item)
         elif type(item) == list:
             #node[key] = np.array(item)
+            if len(item) == 0:
+                continue
             if "orientation" in key or "rotation" in key or "angle" in key:
                 # convert to radians
                 # check if we have a nested list one or two levels deep
@@ -75,6 +77,7 @@ def parse_config(filepath, train):
     else:
         config_raw["run"]["display"] = True
         config_raw["run"]["display_extra"] = True
+        config_raw["run"]["display_delay"] = config_raw["run"]["eval"]["display_delay"]
 
     # set train status
     config_raw["run"]["train"] = train

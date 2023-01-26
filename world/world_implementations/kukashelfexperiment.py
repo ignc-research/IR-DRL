@@ -18,6 +18,7 @@ class KukaShelfExperiment(World):
 
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
+                       env_id: int,
                        shelves_positions: list,
                        shelves_rotations: list,
                        humans_positions: list,
@@ -27,7 +28,7 @@ class KukaShelfExperiment(World):
                        target_rot_override: list=[],
                        start_override: list=[],
                        shelf_params: dict={}):
-        super().__init__(workspace_boundaries, sim_step)
+        super().__init__(workspace_boundaries, sim_step, env_id)
 
         # positions and rotations of the shelves as numpy arrays
         self.shelves_position = [np.array(position) for position in shelves_positions]
@@ -65,11 +66,11 @@ class KukaShelfExperiment(World):
 
         # build shelves
         for position, rotation in zip(self.shelves_position, self.shelves_rotations):
-            shelf = ShelfObstacle(position, rotation, [], 0, self.shelf_params)
+            shelf = ShelfObstacle(position, rotation, [], 0, self.env_id, self.shelf_params)
             self.obstacle_objects.append(shelf)
             self.objects_ids.append(shelf.build())
         
-        # build humas
+        # build humans
         for position, rotation, trajectory in zip(self.humans_positions, self.humans_rotations, self.humans_trajectories):
             human = Human(position, rotation, trajectory, self.sim_step)
             self.obstacle_objects.append(human)
