@@ -10,6 +10,10 @@
 configs/*benno*
 configs/*kai*
 
+# exclude the generated urdfs from maze and shelf class
+world/obstacles/*shelf*.urdf
+world/obstacles/*maze*.urdf
+
 ### Models ###
 models/
 models_on_body/
