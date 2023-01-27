@@ -16,32 +16,6 @@ class qual:
         self.evaluations = {}
         self.single = single
 
-    def cuboid_data2(self, o, size=(1, 1, 1)):
-        X = [
-            [[0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0]],
-            [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0]],
-            [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]],
-            [[0, 0, 1], [0, 0, 0], [0, 1, 0], [0, 1, 1]],
-            [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]],
-            [[0, 1, 1], [0, 0, 1], [1, 0, 1], [1, 1, 1]],
-        ]
-        X = np.array(X).astype(float)
-        for i in range(3):
-            X[:, :, i] *= size[i]
-        X += np.array(o)
-        return X
-
-    def plotCubeAt2(self, positions, sizes=None, colors=None, **kwargs):
-        if not isinstance(colors, (list, np.ndarray)):
-            colors = ["C0"] * len(positions)
-        if not isinstance(sizes, (list, np.ndarray)):
-            sizes = [(1, 1, 1)] * len(positions)
-        g = []
-        for p, s, c in zip(positions, sizes, colors):
-            g.append(self.cuboid_data2(p, size=s))
-        return Poly3DCollection(
-            np.concatenate(g), facecolors=np.repeat(colors, 6), **kwargs
-        )
 
     def comp_smoothness(self,x,y,z):
         idx = 0
@@ -59,7 +33,19 @@ class qual:
         return smoothness
 
 
-
+    def get_ee_xyz(self,eep):
+        # returns xyz columns seperated as arrays
+        n = len(eep)
+        x = np.zeros(n)
+        y = np.zeros(n)
+        z = np.zeros(n)
+        i = 0
+        for points in eep:
+            x[i] = np.fromstring(points[1:-1], dtype=np.single, sep=' ')[0]
+            y[i] = np.fromstring(points[1:-1], dtype=np.single, sep=' ')[1]
+            z[i] = np.fromstring(points[1:-1], dtype=np.single, sep=' ')[2]
+            i += 1 
+        return x,y,z
 
     def plot_trj2(self):
         arr = os.listdir(self.trj_pth)
@@ -402,7 +388,7 @@ class qual:
         comp_time = data['cpu_time'].values
         exec_time = data['sim_time'].values
         ee_pos = data['position_link_7_ur5_1'].values
-        print(len(comp_time))
+        # print(len(comp_time))
         # max_el = self.count_elems(episodes)
 
         # count nr of occurences of each episode 
@@ -429,54 +415,64 @@ class qual:
 
         n = 0
         # print(arr)
-        for run in unique:
+        # print(ee_pos)
+        for run in unique: 
+            if run == 8:
+                continue
             # txt_arr = np.loadtxt(self.trj_pth + f)
             # print(np.where(episodes==run)[0][0])
             idx1 = np.where(episodes==run)[0][0]
             idx2 = len(np.where(episodes==run)[0]) + idx1 - 1
-            print(idx1,idx2)
+            # print(idx1,idx2)
 
             curr_comp_time = round(np.sum(comp_time[idx1:idx2]),2) #- comp_time[idx1]
             curr_exec_time = round(exec_time[idx2]-exec_time[idx1],2) #- comp_time[idx1]
-            print(curr_exec_time,curr_comp_time)
+            # print(curr_exec_time,curr_comp_time)
             # ts = txt_arr[:, 0:1].flatten()
             # # print(f)
             # duration = ts[len(ts) - 1] - ts[0]
             # runtime[n] = duration
             # # print(duration)
 
+            # ee pos
+            curr_ee_pos = ee_pos[idx1:idx2]
+            x,y,z = self.get_ee_xyz(curr_ee_pos)
             # x = txt_arr[:, 1:2].flatten()
             # y = txt_arr[:, 2:3].flatten()
             # z = txt_arr[:, 3:4].flatten()
+            # ee vel
             # ev = txt_arr[:, 8:9].flatten()
 
+            
+            xm = self.unify_trajs(x, max_el)
+            ym = self.unify_trajs(y, max_el)
+            zm = self.unify_trajs(z, max_el)
 
-            # xm = self.unify_trajs(x, max_el)
-            # ym = self.unify_trajs(y, max_el)
-            # zm = self.unify_trajs(z, max_el)
+            # print(x_av.shape, xm.shape, ym.shape, zm.shape, max_el)
 
-            # x_av = np.add(x_av, xm)
-            # y_av = np.add(y_av, ym)
-            # z_av = np.add(z_av, zm)
+            x_av = np.add(x_av, xm)
+            y_av = np.add(y_av, ym)
+            z_av = np.add(z_av, zm)
 
-            # dist_array = (
-            #     (x[:-1] - x[1:]) ** 2
-            #     + (y[:-1] - y[1:]) ** 2
-            #     + (z[:-1] - z[1:]) ** 2
-            # )
-
-            # cuur_smoothness = self.comp_smoothness(x,y,z)
-            # curr_path_length = np.sum(np.sqrt(dist_array))
-            # smoothness[n] = cuur_smoothness
+            dist_array = (
+                (x[:-1] - x[1:]) ** 2
+                + (y[:-1] - y[1:]) ** 2
+                + (z[:-1] - z[1:]) ** 2
+            )
+            print(run)
+            curr_smoothness = self.comp_smoothness(x,y,z)
+            curr_path_length = np.sum(np.sqrt(dist_array))
+            smoothness[n] = curr_smoothness
             # tr_len[n] = curr_path_length
             # ee_v[n] = np.mean(ev)
 
             # # file_id[n] = int(f.replace('.txt',''))
-            # if plt_cfg["ql"] > 0:
-            #     ax.plot3D(x, y, z, color=planner_stl[self.planner], alpha=0.2)
+            if plt_cfg["ql"] > 0:
+                ax.plot3D(x, y, z, color=planner_stl[self.planner], alpha=0.2)
 
             n += 1
 
+        n_runs = unique[len(unique)-1]
         x_av /= n_runs
         y_av /= n_runs
         z_av /= n_runs
@@ -491,6 +487,7 @@ class qual:
         ez = z_av[max_el - 1]
 
         # plot avg trajectory
+        print(planner_stl)
         if plt_cfg["ql"] > 0:
             ax.plot3D(
                 x_av,
@@ -546,8 +543,6 @@ class qual:
         diff = len(trj) - max_el
         n = 0
         while n < diff:
-            #    modified_trj.pop(n+1)
-
             if (len(modified_trj) <= n + 1):  # if diff is too big, then delete earlier values
                 modified_trj = np.delete(modified_trj, random.randint(1, 3))
             else:
@@ -941,7 +936,7 @@ if __name__ == "__main__":
     experiments = {}
     planner_stl = {}
 
-    planner_stl["DRL"] = "tab:blue"
+    planner_stl["DRL-IK"] = "tab:blue"
     planner_stl["DRL-JV"] = "tab:green"
     planner_stl["RRT"] = "tab:orange"
     planner_stl["NC-RRT"] = "tab:purple"
