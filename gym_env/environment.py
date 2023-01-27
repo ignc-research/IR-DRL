@@ -92,8 +92,7 @@ class ModularDRLEnv(gym.Env):
         self.sensors = []
         self.goals = []
         id_counter = 0
-        for robo_entry_outer in env_config["robots"]:
-            robo_entry = env_config["robots"][robo_entry_outer]
+        for robo_entry in env_config["robots"]:
             robo_type = robo_entry["type"]
             robo_config = robo_entry["config"]
             # add some necessary attributes
@@ -120,8 +119,7 @@ class ModularDRLEnv(gym.Env):
 
             # create the sensors indicated by the config
             if "sensors" in robo_entry:
-                for sensor_entry_outer in robo_entry["sensors"]:
-                    sensor_entry = robo_entry["sensors"][sensor_entry_outer]
+                for sensor_entry in robo_entry["sensors"]:
                     sensor_type = sensor_entry["type"]
                     sensor_config = sensor_entry["config"]
                     sensor_config["sim_step"] = self.sim_step

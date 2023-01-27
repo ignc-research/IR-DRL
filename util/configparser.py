@@ -5,6 +5,9 @@ import pybullet as pyb
 
 def walk_dict_and_convert_to_our_format(node):
     for key, item in node.items():
+        if key == "robots" or key == "sensors":
+            for element in item:
+                walk_dict_and_convert_to_our_format(element)
         if type(item) == dict:
             walk_dict_and_convert_to_our_format(item)
         elif type(item) == list:
