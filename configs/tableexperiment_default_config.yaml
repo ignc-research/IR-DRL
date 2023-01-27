@@ -32,13 +32,13 @@ run:
 env:
   max_steps_per_episode: 1024  
   use_physics_sim: True  # strictly speaking the original code had this at False
+  physics_steps_per_env_step: 1
   sim_step: 0.00416666666  
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
   robots:
-    robot1:
-      type: "UR5" 
+    - type: "UR5" 
       config:
         name: "ur5_1"
         base_position: [0, 0, 1.1]
@@ -48,8 +48,7 @@ env:
         xyz_delta: 0.005
         rpy_delta: 0.005
       sensors:
-        sensor1:
-          type: "LidarSensorUR5"
+        - type: "LidarSensorUR5"
           config:
             update_steps: 1
             add_to_observation_space: True
@@ -70,7 +69,7 @@ env:
           add_to_logging: True
           continue_after_success: True
           reward_success: 10
-          reward_collision: -10
+          reward_collision: -5
           reward_distance_mult: -0.01
           dist_threshold_start: 0.2
           dist_threshold_end : 0.01

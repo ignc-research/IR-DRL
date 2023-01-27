@@ -45,6 +45,9 @@ class ModularDRLEnv(gym.Env):
         self.logging = env_config["logging"] 
         # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
         self.use_physics_sim = env_config["use_physics_sim"]  
+        # when using the physics sim, this is the amount of steps that we let pass per env step
+        # the lower this value, the more often observations will be collected and a new action be calculated by the agent
+        self.physics_steps_per_env_step = env_config["physics_steps_per_env_step"]
         # length of the stat arrays in terms of episodes over which the average will be drawn for logging
         self.stat_buffer_size = env_config["stat_buffer_size"]  
         # in seconds -> inverse is frame rate in Hz
@@ -89,8 +92,7 @@ class ModularDRLEnv(gym.Env):
         self.sensors = []
         self.goals = []
         id_counter = 0
-        for robo_entry_outer in env_config["robots"]:
-            robo_entry = env_config["robots"][robo_entry_outer]
+        for robo_entry in env_config["robots"]:
             robo_type = robo_entry["type"]
             robo_config = robo_entry["config"]
             # add some necessary attributes
@@ -117,8 +119,7 @@ class ModularDRLEnv(gym.Env):
 
             # create the sensors indicated by the config
             if "sensors" in robo_entry:
-                for sensor_entry_outer in robo_entry["sensors"]:
-                    sensor_entry = robo_entry["sensors"][sensor_entry_outer]
+                for sensor_entry in robo_entry["sensors"]:
                     sensor_type = sensor_entry["type"]
                     sensor_config = sensor_entry["config"]
                     sensor_config["sim_step"] = self.sim_step
@@ -312,7 +313,9 @@ class ModularDRLEnv(gym.Env):
             action_offset += self.action_space_dims[idx]
             exec_time = robot.process_action(current_robot_action)
             if self.use_physics_sim:
-                pyb.stepSimulation()
+                for i in range(self.physics_steps_per_env_step):
+                    pyb.stepSimulation()
+                    self.sim_time += self.sim_step
             exec_times_cpu.append(exec_time)
 
         # update the sensor data
@@ -362,7 +365,6 @@ class ModularDRLEnv(gym.Env):
         self.reward_cumulative += self.reward
 
         # update tracking variables and stats
-        self.sim_time += self.sim_step
         self.cpu_time = process_time() - self.cpu_epoch
         self.steps_current_episode += 1
         if done:
@@ -456,6 +458,53 @@ class ModularDRLEnv(gym.Env):
                 to_print = str(round(info[key], 3))
             info_string += key + ": " + to_print + ", "
         return info_string[:-1]  # cut off last space
+
+    def manual_control(self):
+        """
+        Debug method for controlling the robot.
+        """
+        # code to manually control the robot in real time
+        roll = pyb.addUserDebugParameter("r", -4.0, 4.0, 0)
+        pitch = pyb.addUserDebugParameter("p", -4.0, 4.0, 0)
+        yaw = pyb.addUserDebugParameter("y", -4.0, 4.0, 0)
+        fwdxId = pyb.addUserDebugParameter("fwd_x", -4, 8, 0)
+        fwdyId = pyb.addUserDebugParameter("fwd_y", -4, 8, 0)
+        fwdzId = pyb.addUserDebugParameter("fwd_z", -1, 3, 0)
+        x_base = 0
+        y_base = 0
+
+        pyb.addUserDebugLine([0,0,0],[0,0,1],[0,0,1],parentObjectUniqueId=self.robots[0].object_id, parentLinkIndex= self.robots[0].end_effector_link_id)
+        pyb.addUserDebugLine([0,0,0],[0,1,0],[0,1,0],parentObjectUniqueId=self.robots[0].object_id, parentLinkIndex= self.robots[0].end_effector_link_id)
+        pyb.addUserDebugLine([0,0,0],[1,0,0],[1,0,0],parentObjectUniqueId=self.robots[0].object_id, parentLinkIndex= self.robots[0].end_effector_link_id)
+
+        lineID = 0
+
+        while True:
+            if lineID:
+                pyb.removeUserDebugItem(lineID)
+
+            # read inputs from GUI
+            qrr = pyb.readUserDebugParameter(roll)
+            qpr = pyb.readUserDebugParameter(pitch)
+            qyr = pyb.readUserDebugParameter(yaw)
+            x = pyb.readUserDebugParameter(fwdxId)
+            y = pyb.readUserDebugParameter(fwdyId)
+            z = pyb.readUserDebugParameter(fwdzId)
+            oldxbase = x_base
+            oldybase = y_base
+
+            # build quaternion from user input
+            command_quat = pyb.getQuaternionFromEuler([qrr,qpr,qyr])
+
+            self.robots[0].moveto_xyzquat(np.array([x,y,z]),np.array(command_quat), self.use_physics_sim)
+            if self.use_physics_sim:
+                for i in range(self.physics_steps_per_env_step):
+                    pyb.stepSimulation()
+
+            self.robots[0].position_rotation_sensor.update(0)
+            pos = self.robots[0].position_rotation_sensor.position
+
+            lineID = pyb.addUserDebugLine([x,y,z], pos.tolist(), [0,0,0])
 
     ####################
     # callback methods #
