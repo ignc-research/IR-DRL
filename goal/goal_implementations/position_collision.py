@@ -56,8 +56,9 @@ class PositionCollisionGoal(Goal):
 
         # set up normalizing constants for faster normalizing
         #     reward
-        self.normalizing_constant_a_reward = 2 / (self.reward_success - self.reward_collision)
-        self.normalizing_constant_b_reward = 1 - self.normalizing_constant_a_reward * self.reward_success
+        max_reward_value = max(abs(self.reward_success), abs(self.reward_collision))
+        self.normalizing_constant_a_reward = 2 / (2 * max_reward_value)
+        self.normalizing_constant_b_reward = 1 - self.normalizing_constant_a_reward * max_reward_value
         #     observation
         #       get maximum ranges from world associated with robot
         vec_distance_max = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min])
