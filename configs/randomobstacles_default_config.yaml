@@ -27,6 +27,7 @@ run:
   eval:
     max_episodes: -1  
     logging: 1  
+    display_delay: 0.00416666666 
 
 env:
   max_steps_per_episode: 1024  

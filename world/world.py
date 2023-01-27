@@ -8,7 +8,7 @@ class World(ABC):
     See the random obstacles world for examples.
     """
 
-    def __init__(self, workspace_boundaries:list, sim_step: float):
+    def __init__(self, workspace_boundaries:list, sim_step: float, env_id: int):
 
         # list that will contain all PyBullet object ids with collision managed by this world simulation
         self.objects_ids = []
@@ -17,6 +17,9 @@ class World(ABC):
 
         # set sim step
         self.sim_step = sim_step
+
+        # set env id, this is a number that differentiates multiple envs running in parallel in training, necessary for file related stuff
+        self.env_id = env_id
 
         # set up workspace boundaries
         self.x_min, self.x_max, self.y_min, self.y_max, self.z_min, self.z_max = workspace_boundaries

@@ -6,16 +6,18 @@ from mazelib import Maze
 from mazelib.generate.Prims import Prims
 from mazelib.generate.DungeonRooms import DungeonRooms
 from mazelib.solve.BacktrackingSolver import BacktrackingSolver
-from world.obstacles.urdf_object import URDFObject
+from world.obstacles.urdf_object import URDFObjectGenerated
 from ..helpers.urdf_wall_generator import UrdfWallGenerator
 from typing import Union
+from uuid import uuid4
 
-class ShelfObstacle(URDFObject):
+class ShelfObstacle(URDFObjectGenerated):
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float,  params: dict,scale=1) -> None:
-        self.params = params
-        super().__init__(position, rotation, trajectory, move_step, self.generate(), scale)
-        
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, env_id: int, params: dict, scale=1) -> None:
+        self.env_id = env_id
+        self.params = params 
+        self.file_name = self.generate()
+        super().__init__(position, rotation, trajectory, move_step, self.file_name, env_id, scale)        
 
     def generate(self):
         rows = self.params["rows"]
@@ -39,7 +41,7 @@ class ShelfObstacle(URDFObject):
                 if row_idx == rows - 1:
                     urdf_wall_generator.add_wall(element_size + wall_offset, wall_thickness, shelf_depth, wall_offset + xy_offset + col_idx * element_size, wall_offset + (row_idx + 1) * element_size, shelf_depth / 2)
         
-        file_name = os.path.join(os.path.dirname(__file__), "shelf.urdf")
+        file_name = os.path.join(os.path.dirname(__file__), "shelf_" + str(self.env_id) + ".urdf")
 
         f = open(file_name, "w")
         f.write(urdf_wall_generator.get_urdf())

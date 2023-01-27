@@ -27,6 +27,7 @@ run:
   eval:
     max_episodes: -1  
     logging: 1  
+    display_delay: 0.00416666666 
 
 env:
   max_steps_per_episode: 1024  
@@ -81,17 +82,17 @@ env:
     type: "KukaShelfExperiment"
     config:
       workspace_boundaries: [-3, 3, -3, 3, 0.0, 3]
-      shelves_positions: [[-1.25, -2, 0], [-1.25, 2, 0]]
+      shelves_positions: [[-1.025, -1.25, 0], [-1.025, 1.75, 0]]
       shelves_rotations: [[90, 0, 0], [90, 0, 0]]  # rpy in degrees
-      humans_positions: [[-1.5, 0, 1.4]]
-      humans_rotations: [[0, 0, 0]]
-      humans_trajectories: [[]]
+      humans_positions: []
+      humans_rotations: []
+      humans_trajectories: []
       target_pos_override: []
       target_rot_override: []
       start_override: []
       shelf_params:
-        rows: 5
-        cols: 5
+        rows: 4
+        cols: 4
         element_size: 0.5
         shelf_depth: 0.5
         wall_thickness: 0.01

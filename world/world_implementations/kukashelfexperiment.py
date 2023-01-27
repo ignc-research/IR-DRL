@@ -58,22 +58,26 @@ class KukaShelfExperiment(World):
             self.shelf_params = shelf_params
 
         # keep track of objects
-        self.obstacle_objects = []
+        self.shelves = []
+        self.humans = []
+
+        # pre initialize the shelves to prevent their URDFs from being generated over and over
+        for position, rotation in zip(self.shelves_position, self.shelves_rotations):
+            shelf = ShelfObstacle(position, rotation, [], 0, self.env_id, self.shelf_params)
+            self.shelves.append(shelf)
 
     def build(self):
         # ground plate
         self.objects_ids.append(pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01]))
 
         # build shelves
-        for position, rotation in zip(self.shelves_position, self.shelves_rotations):
-            shelf = ShelfObstacle(position, rotation, [], 0, self.env_id, self.shelf_params)
-            self.obstacle_objects.append(shelf)
+        for shelf in self.shelves:
             self.objects_ids.append(shelf.build())
         
         # build humans
         for position, rotation, trajectory in zip(self.humans_positions, self.humans_rotations, self.humans_trajectories):
             human = Human(position, rotation, trajectory, self.sim_step)
-            self.obstacle_objects.append(human)
+            self.humans.append(human)
             self.objects_ids.append(human.build())
 
     def reset(self, success_rate):
@@ -81,8 +85,8 @@ class KukaShelfExperiment(World):
         self.position_targets = []
         self.rotation_targets = []
         self.ee_starting_points = []
-        for object in self.obstacle_objects:
-            del object
+        for human in self.humans:
+            del human
         self.obstacle_objects = []
     
     def update(self):

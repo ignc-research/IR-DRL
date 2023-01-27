@@ -18,7 +18,11 @@ class UrdfWallGenerator:
         output = f"""
         <robot name="maze">
             <link name="base_link">
-               
+                <inertial>
+                    <origin rpy="0 0 0" xyz="0 0 0"/>
+                    <mass value="0"/>
+                    <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+                </inertial> 
             </link>
         """
 
@@ -41,6 +45,11 @@ class UrdfWallGenerator:
                             <box size="{segment["w"]} {segment["h"]} {segment["d"]}"/>
                         </geometry>
                     </collision>
+                    <inertial>
+                        <origin rpy="0 0 0" xyz="{segment["w"]/2} {segment["h"]/2} {segment["d"]/2}"/>
+                        <mass value="1"/>
+                        <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+                    </inertial>
                 </link>
                 <joint name="joint_{i}" type="fixed">
                     <parent link="base_link"/>

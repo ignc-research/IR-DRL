@@ -21,7 +21,7 @@ class Obstacle(ABC):
         # if this has one element, the obstalce will move towards it and stay there
         # for two or more elements the obstacle will loop between the two or more points
         self.trajectory = [np.array(ele) for ele in trajectory]
-        self.move_step = move_step
+        self.move_step = move_step  # this is the distance the obstlace moves within one env sim step
         self.trajectory_idx = -1
         self.closeness_threshold = 1e-3  # to determine if two positions are the same
 
