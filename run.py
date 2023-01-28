@@ -91,7 +91,6 @@ if __name__ == "__main__":
         #exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')
         while True:
             obs = env.reset()
-            env.manual_control()
             #exp_visualizer.close_open_figs()
             #fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action')
             done = False

@@ -13,7 +13,7 @@ run:
     gamma: 0.99  
     tensorboard_folder: "./models/tensorboard_logs"
     custom_policy:
-      use: True
+      use: False
       activation_function: "ReLU"  
       layers:
         layer1: 128
