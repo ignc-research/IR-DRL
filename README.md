@@ -12,6 +12,7 @@ This repo implements a modular Gym env in which all relevant components, i.e. ro
 - pandas
 - tensorboard
 - zennit
+- mazelib
 
 ## State of the code & plans
 

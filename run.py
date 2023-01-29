@@ -63,7 +63,7 @@ if __name__ == "__main__":
         envs = SubprocVecEnv([return_train_env_outer(i) for i in range(run_config["num_envs"])])
 
         # callbacks
-        checkpoint_callback = CheckpointCallback(save_freq=run_config["save_freq"], save_path=run_config["save_folder"], name_prefix=run_config["save_name"])
+        checkpoint_callback = CheckpointCallback(save_freq=run_config["save_freq"], save_path=run_config["save_folder"] + "/" + run_config["save_name"])
         more_logging_callback = MoreLoggingCustomCallback()
 
         callback = CallbackList([checkpoint_callback, more_logging_callback])
