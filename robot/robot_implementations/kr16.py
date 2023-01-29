@@ -16,6 +16,9 @@ class KR16(Robot):
         self.joints_limits_upper = np.array([3.22885911619, 0.610865238198, 2.68780704807, 6.10865238198, 2.26892802759, 6.10865238198])
         self.joints_range = self.joints_limits_upper - self.joints_limits_lower
 
+        self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300.])
+        self.joints_max_velocities = np.array([10., 10., 10., 5.75958653,  5.75958653, 10.7337749])
+
         self.end_effector_link_id = 6
         self.base_link_id = 7
 
@@ -27,8 +30,5 @@ class KR16(Robot):
         self.object_id = pyb.loadURDF("kr16/urdf/kr16.urdf", basePosition=self.base_position.tolist(), baseOrientation=self.base_orientation.tolist(), useFixedBase=True)
         joints_info = [pyb.getJointInfo(self.id, i) for i in range(pyb.getNumJoints(self.id))]
         self.joints_ids = np.array([j[0] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
-
-        self.joints_forces = np.array([j[10] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
-        self.joints_vel_delta = np.array([j[11] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
 
         self.moveto_joints(self.resting_pose_angles, False)     

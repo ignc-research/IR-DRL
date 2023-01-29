@@ -105,8 +105,12 @@ class ModularDRLEnv(gym.Env):
             self.robots.append(robot)
 
             # create the two mandatory sensors
+            if "report_joint_velocities" in robo_entry:
+                jv = robo_entry["report_joint_velocities"]
+            else:
+                jv = False
             joint_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
-                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot}
+                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot, "add_joint_velocities": jv}
             posrot_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
                                  "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot,
                                  "link_id": robot.end_effector_link_id, "quaternion": True}
