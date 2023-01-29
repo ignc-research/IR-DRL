@@ -8,14 +8,16 @@ from mazelib.generate.DungeonRooms import DungeonRooms
 from mazelib.solve.BacktrackingSolver import BacktrackingSolver
 from typing import Union
 
-from world.obstacles.urdf_object import URDFObject
+from world.obstacles.urdf_object import URDFObjectGenerated
 from ..helpers.urdf_wall_generator import UrdfWallGenerator
 
-class MazeObstacle(URDFObject):
+class MazeObstacle(URDFObjectGenerated):
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float,  params: dict,scale=1) -> None:
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, env_id: int, params: dict, scale=1) -> None:
+        self.env_id = env_id
         self.params = params
-        super().__init__(position, rotation, trajectory, move_step, self.generate(), scale)
+        self.file_name = self.generate()
+        super().__init__(position, rotation, trajectory, move_step, self.file_name, env_id, scale)
 
     def has_el_prev_row(self, grid, row_idx, cell_idx):
         return row_idx > 0 and grid[row_idx - 1][cell_idx] == 1
@@ -74,7 +76,7 @@ class MazeObstacle(URDFObject):
                     urdf.add_wall(wall_thickness, wall_size, element_depth, curr_x, curr_y + (element_size / 2), element_depth / 2)
 
 
-        file_name = os.path.join(os.path.dirname(__file__), "maze.urdf")
+        file_name = os.path.join(os.path.dirname(__file__), "maze_" + str(self.env_id) + ".urdf")
 
         f = open(file_name, "w")
         f.write(urdf.get_urdf())

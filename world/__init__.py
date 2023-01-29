@@ -23,5 +23,5 @@ class WorldRegistry:
 WorldRegistry.register('RandomObstacle')(RandomObstacleWorld)
 WorldRegistry.register('Testcases')(TestcasesWorld)
 WorldRegistry.register('TableExperiment')(TableExperiment)
-WorldRegistry.register('GeneratedWorld')(GeneratedWorld)
+WorldRegistry.register('Generated')(GeneratedWorld)
 WorldRegistry.register('KukaShelfExperiment')(KukaShelfExperiment)

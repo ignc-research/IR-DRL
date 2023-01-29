@@ -4,6 +4,52 @@ import torch as th
 import pybullet as pyb
 
 def walk_dict_and_convert_to_our_format(node):
+    # walk through the nested dictionaries and lists
+    for key, item in node.items():
+        # deal with lists
+        if type(item) == list:
+            # skip empty lists
+            if len(item) == 0:
+                continue
+            # if the list is a part of a special category, it is composed of dicts
+            # then we must traverse deeper
+            # robots: robots field for robot definition
+            # sensors: sensors field for sensor defitinion, both for robot bound and independet sensors
+            # obstacles: obstacles for the generator world type
+            if key == "robots" or key == "sensors" or key == "obstacles":
+                for element in item:
+                    walk_dict_and_convert_to_our_format(element)
+            # deal with rotations and angles
+            if "rotation" in key or "orientation" in key or "angle" in key:
+                # case 1: it's a single orientation (e.g. orientation of an obstacle)
+                if type(item[0]) == float or type(item[0]) == int:
+                    # convert to radians and quaternion
+                    item = [x * np.pi/180 for x in item]
+                    if not "angle" in key:
+                        item = pyb.getQuaternionFromEuler(item)
+                    node[key] = item
+                # case 2: it's a list of orientations (e.g. a trajectory of orientations)
+                elif type(item[0]) == list and type(item[0][0]) == float or type(item[0][0]) == int:
+                    item = [[x * np.pi/180 for x in inner] for inner in item]
+                    if not "angle" in key:
+                        item = [pyb.getQuaternionFromEuler(inner) for inner in item]
+                    node[key] = item
+                # case 3: it's a list of lists of orientations (e.g. multiple trajectories of orientations)
+                # note: this will fail/potentially crash if the first of these trajectories is empty and others are not
+                elif (type(item[0][0]) == list and type(item[0][0][0]) == float or type(item[0][0][0]) == int):
+                    item = [[[x * np.pi/180 for x in inner] for inner in outer] for outer in item]
+                    if not "angle" in key:
+                        item = item = [[pyb.getQuaternionFromEuler(inner) for inner in outer] for outer in item]
+                    node[key] = item
+                # pls no more nesting than that
+        elif type(item) == dict:
+            # go a level depper
+            walk_dict_and_convert_to_our_format(item)
+        elif item == "None":
+            # replace written Nones
+            node[key] = None
+
+    return
     for key, item in node.items():
         if key == "robots" or key == "sensors":
             for element in item:

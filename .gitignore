@@ -12,7 +12,7 @@ configs/*kai*
 
 # exclude the generated urdfs from maze and shelf class
 /world/obstacles/shelf/*shelf*.urdf
-world/obstacles/*maze*.urdf
+/world/obstacles/maze/*maze*.urdf
 
 ### Models ###
 models/

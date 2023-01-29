@@ -21,27 +21,15 @@ URDF_PATH = "./assets/"
 def findUrdfs(search_name):
     return list(glob.iglob(os.path.join(URDF_PATH, f"**/{search_name}.urdf"), recursive=True))
 
-
-def getPosition(obj):
-    xyz = obj["position"]
-    return [xyz["x"], xyz["y"], xyz["z"]]
-
-
-def getRotation(obj):
-    conversion_fac = math.pi / 180
-    rpy = obj["rotation"]
-    return np.array(pyb.getQuaternionFromEuler([rpy["r"] * conversion_fac, rpy["p"] * conversion_fac, rpy["y"] * conversion_fac]))
-
-
 def getTrajectory(obj):
     if "params" not in obj or "move" not in obj["params"]:
         return []
-    return list(map(lambda x: np.array(getPosition(x)), obj["params"]["move"]))
+    return list(map(lambda x: np.array(x), obj["params"]["move"]))
 
-def getStep(obj):
-    if "params" not in obj or "step" not in obj["params"]:
+def getVel(obj):
+    if "params" not in obj or "vel" not in obj["params"]:
         return .1
-    return obj["params"]["step"]
+    return obj["params"]["vel"]
 
 def getScale(obj):
     if "scale" in obj:
@@ -49,10 +37,6 @@ def getScale(obj):
     else:
         scale = 1
     return scale
-
-def load_config(config_path: str):
-    with open(config_path, "r") as stream:
-        return yaml.safe_load(stream)
 
 class GeneratedWorld(World):
     """
@@ -62,42 +46,44 @@ class GeneratedWorld(World):
     """
     obstacle_objects: list[Obstacle] = []
 
-    def __init__(self, workspace_boundaries: list=[-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], 
-                       sim_step: float=1/240 ):
+    def __init__(self, workspace_boundaries: list,
+                       sim_step: float,
+                       env_id: int,
+                       obstacles: dict ):
         """
         :param workspace_boundaries: List of 6 floats containing the bounds of the workspace in the following order: xmin, xmax, ymin, ymax, zmin, zmax
         :param sim_step: float for the time per sim step
         """
-        super().__init__(workspace_boundaries, sim_step)
-        self.config = load_config(os.path.join(os.path.dirname(__file__), "config.yaml"))
+        super().__init__(workspace_boundaries, sim_step, env_id)
+        self.config = obstacles 
 
 
     def load_obstacle(self, obstacle):
         obstacle_name = obstacle["type"]
-        position = getPosition(obstacle)
-        rotation = getRotation(obstacle)
+        position = obstacle["position"]
+        rotation = obstacle["rotation"]
         scale = getScale(obstacle)
-        step = getStep(obstacle)
+        vel = getVel(obstacle)
         trajectory = getTrajectory(obstacle)
 
         if obstacle_name == "human":
             self.obstacle_objects.append(Human(position, rotation, trajectory, self.sim_step, scale))
         elif obstacle_name == "maze":
-            self.obstacle_objects.append(MazeObstacle(position, rotation, trajectory, step, obstacle["params"], scale))
+            self.obstacle_objects.append(MazeObstacle(position, rotation, trajectory, vel * self.sim_step, self.env_id, obstacle["params"], scale))
         elif obstacle_name == "shelf":
-            self.obstacle_objects.append(ShelfObstacle(position, rotation, trajectory, step, obstacle["params"], scale))
+            self.obstacle_objects.append(ShelfObstacle(position, rotation, trajectory, vel * self.sim_step, self.env_id, obstacle["params"], scale))
         else:
             urdfs = findUrdfs(obstacle_name)
             if len(urdfs) > 0:
                 urdf_name = urdfs[0]
             else:
                 urdf_name = f"{urdf_name}.urdf"
-            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, step, urdf_name, scale))
+            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, vel * self.sim_step, urdf_name, scale))
 
 
 
     def build(self):
-        for obstacle in self.config["obstacles"]:
+        for obstacle in self.config:
             self.load_obstacle(obstacle)
 
         for obstacle in self.obstacle_objects:
@@ -105,7 +91,7 @@ class GeneratedWorld(World):
             self.objects_ids.append(obstacle.object_id)
 
 
-    def reset(self):
+    def reset(self, success_rate):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []

@@ -1,4 +1,4 @@
-# config that builds the env for the kuka shelf experiment
+# config that builds the env using the World Generator
 run:
   load_model: False  
   model_path: ""  
@@ -38,29 +38,29 @@ env:
   normalize_observations: False
   normalize_rewards: False
   robots:
-    - type: "KR16" 
+    - type: "UR5" 
       config:
-        name: "kr16_1"
-        base_position: [0, 0, 0]
+        name: "ur5_1"
+        base_position: [0, 0, 1.1]
         base_orientation: [0, 0, 0]
-        resting_angles: [0, -135, 90, 0, 90, 0]
+        resting_angles: [-180, -45, -90, -135, 90, 0]
         control_mode: 0
         xyz_delta: 0.005
         rpy_delta: 0.005
       sensors:
-        - type: "LidarSensorKR16"
+        - type: "LidarSensorUR5"
           config:
             update_steps: 1
             add_to_observation_space: True
             add_to_logging: True
             indicator_buckets: 6
-            ray_start: 0.01
+            ray_start: 0
             ray_end: 0.3
-            num_rays_circle_directions: 5
-            num_rays_side: 5
+            num_rays_circle_directions: 10
+            num_rays_side: 10
             render: False
             indicator: True
-            activated_links: [0, 1, 2]
+            activated_links: [0, 1, 2, 3, 4]
       goal:
         type: "PositionCollision"
         config:
@@ -78,25 +78,51 @@ env:
           dist_threshold_overwrite: "None"
 
   world:
-    type: "KukaShelfExperiment"
+    type: "Generated"
     config:
-      workspace_boundaries: [-3, 3, -3, 3, 0.0, 3]
-      shelves_positions: 
-        - [-0.725, -1.05, 0.51]
-        - [-0.725, 1.55, 0.51]
-      shelves_rotations: 
-        - [90, 0, 0]
-        - [90, 0, 0]  # rpy in degrees
-      humans_positions: []
-      humans_rotations: []
-      humans_trajectories: []
-      target_pos_override: []
-      target_rot_override: []
-      start_override: []
-      shelf_params:
-        rows: 3
-        cols: 4
-        element_size: 0.35
-        shelf_depth: 0.5
-        wall_thickness: 0.01
-      
+      workspace_boundaries: [-2, 2, -2, 2, 0, 5]
+      obstacles:
+      - type: "shelf"
+        position: [-1.25, -1, 0]
+        rotation: [90, 0, 0]
+        params:
+          rows: 5
+          cols: 5
+          element_size: .5
+          shelf_depth: .5
+          wall_thickness: .01
+      - type: "shelf"
+        position: [-1.25, 1.5, 0]
+        rotation: [90, 0, 0]
+        scale: 1
+        params:
+          rows: 5
+          cols: 5
+          element_size: .5
+          shelf_depth: .5
+          wall_thickness: .01
+          vel: 10
+          move:
+            - [-2.5, 0.5, 1.4]
+            - [2.5, 0.5, 1.4]
+      - type: "human"
+        position: [5, 5, 0]
+        rotation: [0, 0, 0]
+        scale: 1
+        params:
+          move:
+            - [-2.5, 0.5, 1.4]
+            - [2.5, 0.5, 1.4]
+      - type: "maze"
+        position: [10, 10, 0]
+        rotation: [0, 0, 0]
+        params:
+          rows: 5
+          cols: 5
+          element_size: .5
+          element_depth: .5
+          wall_thickness: .01
+          difficulty: 1
+          connector_strict: False
+          connector_probability: 0.7
+          connector_height: 0.1

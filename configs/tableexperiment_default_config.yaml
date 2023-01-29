@@ -1,4 +1,4 @@
-# config that builds the env as Yifan had it
+# config that builds the env for the table ur5 experiment
 run:
   load_model: False  
   model_path: ""  
@@ -84,9 +84,15 @@ env:
       num_obstacles: 5
       obstacle_velocities: []
       num_humans: 2
-      human_positions: [[0, 0, 0], [1.6, 0, 1.4]]
-      human_rotations: [[0, 0, 0], [0, 0, 90]]
-      human_trajectories: [[[-2, 2, 1.4], [2, 2, 1.5]], []]
+      human_positions: 
+        - [0, 0, 0]
+        - [1.6, 0, 1.4]
+      human_rotations: 
+        - [0, 0, 0]
+        - [0, 0, 90]
+      human_trajectories: 
+        - [[-2, 2, 1.4], [2, 2, 1.5]]
+        - []
       human_reactive: [False, True]
       ee_starts: []
       targets: []
