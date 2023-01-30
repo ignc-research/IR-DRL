@@ -14,7 +14,6 @@ args = parser.parse_args()
 
 # fetch the config and parse it into python objects
 run_config, env_config = parse_config(args.configfile, args.train)
-print(env_config)
 testo = ModularDRLEnv(env_config)
 
 while True:
