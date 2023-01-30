@@ -3,7 +3,7 @@ import numpy as np
 from robot.robot import Robot
 from gym.spaces import Box
 import pybullet as pyb
-from scipy.spatial.distance import cdist as euclidean_distances
+from scipy.spatial.distance import cdist
 from numpy import newaxis as na
 import time
 
@@ -56,6 +56,8 @@ class PositionCollisionPCR(Goal):
         self.points : np.array
         self.robot_skeleton : np.array
 
+        # stuff for debugging
+        self.debug = goal_config["debug"]
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
@@ -182,19 +184,51 @@ class PositionCollisionPCR(Goal):
         num_of_points = 5
         # Compute minimal euclidean distances from the robot skeleton to the obstacle points
         if self.pcr_sensor.points.shape[0] == 0:
-            self.obstacle_points = np.repeat(np.array([0, -1, 0])[na, :], 5, axis=0)
-            distances_to_obstacles = euclidean_distances(self.robot_skeleton_sensor.robot_skeleton,
-                                                           np.array([0, -1, 0])[na, :]).min(axis=1).round(10)
+            self.obstacle_points = np.repeat(np.array([0, -3, 0])[na, :], 5, axis=0)
+            distances_to_obstacles = cdist(self.robot_skeleton_sensor.robot_skeleton,
+                                                           np.array([0, -3, 0])[na, :]).min(axis=1).round(10)
         else:
-            distances = euclidean_distances(self.robot_skeleton_sensor.robot_skeleton, self.pcr_sensor.points).min(axis=0)
+            # all points in the point cloud
+            all_points = self.pcr_sensor.points
+            # all points except for the ones for the table
+            points_without_table = self.pcr_sensor.points[self.pcr_sensor.segImg != 2]
+            # concat the two together
+            points = np.concatenate([
+                points_without_table,
+                all_points
+            ], axis=0)
+
+            # set indices of the robot skeleton points that should ignore the table
+            sklt_indx_ignore_table = [0, 1, 2, 3, 11, 12]
+            # set indices of the robot skeleton points that should consider the table
+            sklt_indx_consider_table = [4, 5, 6, 7, 8, 9, 10, 13, 14, 15]
+
+            # compute distances for points that should ignore the table
+            distances_without_table = cdist(self.robot_skeleton_sensor.robot_skeleton[sklt_indx_ignore_table, :],
+                                       points_without_table).min(axis=0)
+            # compute distances for points that should consider the table
+            distances_with_table = cdist(self.robot_skeleton_sensor.robot_skeleton[sklt_indx_consider_table, :],
+                                       all_points).min(axis=0)
+
+            # concat the two together in the same order as the points
+            distances = np.concatenate([
+                distances_without_table,
+                distances_with_table
+            ], axis=0)
+
+            # get n closest obstacle points
             n = num_of_points if len(distances) >= num_of_points else len(distances)
-            self.obstacle_points = self.pcr_sensor.points[np.argpartition(distances, n - 1)][:n]
+            self.obstacle_points = points[np.argpartition(distances, n - 1)][:n]
             distances_to_obstacles = distances.min().round(10)
-        # if we have less than 10 points just add some fake ones that are of the boundary anyways
+        # if we have less than n points just add some fake ones that are of the boundary anyways
         n = num_of_points - self.obstacle_points.shape[0]
         if n > 0:
             self.obstacle_points = np.append(self.obstacle_points, np.repeat(np.array([0, -1, 0])[na, :], n, axis=0), axis=0)
-        # pyb.removeAllUserDebugItems()
-        # for point in self.obstacle_points:
-        #     pyb.addUserDebugLine(point, point + 1)
+
+        # display closest points
+        if self.debug["closest_points"]:
+            pyb.removeAllUserDebugItems()
+            for point in self.obstacle_points:
+                pyb.addUserDebugLine(point, point + np.array([0,0,0.2]))
+
         self.min_distance_to_obstacles = distances_to_obstacles.astype(np.float32).min()
