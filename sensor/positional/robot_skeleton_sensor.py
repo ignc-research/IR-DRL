@@ -5,63 +5,59 @@ from numpy import newaxis as na
 from sensor.sensor import Sensor
 from time import time
 
+def interpolate(a, b, n_interpolations, upper_limit, lower_limit):
+    r = (b - a)
+    factor = np.linspace(lower_limit, upper_limit, n_interpolations)
+    a = np.repeat(a[na, :], n_interpolations, axis=0)
+    return a + factor[:, na].dot(r[na, :])
+
+
 
 class RobotSkeletonSensor(Sensor):
     def __init__(self, sensor_config):
         super().__init__(sensor_config)
         # set robot
         self.robot = sensor_config["robot"]
+        self.debug = sensor_config["debug"]
 
-    def update(self, step) -> dict:
-        if step % self.update_steps == 0:
-            self.robot_id = self.robot.object_id
-
-            robot_skeleton = []
-            for i in range(pyb.getNumJoints(self.robot_id)):
-                if i > 2:
-                    if i == 3:
-                        robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[0])
-                        robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[4])
-                    else:
-                        robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[0])
-            self.robot_skeleton = np.asarray(robot_skeleton, dtype=np.float32).round(10)
-            # add 3 additional points along the arm
-            self.robot_skeleton = np.append(self.robot_skeleton,
-                                            ((self.robot_skeleton[1] + self.robot_skeleton[0]) / 2)[na, :], axis=0)
-            self.robot_skeleton = np.append(self.robot_skeleton,
-                                            ((self.robot_skeleton[2] + self.robot_skeleton[0]) / 2)[na, :], axis=0)
-            self.robot_skeleton = np.append(self.robot_skeleton,
-                                            ((self.robot_skeleton[6] + self.robot_skeleton[0]) / 2)[na, :], axis=0)
-            # add an additional point on the right side of the head
-            self.robot_skeleton = np.append(self.robot_skeleton,
-                                            (self.robot_skeleton[3] - 1.5 * (
-                                                        self.robot_skeleton[3] - self.robot_skeleton[2]))[na, :], axis=0)
-        return {"robot_skeleton": self.robot_skeleton}
-
-    def reset(self):
-        self.cpu_epoch = time()
+    def _set_skeleton(self):
         self.robot_id = self.robot.object_id
 
         robot_skeleton = []
         for i in range(pyb.getNumJoints(self.robot_id)):
-            if i > 2:
-                if i == 3:
-                    robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[0])
+            if i > 0:  # this removes the base link which is somewhere in the air
+                # the center of mass of the base link (i == 1) floats in the air so we retrieve its frame link
+                # instead links with an index of 4 or higher have the same coordinates for their link frame and their
+                # center of mass
+                if i == 1 or i >= 4:
                     robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[4])
                 else:
+                    robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[4])
                     robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[0])
+
         self.robot_skeleton = np.asarray(robot_skeleton, dtype=np.float32).round(10)
-        # add 3 additional points along the arm
-        self.robot_skeleton = np.append(self.robot_skeleton,
-                                        ((self.robot_skeleton[1] + self.robot_skeleton[0]) / 2)[na, :], axis=0)
-        self.robot_skeleton = np.append(self.robot_skeleton,
-                                        ((self.robot_skeleton[2] + self.robot_skeleton[0]) / 2)[na, :], axis=0)
-        self.robot_skeleton = np.append(self.robot_skeleton,
-                                        ((self.robot_skeleton[6] + self.robot_skeleton[0]) / 2)[na, :], axis=0)
-        # add an additional point on the right side of the head
-        self.robot_skeleton = np.append(self.robot_skeleton,
-                                        (self.robot_skeleton[3] - 1.5 * (
-                                                self.robot_skeleton[3] - self.robot_skeleton[2]))[na, :], axis=0)
+
+        # add extra points along the arms of the robot
+        self.robot_skeleton = np.concatenate([
+            self.robot_skeleton,
+            interpolate(self.robot_skeleton[1, :], self.robot_skeleton[2, :], 4, 0.3, 1.5),
+            interpolate(self.robot_skeleton[3, :], self.robot_skeleton[4, :], 3, 0.3, 1.2),
+        ], axis=0)
+
+        # display skeleton points
+        pyb.removeAllUserDebugItems()
+        if self.debug["skeleton"]:
+            for i, point in enumerate(self.robot_skeleton):
+                # print(i, point[2].round(5))
+                pyb.addUserDebugLine(point, point + np.array([0, 0, 0.2]), lineColorRGB=[0, 0, 255])
+    def update(self, step) -> dict:
+        if step % self.update_steps == 0:
+            self._set_skeleton()
+        return {"robot_skeleton": self.robot_skeleton}
+
+    def reset(self):
+        self.cpu_epoch = time()
+        self._set_skeleton()
         self.cpu_time = time() - self.cpu_epoch
 
     def get_observation(self) -> dict:
