@@ -91,7 +91,14 @@ class StaticPointCloudCamera(CameraBase):
         return self.get_observation()
 
     def get_observation(self):
-        return {self.output_name: self.points}
+        """Point Cloud should not be added to observation space from here"""
+        pass
+
+    def _normalize(self):
+        """
+        don't know a good way to normalize this yet
+        """
+        pass
 
     ### point cloud methods ###
     def _depth_img_to_point_cloud(self, depth: np.array) -> np.array:
