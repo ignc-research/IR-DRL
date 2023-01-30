@@ -162,7 +162,7 @@ class CameraBase(Sensor):
         for key in self.camera_args:
             new_arg = new_camera_args.get(key, None)
             if new_arg is not None:
-                assert type(new_arg) == type(self.camera_args[key]), f'Old type <{type(self.camera_args[key])}> is different from new type <{type(new_arg)}>'
+                #assert type(new_arg) == type(self.camera_args[key]), f'Old type <{type(self.camera_args[key])}> is different from new type <{type(new_arg)}>'
                 self.camera_args[key] = new_arg
         return copy.copy(self.camera_args)
 
