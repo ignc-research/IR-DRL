@@ -5,10 +5,31 @@ from world.obstacles.human import Human
 from world.obstacles.pybullet_shapes import Box
 import pybullet_data as pyb_d
 from random import choice
+import sys
+import os
+from contextlib import contextmanager
 
 __all__ = [
     'TableExperiment'
 ]
+@contextmanager
+def suppress_stdout():
+    fd = sys.stdout.fileno()
+
+    def _redirect_stdout(to):
+        sys.stdout.close()  # + implicit flush()
+        os.dup2(to.fileno(), fd)  # fd writes to 'to' file
+        sys.stdout = os.fdopen(fd, "w")  # Python writes to fd
+
+    with os.fdopen(os.dup(fd), "w") as old_stdout:
+        with open(os.devnull, "w") as file:
+            _redirect_stdout(to=file)
+        try:
+            yield  # allow code to be run with the redirected stdout
+        finally:
+            _redirect_stdout(to=old_stdout)  # restore stdout.
+            # buffering and flags such as
+            # CLOEXEC may be different
 
 class TableExperiment(World):
     """
@@ -62,8 +83,9 @@ class TableExperiment(World):
         self.objects_ids.append(pyb.loadURDF(pyb_d.getDataPath()+"/table/table.urdf", useFixedBase=True, globalScaling=1.75))
         # humans
         for i in range(self.num_humans):
-            human = Human(self.human_positions[i], self.human_rotations[i], self.human_trajectories[i], self.sim_step, 1.5)
-            human.build()
+            with suppress_stdout():
+                human = Human(self.human_positions[i], self.human_rotations[i], self.human_trajectories[i], self.sim_step, 1.5)
+                human.build()
             self.humans.append(human)
         # obstacles
         extra = 0
