@@ -26,24 +26,21 @@ class CameraBase(Sensor):
 
     param: debug: dict with debug parameters
     """
-
-    def __init__(self, position: List = None, target: List = None, camera_args: CameraArgs = None, orientation: List = None,\
-            debug : Dict[str, bool] = None, name : str = 'default', \
-            normalize: bool = False, add_to_observation_space: bool = True, add_to_logging: bool = False, sim_step: float = 0, update_steps: int = 0):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
-        self.pos = position if position is not None else [0,0,0]
-        self.target = target if target is not None else [0,0,0]
+    def __init__(self, sensor_config):
+        super().__init__(sensor_config)
+        self.pos = sensor_config["position"] if sensor_config["position"] is not None else [0,0,0]
+        self.target = sensor_config["target"] if sensor_config["target"] is not None else [0,0,0]
         self.camera_args : CameraArgs
-        self._parse_camera_args(camera_args)
-        self.orn = [0,0,0,1] if orientation is None else orientation
-        self.name = name
+        self._parse_camera_args(sensor_config["camera_args"])
+        self.orn = [0,0,0,1] if sensor_config["orientation"] is None else sensor_config["orientation"]
+        self.name = sensor_config["name"]
         self.output_name = f'camera_{self.camera_args["type"]}_{self.name}'
         self.debug = {
             'position' : False,
             'target' : False,
             'orientation' : False,
             'lines' : False,
-        } if debug is None else debug
+        } if sensor_config["debug"] is None else sensor_config["debug"]
         self._add_debug_params()
 
         self.camera = self._set_camera()
@@ -124,12 +121,12 @@ class CameraBase(Sensor):
 
 
         def _set_camera_inner(): # TODO           
-            _, _, rgba, depth, seg = pyb.getCameraImage(
+            _, _, rgba, depth, _ = pyb.getCameraImage(
                 width= self.camera_args['width'],
                 height= self.camera_args['height'],
                 viewMatrix= viewMatrix,
-                projectionMatrix= projectionMatrix,
-            )
+                projectionMatrix= projectionMatrix)
+
             rgba, depth = np.array(rgba), np.array(depth) # for compatibility with older python versions
             if self.camera_args['type'] == 'grayscale':
                 r, g, b, a = rgba[:,:,0], rgba[:,:,1], rgba[:,:,2], rgba[:,:,3]/255
@@ -140,9 +137,6 @@ class CameraBase(Sensor):
             if self.camera_args['type'] == 'rgbd':
                 image = rgba
                 image[:, :, 3] = depth
-            if self.camera_args["type"] == "ds":
-                image = np.stack([depth, seg], axis=2)
-
 
             return image
 
