@@ -179,9 +179,9 @@ class PositionCollisionGoal(Goal):
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
         self.target = self.robot.world.position_targets[self.robot.id]
-        pyb.createMultiBody(baseMass=0,
+        print(pyb.createMultiBody(baseMass=0,
                             baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=self.distance_threshold, rgbaColor=[0, 1, 0, 1]),
-                            basePosition=self.target)
+                            basePosition=self.target))
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()

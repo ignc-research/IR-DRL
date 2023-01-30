@@ -31,9 +31,13 @@ class StaticPointCloudCamera(CameraBase):
         # points
         self.points: np.array
 
-    def _adapt_to_environment(self):
-        self.target = pyb.getLinkState(self.robot.object_id, self.robot.end_effector_link_id)[4]
-        super()._adapt_to_environment()
+        # target
+        self.target = sensor_config["target"]
+
+        # whether to update the matrices or not
+        self.update_matrices = True
+        if sensor_config["debug"] is None:
+            self.update_matrices = False
 
     def _set_camera(self):
         if self.debug.get('position', False) or self.debug.get('orientation', False) or self.debug.get('target', False) or self.debug.get('lines', False):
@@ -71,10 +75,14 @@ class StaticPointCloudCamera(CameraBase):
         self.camera_ready = True
         return _set_camera_inner
 
+    def _adapt_to_environment(self):
+        pass
+
     def update(self, step):
         self.cpu_epoch = time()
         if step % self.update_steps == 0:
-            self._adapt_to_environment()
+            if self.update_matrices:
+                self._adapt_to_environment()
             image = self._get_image()
             self.points = self._depth_img_to_point_cloud(image[:, 0])
             self.points = self._prepreprocess_point_cloud(self.points, image[:, 1])
@@ -127,15 +135,13 @@ class StaticPointCloudCamera(CameraBase):
         :return: the points of the point cloud with the points for the background, robot arm and target removed
         :rtype: np.array
         """
-        # Points that have the same color as the first point in the point cloud are removed
-        # Points that have the color [60, 180, 75] are removed, as this is the color used for the target point
         segImg = segImg.flatten()
         if self.objects_to_remove is not None:
             select_mask = np.logical_not(np.isin(segImg, self.objects_to_remove))
             points = points[select_mask]
 
-        pyb.removeAllUserDebugItems()
-        pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
-        from time import sleep
-        sleep(25325)
+        # pyb.removeAllUserDebugItems()
+        # pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
+        # from time import sleep
+        # sleep(2)
         return points.astype(np.float32)

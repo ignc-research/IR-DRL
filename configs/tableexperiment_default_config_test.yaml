@@ -63,11 +63,12 @@ env:
         sensor2:
           type: "StaticPointCloudCamera"
           config:
-            position: [2, 2, 1.5]
-            target: [0.5, 0.5, 0.5]
+            position: [0, 0, 2.2]
+            target: [0, 0, 0]
             orientation: None
-            objects_to_remove: None
-            camera_args: {type: "ds"}
+            objects_to_remove: [-1, 0, 1, 10]  # remove background, floor, robot and target point
+            camera_args: {type: "ds", fov: 100, width: 176, height: 120, up_vector: [0, 1, 0]}
+            #debug: {'position': True, 'target': True, 'orientation': True, 'lines': True}
             debug: None
             name: "PCR_camera"
             normalize: False
