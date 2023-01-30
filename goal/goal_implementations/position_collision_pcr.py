@@ -24,7 +24,6 @@ class PositionCollisionPCR(Goal):
                 self.pcr_sensor = sensor
             if str(type(sensor)) == "<class 'sensor.positional.robot_skeleton_sensor.RobotSkeletonSensor'>":
                 self.robot_skeleton_sensor = sensor
-        print(self.pcr_sensor)
         # set the flags
         self.needs_a_position = True
         self.needs_a_rotation = False
