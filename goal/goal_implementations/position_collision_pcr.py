@@ -61,9 +61,15 @@ class PositionCollisionPCR(Goal):
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            ret["end_effector_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
-            ret["target_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
-            ret["closest_obstacle_points"] = Box(low=-1, high=1, shape=(5, 3), dtype=np.float32)
+            ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
+                                               high=np.array([1, 1, 2], dtype=np.float32),
+                                               shape=(3,), dtype=np.float32)
+            ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
+                                         high=np.array([1, 1, 2], dtype=np.float32),
+                                         shape=(3,), dtype=np.float32)
+            ret["closest_obstacle_points"] = Box(low=np.repeat(np.array([-1, -1, 1], dtype=np.float32)[na, :], 5, axis=0),
+                                                 high=np.repeat(np.array([1, 1, 2], dtype=np.float32)[na, :], 5, axis=0),
+                                                 shape=(5, 3), dtype=np.float32)
             return ret
         else:
             return {}
