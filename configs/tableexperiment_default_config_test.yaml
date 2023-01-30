@@ -47,19 +47,6 @@ env:
         xyz_delta: 0.005
         rpy_delta: 0.005
       sensors:
-        sensor1:
-          type: "LidarSensorUR5"
-          config:
-            update_steps: 1
-            add_to_observation_space: True
-            add_to_logging: True
-            indicator_buckets: 6
-            ray_start: 0
-            ray_end: 0.3
-            num_rays_circle_directions: 10
-            num_rays_side: 10
-            render: False
-            indicator: True
         sensor2:
           type: "StaticPointCloudCamera"
           config:
@@ -87,7 +74,7 @@ env:
           config:
             normalize: True
             add_to_observation_space: True
-            add_to_logging: True
+            add_to_logging: False
             update_steps: 1
       goal:
         type: "PositionCollisionPCR"
