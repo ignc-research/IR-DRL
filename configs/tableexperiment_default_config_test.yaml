@@ -76,6 +76,13 @@ env:
             add_to_logging: False
             sim_step: 0.00416666666
             update_steps: 5
+        sensor3:
+          type: "RobotSkeletonSensor"
+          config:
+            normalize: False
+            add_to_observation_space: False
+            add_to_logging: False
+            update_steps: 1
       goal:
         type: "PositionCollision"
         config:
