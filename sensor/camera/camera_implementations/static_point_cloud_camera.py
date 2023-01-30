@@ -19,9 +19,6 @@ class StaticPointCloudCamera(CameraBase):
         self.robot = sensor_config["robot"]
         self.pos = sensor_config["position"]
 
-        # make sure the image type is ds for depth segmentation
-        assert sensor_config["camera_args"]["type"] == "ds"
-
         # transformation matrix for transforming pixel coordinates to real world ones
         self.tran_pix_world: np.array
 
@@ -59,6 +56,7 @@ class StaticPointCloudCamera(CameraBase):
         # set transformation matrix for transforming pixel coordinates to real world ones
         self.tran_pix_world = np.linalg.inv(np.matmul(np.asarray(projectionMatrix).reshape([4, 4], order='F'),
                                                       np.asarray(viewMatrix).reshape([4, 4], order='F')))
+        print(self.tran_pix_world)
 
         def _set_camera_inner(): # TODO
             _, _, _, depth, seg = pyb.getCameraImage(
@@ -75,6 +73,11 @@ class StaticPointCloudCamera(CameraBase):
         self.camera_ready = True
         return _set_camera_inner
 
+    def _get_image(self):
+        if not self.camera_ready:
+            self.camera = self._set_camera()
+        self.image = self.camera()
+        return self.image
     def _adapt_to_environment(self):
         pass
 
@@ -93,7 +96,6 @@ class StaticPointCloudCamera(CameraBase):
     def reset(self):
         self.cpu_epoch = time()
         # create point cloud
-        image = self._get_image()
         self.points = self._depth_img_to_point_cloud(image[:, 0])
         self.points = self._prepreprocess_point_cloud(self.points, image[:, 1])
 
@@ -158,8 +160,8 @@ class StaticPointCloudCamera(CameraBase):
             select_mask = np.logical_not(np.isin(segImg, self.objects_to_remove))
             points = points[select_mask]
 
-        # pyb.removeAllUserDebugItems()
-        # pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
-        # from time import sleep
-        # sleep(2)
+        pyb.removeAllUserDebugItems()
+        pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
+        from time import sleep
+        sleep(2)
         return points.astype(np.float32)
