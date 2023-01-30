@@ -60,6 +60,20 @@ env:
             num_rays_side: 10
             render: False
             indicator: True
+        sensor2:
+          type: "StaticPointCloudCamera"
+          config:
+            position: [1, 1, 1]
+            target: [0.5, 0.5, 0.5]
+            camera_args: None
+            orientation: None
+            debug: None
+            name: "PCR_camera"
+            normalize: False
+            add_to_observation_space: False
+            add_to_logging: False
+            sim_step: 0.00416666666
+            update_steps: 5
       goal:
         type: "PositionCollision"
         config:

@@ -119,6 +119,7 @@ class Robot(ABC):
         This vector will always have the size given by get_action_space_dims and will contain values from -1 to 1.
         The method will return its execution time on the cpu.
         """
+        print(action)
         cpu_epoch = time()
         if self.control_mode == 0:  
             # control via inverse kinematics:

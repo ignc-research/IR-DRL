@@ -1,29 +1,24 @@
+# parse command line args
+from argparse import ArgumentParser
+from configs.configparser import parse_config
 from gym_env.environment import ModularDRLEnv
-from time import sleep
 
-env_config_train = {
-    "train": False,
-    "logging": 1,
-    "max_steps_per_episode": 1024,
-    "max_episodes": -1,
-    "sim_step": 1 / 240,
-    "stat_buffer_size": 25,
-    "use_physics_sim": False,
-    "control_mode": 2,
-    "normalize_observations": False,
-    "normalize_rewards": False,
-    "dist_threshold_overwrite": None,
-    "display": True,
-    "display_extra": True
-}
+# parse the three arguments
+parser = ArgumentParser(prog="Modular DRL Robot Gym Env",
+                        description = "Builds and runs a modular gym env for simulated robots using a config file.")
+parser.add_argument("configfile", help="Path to the config yaml you want to use.")
+mode = parser.add_mutually_exclusive_group(required=True)
+mode.add_argument("--train", action="store_true", help="Runs the env in train mode.")
+mode.add_argument("--eval", action="store_true", help="Runs the env in eval mode.")
+args = parser.parse_args()
 
-testo = ModularDRLEnv(env_config_train)
-
+# fetch the config and parse it into python objects
+run_config, env_config = parse_config(args.configfile, args.train)
+print(env_config)
+testo = ModularDRLEnv(env_config)
 
 while True:
     testo.reset()
     done = False
     while not done:
-        #obs, reward, done, info = testo.step(testo.action_space.sample())
-        obs, reward, done, info = testo.step([0,0,0,0,0,0])
-        #sleep(0.005)
+        obs, reward, done, info = testo.step(testo.action_space.sample())

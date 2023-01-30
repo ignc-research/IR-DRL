@@ -124,7 +124,7 @@ class CameraBase(Sensor):
 
 
         def _set_camera_inner(): # TODO           
-            _, _, rgba, depth, _ = pyb.getCameraImage(
+            _, _, rgba, depth, seg = pyb.getCameraImage(
                 width= self.camera_args['width'],
                 height= self.camera_args['height'],
                 viewMatrix= viewMatrix,
@@ -140,6 +140,8 @@ class CameraBase(Sensor):
             if self.camera_args['type'] == 'rgbd':
                 image = rgba
                 image[:, :, 3] = depth
+            if self.camera_args["type"] == "ds":
+                image = np.stack([depth, seg], axis=2)
 
 
             return image

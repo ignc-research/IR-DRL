@@ -14,7 +14,7 @@ args = parser.parse_args()
 
 # fetch the config and parse it into python objects
 run_config, env_config = parse_config(args.configfile, args.train)
-
+from time import sleep
 # we import the rest here because this takes quite some time and we want the arg parsing to be fast and responsive
 from gym_env.environment import ModularDRLEnv
 from stable_baselines3 import PPO, TD3, SAC
