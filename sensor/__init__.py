@@ -33,3 +33,4 @@ SensorRegistry.register('FloatingFollowEffector')(StaticFloatingCameraFollowEffe
 SensorRegistry.register('BuddyRobotCamera')(BuddyRobotCamera)
 SensorRegistry.register('StaticPointCloudCamera')(StaticPointCloudCamera)
 SensorRegistry.register('RobotSkeletonSensor')(RobotSkeletonSensor)
+SensorRegistry.register('VelocitySensor')(VelocitySensor)
