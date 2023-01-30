@@ -75,6 +75,7 @@ class RobotSkeletonSensor(Sensor):
         """
         don't know a good way to normalize this yet
         """
+        # TODO: implement normalization
         pass
 
     def get_observation_space_element(self) -> dict:
