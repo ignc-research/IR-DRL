@@ -1,4 +1,5 @@
 # parse command line args
+import time
 from argparse import ArgumentParser
 from configs.configparser import parse_config
 from gym_env.environment import ModularDRLEnv
@@ -15,9 +16,9 @@ args = parser.parse_args()
 # fetch the config and parse it into python objects
 run_config, env_config = parse_config(args.configfile, args.train)
 testo = ModularDRLEnv(env_config)
-
 while True:
-    testo.reset()
+    obs = testo.reset()
     done = False
     while not done:
         obs, reward, done, info = testo.step(testo.action_space.sample())
+
