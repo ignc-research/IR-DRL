@@ -1,3 +1,4 @@
+import numpy as np
 import pybullet as pyb
 from typing import Union, List, Dict, TypedDict
 from robot.robot_implementations.ur5 import UR5
@@ -26,7 +27,10 @@ class StaticPointCloudCamera(CameraBase):
         self.objects_to_remove = sensor_config["objects_to_remove"]
 
         # points
-        self.points: np.array
+        self.points: np.array = None
+
+        # segmentation image
+        self.segImg: np.array = None
 
         # target
         self.target = sensor_config["target"]
@@ -36,17 +40,19 @@ class StaticPointCloudCamera(CameraBase):
         if sensor_config["debug"] is None:
             self.update_matrices = False
 
+        # set camera matrices once
+        self._set_camera()
     def _set_camera(self):
         if self.debug.get('position', False) or self.debug.get('orientation', False) or self.debug.get('target', False) or self.debug.get('lines', False):
             self._use_debug_params()
 
-        viewMatrix = pyb.computeViewMatrix(
+        self.viewMatrix = pyb.computeViewMatrix(
             cameraTargetPosition=self.target,
             cameraEyePosition= self.pos,
             cameraUpVector= self.camera_args['up_vector'],
             )
 
-        projectionMatrix = pyb.computeProjectionMatrixFOV(
+        self.projectionMatrix = pyb.computeProjectionMatrixFOV(
             fov= self.camera_args['fov'],
             aspect=self.camera_args['aspect'],
             nearVal= self.camera_args['near_val'],
@@ -54,29 +60,20 @@ class StaticPointCloudCamera(CameraBase):
             )
 
         # set transformation matrix for transforming pixel coordinates to real world ones
-        self.tran_pix_world = np.linalg.inv(np.matmul(np.asarray(projectionMatrix).reshape([4, 4], order='F'),
-                                                      np.asarray(viewMatrix).reshape([4, 4], order='F')))
-        print(self.tran_pix_world)
-
-        def _set_camera_inner(): # TODO
-            _, _, _, depth, seg = pyb.getCameraImage(
-                width= self.camera_args['width'],
-                height= self.camera_args['height'],
-                viewMatrix= viewMatrix,
-                projectionMatrix= projectionMatrix)
-
-            depth, seg = np.array(depth), np.array(seg) # for compatibility with older python versions
-            image = np.stack([depth, seg], axis=1)
-
-            return image
-
-        self.camera_ready = True
-        return _set_camera_inner
+        self.tran_pix_world = np.linalg.inv(np.matmul(np.asarray(self.projectionMatrix).reshape([4, 4], order='F'),
+                                                      np.asarray(self.viewMatrix).reshape([4, 4], order='F')))
 
     def _get_image(self):
-        if not self.camera_ready:
-            self.camera = self._set_camera()
-        self.image = self.camera()
+        # getting image
+        _, _, _, depth, seg = pyb.getCameraImage(
+            width=self.camera_args['width'],
+            height=self.camera_args['height'],
+            viewMatrix=self.viewMatrix,
+            projectionMatrix=self.projectionMatrix)
+
+        depth, seg = np.array(depth), np.array(seg)  # for compatibility with older python versions
+        self.image = np.stack([depth, seg], axis=1)
+
         return self.image
     def _adapt_to_environment(self):
         pass
@@ -84,11 +81,10 @@ class StaticPointCloudCamera(CameraBase):
     def update(self, step):
         self.cpu_epoch = time()
         if step % self.update_steps == 0:
-            if self.update_matrices:
-                self._adapt_to_environment()
+            # create point cloud
             image = self._get_image()
             self.points = self._depth_img_to_point_cloud(image[:, 0])
-            self.points = self._prepreprocess_point_cloud(self.points, image[:, 1])
+            self.points, self.segImg = self._prepreprocess_point_cloud(self.points, image[:, 1])
         self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()
@@ -96,9 +92,9 @@ class StaticPointCloudCamera(CameraBase):
     def reset(self):
         self.cpu_epoch = time()
         # create point cloud
+        image = self._get_image()
         self.points = self._depth_img_to_point_cloud(image[:, 0])
-        self.points = self._prepreprocess_point_cloud(self.points, image[:, 1])
-
+        self.points, self.segImg = self._prepreprocess_point_cloud(self.points, image[:, 1])
         self.cpu_time = time() - self.cpu_epoch
         return {"point_cloud": self.points}
 
@@ -159,9 +155,10 @@ class StaticPointCloudCamera(CameraBase):
         if self.objects_to_remove is not None:
             select_mask = np.logical_not(np.isin(segImg, self.objects_to_remove))
             points = points[select_mask]
+            segImg = segImg[select_mask]
 
-        pyb.removeAllUserDebugItems()
-        pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
-        from time import sleep
-        sleep(2)
-        return points.astype(np.float32)
+        # pyb.removeAllUserDebugItems()
+        # pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
+        # from time import sleep
+        # sleep(2)
+        return points.astype(np.float32), segImg
