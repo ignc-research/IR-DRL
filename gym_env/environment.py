@@ -130,6 +130,7 @@ class ModularDRLEnv(gym.Env):
                                 sensor_config["target_robot"] = other_robot
                                 break
                     new_sensor = SensorRegistry.get(sensor_type)(sensor_config)
+                    robot.sensors.append(new_sensor)
                     self.sensors.append(new_sensor)
             
             if "goal" in robo_entry:
