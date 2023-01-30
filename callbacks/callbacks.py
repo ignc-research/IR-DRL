@@ -63,7 +63,7 @@ class MoreLoggingCustomCallback(BaseCallback):
         self.logger.record("train/rate_out_of_bounds", out_of_bounds_rate)
 
         # reward
-        rewards_cumulative = np.average(self.training_env.get_attr("reward_cumulative"))
+        rewards_cumulative = np.average([(np.average(ar) if len(ar) != 0 else 0) for ar in self.training_env.get_attr("cumulated_rewards_stat")])
         self.logger.record("train/rewards", rewards_cumulative)
         
         return True

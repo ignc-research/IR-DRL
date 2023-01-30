@@ -62,11 +62,12 @@ class ModularDRLEnv(gym.Env):
         self.cpu_time = 0
         self.cpu_epoch = process_time()
         self.log = []
-        # fill the stats with a few entries to make early iterations more robust
+        # init and fill the stats with a few entries to make early iterations more robust
         self.success_stat = [False, False, False, False]
         self.out_of_bounds_stat = [False, False, False, False]
         self.timeout_stat = [False, False, False, False]
         self.collision_stat = [False, False, False, False]
+        self.cumulated_rewards_stat = []
         self.goal_metrics = []
         self.reward = 0
         self.reward_cumulative = 0
@@ -384,6 +385,9 @@ class ModularDRLEnv(gym.Env):
             self.collision_stat.append(collision)
             if len(self.collision_stat) > self.stat_buffer_size:
                 self.collision_stat.pop(0)
+            self.cumulated_rewards_stat.append(self.reward_cumulative)
+            if len(self.cumulated_rewards_stat) > self.stat_buffer_size:
+                self.cumulated_rewards_stat.pop(0)
 
         if self.logging == 0:
             # no logging
@@ -403,6 +407,7 @@ class ModularDRLEnv(gym.Env):
                     "out_of_bounds_rate": np.average(self.out_of_bounds_stat),
                     "timeout_rate": np.average(self.timeout_stat),
                     "collision_rate": np.average(self.collision_stat),
+                    "cumulated_rewards": np.average(self.cumulated_rewards_stat),
                     "sim_time": self.sim_time,
                     "cpu_time_steps": self.cpu_time,
                     "cpu_time_full": self.cpu_time + self.cpu_epoch - self.cpu_reset_epoch}
