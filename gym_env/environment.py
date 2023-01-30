@@ -408,7 +408,8 @@ class ModularDRLEnv(gym.Env):
                     info = {**info, **goal.get_data_for_logging()}
 
             self.log.append(info)
-
+            if self.logging == 2:
+                print(info)
             # on episode end:
             if done:
                 # write to console
