@@ -101,7 +101,7 @@ class ModularDRLEnv(gym.Env):
 
             # create the two mandatory sensors
             joint_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
-                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot}
+                                 "add_to_logging": False, "sim_step": self.sim_step, "update_steps": 1, "robot": robot}
             posrot_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": False,
                                  "add_to_logging": False, "sim_step": self.sim_step, "update_steps": 1, "robot": robot,
                                  "link_id": robot.end_effector_link_id, "quaternion": True}
