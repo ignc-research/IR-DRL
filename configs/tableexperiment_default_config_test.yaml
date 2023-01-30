@@ -1,4 +1,5 @@
-# config that builds the env as Yifan had it
+# implements improved version of "Robot obstacle avoidance system using deep
+# reinforcement learning" for table experiment
 run:
   load_model: False  
   model_path: ""  
