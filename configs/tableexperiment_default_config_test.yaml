@@ -56,7 +56,6 @@ env:
             orientation: None
             objects_to_remove: [-1, 0, 1, 10]  # remove background, floor, robot and target point
             camera_args: {type: "ds", fov: 100, width: 176, height: 120, up_vector: [0, 1, 0], near_val: 0.05, far_val: 1.2}
-            #debug: {'position': True, 'target': True, 'orientation': True, 'lines': True}
             debug: None
             name: "PCR_camera"
             normalize: False
@@ -66,6 +65,7 @@ env:
         sensor3:
           type: "RobotSkeletonSensor"
           config:
+            debug: {"skeleton": False}
             normalize: False
             add_to_observation_space: False
             add_to_logging: False
@@ -80,6 +80,7 @@ env:
       goal:
         type: "PositionCollisionPCR"
         config:
+          debug: {"closest_points": True}
           normalize_rewards: False
           normalize_observations: False
           add_to_observation_space: True
@@ -98,7 +99,7 @@ env:
       num_obstacles: 5
       obstacle_velocities: []
       num_humans: 2
-      human_positions: [[0, 0, 0], [1.6, 0, 1.4]]
+      human_positions: [[1.6, 0, 1.4], [1.6, 0, 1.4]]
       human_rotations: [[0, 0, 0], [0, 0, 90]]
       human_trajectories: [[[-2, 2, 1.4], [2, 2, 1.5]], []]
       human_reactive: [False, True]
