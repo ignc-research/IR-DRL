@@ -90,7 +90,7 @@ def parse_config(filepath, train):
     env_config["logging"] = config_raw["run"]["eval"]["logging"]
     if train:
         env_config["max_episodes"] = -1
-        env_config["logging"] = 1
+        env_config["logging"] = config_raw["run"]["eval"]["logging"]
         env_config["display"] = False
         env_config["display_extra"] = False
 
