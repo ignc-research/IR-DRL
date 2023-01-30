@@ -90,6 +90,16 @@ class StaticPointCloudCamera(CameraBase):
 
         return self.get_observation()
 
+    def reset(self):
+        self.cpu_epoch = time()
+        # create point cloud
+        image = self._get_image()
+        self.points = self._depth_img_to_point_cloud(image[:, 0])
+        self.points = self._prepreprocess_point_cloud(self.points, image[:, 1])
+
+        self.cpu_time = time() - self.cpu_epoch
+        return {"point_cloud": self.points}
+
     def get_observation(self):
         """Point Cloud should not be added to observation space from here"""
         pass
@@ -98,6 +108,7 @@ class StaticPointCloudCamera(CameraBase):
         """
         don't know a good way to normalize this yet
         """
+        # TODO: implement normalization
         pass
 
     ### point cloud methods ###
