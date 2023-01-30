@@ -13,21 +13,20 @@ __all__ = [
 
 
 class StaticPointCloudCamera(CameraBase):
-    def __init__(self, robot: UR5, position: List, target: List = None, camera_args: CameraArgs = None,
-                 name: str = 'default_floating', objects_to_remove: List = None,
-                 **kwargs):
-        super().__init__(target=target, camera_args=camera_args, name=name, **kwargs)
-        self.robot = robot
-        self.pos = position
+    def __init__(self, sensor_config):
+        super().__init__(sensor_config)
+
+        self.robot = sensor_config["robot"]
+        self.pos = sensor_config["position"]
 
         # make sure the image type is ds for depth segmentation
-        assert camera_args["type"] == "ds"
+        assert sensor_config["camera_args"]["type"] == "ds"
 
         # transformation matrix for transforming pixel coordinates to real world ones
         self.tran_pix_world: np.array
 
         # pybullet objects to remove from point cloud
-        self.objects_to_remove = objects_to_remove
+        self.objects_to_remove = sensor_config["objects_to_remove"]
 
         # points
         self.points: np.array
@@ -36,13 +35,49 @@ class StaticPointCloudCamera(CameraBase):
         self.target = pyb.getLinkState(self.robot.object_id, self.robot.end_effector_link_id)[4]
         super()._adapt_to_environment()
 
+    def _set_camera(self):
+        if self.debug.get('position', False) or self.debug.get('orientation', False) or self.debug.get('target', False) or self.debug.get('lines', False):
+            self._use_debug_params()
+
+        viewMatrix = pyb.computeViewMatrix(
+            cameraTargetPosition=self.target,
+            cameraEyePosition= self.pos,
+            cameraUpVector= self.camera_args['up_vector'],
+            )
+
+        projectionMatrix = pyb.computeProjectionMatrixFOV(
+            fov= self.camera_args['fov'],
+            aspect=self.camera_args['aspect'],
+            nearVal= self.camera_args['near_val'],
+            farVal= self.camera_args['far_val'],
+            )
+
+        # set transformation matrix for transforming pixel coordinates to real world ones
+        self.tran_pix_world = np.linalg.inv(np.matmul(np.asarray(projectionMatrix).reshape([4, 4], order='F'),
+                                                      np.asarray(viewMatrix).reshape([4, 4], order='F')))
+
+        def _set_camera_inner(): # TODO
+            _, _, _, depth, seg = pyb.getCameraImage(
+                width= self.camera_args['width'],
+                height= self.camera_args['height'],
+                viewMatrix= viewMatrix,
+                projectionMatrix= projectionMatrix)
+
+            depth, seg = np.array(depth), np.array(seg) # for compatibility with older python versions
+            image = np.stack([depth, seg], axis=1)
+
+            return image
+
+        self.camera_ready = True
+        return _set_camera_inner
+
     def update(self, step):
         self.cpu_epoch = time()
         if step % self.update_steps == 0:
             self._adapt_to_environment()
             image = self._get_image()
-            self.points = self._depth_img_to_point_cloud(image[:, :, 1])
-            self.points = self._prepreprocess_point_cloud(self.points, image[:, :, 1])
+            self.points = self._depth_img_to_point_cloud(image[:, 0])
+            self.points = self._prepreprocess_point_cloud(self.points, image[:, 1])
         self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()
@@ -95,10 +130,12 @@ class StaticPointCloudCamera(CameraBase):
         # Points that have the same color as the first point in the point cloud are removed
         # Points that have the color [60, 180, 75] are removed, as this is the color used for the target point
         segImg = segImg.flatten()
-        select_mask = np.logical_not(np.isin(segImg, self.objects_to_remove))
-        points = points[select_mask]
+        if self.objects_to_remove is not None:
+            select_mask = np.logical_not(np.isin(segImg, self.objects_to_remove))
+            points = points[select_mask]
 
-        # pyb.removeAllUserDebugItems()
-        # pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
-        # sleep(25325)
+        pyb.removeAllUserDebugItems()
+        pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
+        from time import sleep
+        sleep(25325)
         return points.astype(np.float32)
