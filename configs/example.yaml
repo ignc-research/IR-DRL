@@ -20,6 +20,8 @@ run:
     save_folder: "./models/weights"  
     # str, name of the model under which it will be saved
     save_name: "PPO_default"
+    # bool, whether to use a recurrent PPO model (True) or not (False)
+    recurrent: False
     # int, steps until PPO updates the agent (this per env, meaning if one env reaches this value the agent updates)
     ppo_steps: 1024  
     # int, batch size of the PPO update, note: the PPO buffer is of size num_envs * ppo_steps, so best choose batch size as a natural divisor for that number for even batches
@@ -35,20 +37,33 @@ run:
       # str, determines the activation function in the policy, can be "ReLU" or "tanh"  TODO: add more options
       activation_function: "ReLU"  
       # layers: 
-      # directly under the layers header, write a key for each common layer you want and as value its number of neurons
-      # under the value function and policy headers, write a key for each layer you want those two to have and as value its respective number of neurons
+      # directly under the layers header, write an integer for each common layer you want, the integer will be the number of neurons in that layer
+      # under the value function and policy headers, write an integer for each layer you want
       # there don't need to be common layers, but both value function and policy function need at least one
       # example: the following defines a custom policy with two shared layers, a value function end with one and a policy function end with three layers
       # FYI: the standard PPO model is no common layers and both value and policy function having two layers of 64, the activation function is tanh
       layers:
-        layer1: 128
-        layer2: 128
-        value_function:
-          layer1: 64
-        policy_function:
-          layer1: 32
-          layer2: 32
-          layer3: 16      
+        - 128
+        - 128
+        - value_function:
+          - 64
+        - policy_function:
+          - 32
+          - 32
+          - 16
+      # lstm settings
+      # if you set recurrent (see above) to True, these settings govern the shape of the LSTM part of the custom network
+      # if no custom policy is used, the default settings are instead hidden_size=256, n_lstm_layers=1, shared_lstm=False and enable_critic_lstm=True
+      lstm:
+        # int, neurons in lstm layers
+        lstm_hidden_size: 512  
+        # int, number of lstm layers
+        n_lstm_layers: 2
+        # bool, whether policy and value function parts of the policy share their lstms or each has their own
+        shared_lstm: False
+        # bool, whether the value function has its own lstm layers
+        enable_critic_lstm: True
+
   # attributes for evaluation
   eval:
     # int, number of episodes for this eval run, infinitely many if -1

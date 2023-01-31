@@ -8,6 +8,7 @@ run:
     save_freq : 30000
     save_folder: "./models/weights"  
     save_name: "PPO_default"
+    recurrent: False
     ppo_steps: 1024  
     batch_size: 512
     gamma: 0.99  
@@ -16,14 +17,20 @@ run:
       use: False
       activation_function: "ReLU"  
       layers:
-        layer1: 128
-        layer2: 128
-        value_function:
-          layer1: 64
-        policy_function:
-          layer1: 32
-          layer2: 32
-          layer3: 16      
+        - 128
+        - 128
+        - value_function:
+          - 64
+        - policy_function:
+          - 32
+          - 32
+          - 16   
+      lstm:
+        lstm_hidden_size: 512
+        n_lstm_layers: 2
+        shared_lstm: False
+        enable_critic_lstm: True
+
   eval:
     max_episodes: -1  
     logging: 1  

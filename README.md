@@ -6,13 +6,17 @@ This repo implements a modular Gym env in which all relevant components, i.e. ro
 
 - Python 3.10
 - numpy
+- gym
 - stable_baselines3
-- pytorch
+- sb3-contrib
+- torch
 - pybullet
 - pandas
 - tensorboard
 - zennit
 - mazelib
+
+Once python is installed, you can use ```pip install -r requirements.txt``` to install the above packages in versions that work with the code in this repo.
 
 ## State of the code & plans
 
