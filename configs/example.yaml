@@ -1,5 +1,5 @@
 # example config
-# explaines all attributes and lists all options
+# explains all attributes and lists all options
 # note: please use plain written numbers, don't use scientific notation like 3e-4 or something like that
 
 # run attributes
@@ -12,7 +12,7 @@ run:
   train:
     # int, number of parallel executions for training
     num_envs : 16  
-    # int, maximum timesteps for this run, note: use a string if using scientific notation like 1e2
+    # int, maximum timesteps for this run
     timesteps: 15000000  
     # int, steps after which a checkpoint of the current agent is saved (this is calculated per env, after the first env reaches this value a save will occur)
     save_freq : 30000
