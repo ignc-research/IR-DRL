@@ -63,11 +63,14 @@ env:
             indicator_buckets: 6
             ray_start: 0
             ray_end: 0.3
-            num_rays_circle_directions: 7
-            num_rays_side: 7
+            ray_setup:
+              ee_forward: [1, 1]
+              wrist3_circle: [10, 10]
+              wrist2_circle: [10, 10]
+              wrist1_circle: [10, 10]
+              upper_arm: [10, 10]
             render: False
             indicator: True
-            activated_links: [0, 1, 2, 3, 4]
       goal:
         type: "PositionCollision"
         config:

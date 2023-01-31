@@ -9,6 +9,7 @@ parser.add_argument("configfile", help="Path to the config yaml you want to use.
 mode = parser.add_mutually_exclusive_group(required=True)
 mode.add_argument("--train", action="store_true", help="Runs the env in train mode.")
 mode.add_argument("--eval", action="store_true", help="Runs the env in eval mode.")
+mode.add_argument("--debug", action="store_true", help="Runs the env in eval mode but stops on every step for user input and prints the observations.")
 
 args = parser.parse_args()
 
@@ -113,6 +114,13 @@ if __name__ == "__main__":
                 act, state = model.predict(obs, state=(state if run_config["recurrent"] else None), episode_start=episode_start)
                 obs, reward, done, info = env.step(act)
                 episode_starts = done
+                if args.debug:
+                    print("--------------")
+                    print("Env observation:")
+                    print(obs)
+                    print("Agent action:")
+                    print(act)
+                    input("Press any button to continue with next step....")
                 #exp_visualizer.update_imshow_from_obs(obs, fig, axs)
 
 
