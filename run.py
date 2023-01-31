@@ -68,7 +68,13 @@ if __name__ == "__main__":
 
         # create or load model
         if not run_config["load_model"]:
-            model = PPO("MultiInputPolicy", envs, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"], batch_size=run_config["batch_size"])
+            model = PPO("MultiInputPolicy", envs,
+                        policy_kwargs=run_config["custom_policy"],
+                        verbose=1,
+                        gamma=run_config["gamma"],
+                        tensorboard_log=run_config["tensorboard_folder"],
+                        n_steps=run_config["ppo_steps"],
+                        batch_size=run_config["batch_size"])
             print(model.policy)
         else:
             model = PPO.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
