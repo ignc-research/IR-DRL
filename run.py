@@ -107,6 +107,7 @@ if __name__ == "__main__":
             done = False
             # episode start signals for recurrent model
             episode_start = True if run_config["recurrent"] else None
+            state = None
             while not done:
                 sleep(run_config["display_delay"])
                 act, state = model.predict(obs, state=(state if run_config["recurrent"] else None), episode_start=episode_start)
