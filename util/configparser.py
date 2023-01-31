@@ -84,8 +84,9 @@ def parse_config(filepath, train):
                         vf_pi_dict["pi"].append(layer)
         net_arch.append(vf_pi_dict)
         pol_dict["net_arch"] = net_arch
-        for key in config_raw["run"]["train"]["custom_policy"]["lstm"]:
-            pol_dict[key] = config_raw["run"]["train"]["custom_policy"]["lstm"][key]
+        if config_raw["run"]["recurrent"]:
+            for key in config_raw["run"]["train"]["custom_policy"]["lstm"]:
+                pol_dict[key] = config_raw["run"]["train"]["custom_policy"]["lstm"][key]
         config_raw["run"]["custom_policy"] = pol_dict
 
     # set some defaults for train or eval
