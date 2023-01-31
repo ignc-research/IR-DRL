@@ -40,8 +40,24 @@ class StaticPointCloudCamera(CameraBase):
         if sensor_config["debug"] is None:
             self.update_matrices = False
 
+        # image width and height
+        self.width = self.camera_args['width']
+        self.height = self.camera_args['height']
+        self.img_resolution = self.width * self.height
         # set camera matrices once
         self._set_camera()
+
+        # create the arrays used when taking the images and when creating the pcr to make code faster
+        self.image = np.empty((self.img_resolution, 2), dtype=np.float32)
+        self.W = np.arange(0, self.width)
+        self.H = np.arange(0, self.height)
+        self.X = ((2 * self.W - self.width) / self.width)[na, :].repeat(self.height, axis=0).flatten()
+        self.Y = (-1 * (2 * self.H - self.height) / self.height)[:, na].repeat(self.width, axis=1).flatten()
+        self.PixPos = np.empty((self.img_resolution, 4), dtype=np.float32)
+        self.PixPos[:, 0] = self.X
+        self.PixPos[:, 1] = self.Y
+        self.PixPos[:, 3] = np.ones(self.img_resolution)
+
     def _set_camera(self):
         if self.debug.get('position', False) or self.debug.get('orientation', False) or self.debug.get('target', False) or self.debug.get('lines', False):
             self._use_debug_params()
@@ -71,8 +87,8 @@ class StaticPointCloudCamera(CameraBase):
             viewMatrix=self.viewMatrix,
             projectionMatrix=self.projectionMatrix)
 
-        depth, seg = np.array(depth), np.array(seg)  # for compatibility with older python versions
-        self.image = np.stack([depth, seg], axis=1)
+        self.image[:, 0] = depth
+        self.image[:, 1] = seg
 
         return self.image
     def _adapt_to_environment(self):
@@ -109,6 +125,10 @@ class StaticPointCloudCamera(CameraBase):
         # TODO: implement normalization
         pass
 
+    def get_data_for_logging(self) -> dict:
+        return {"pcr_sensor_update_time": self.cpu_time}
+
+
     ### point cloud methods ###
     def _depth_img_to_point_cloud(self, depth: np.array) -> np.array:
         """
@@ -120,21 +140,9 @@ class StaticPointCloudCamera(CameraBase):
         :return: The point cloud in the shape [width x height, 3]
         :rtype: np.array
         """
-        width = self.camera_args["width"]
-        height = self.camera_args["height"]
-        # set width and height
-        W = np.arange(0, width)
-        H = np.arange(0, height)
-
-        # compute pixel coordinates
-        X = ((2 * W - width) / width)[na, :].repeat(height, axis=0).flatten()[:, na]
-        Y = (-1 * (2 * H - height) / height)[:, na].repeat(width, axis=1).flatten()[:, na]
-        Z = (2 * depth - 1).flatten()[:, na]
-
-        # transform pixel coordinates into real world ones
-        num_of_pixels = width * height
-        PixPos = np.concatenate([X, Y, Z, np.ones(num_of_pixels)[:, na]], axis=1)
-        points = np.tensordot(self.tran_pix_world, PixPos, axes=(1, 1)).swapaxes(0, 1)
+        # set depth values
+        self.PixPos[:, 2] = (2 * depth - 1).flatten()
+        points = np.tensordot(self.tran_pix_world, self.PixPos, axes=(1, 1)).swapaxes(0, 1)
         points = (points / points[:, 3][:, na])[:, 0:3]
 
         return points
@@ -157,8 +165,4 @@ class StaticPointCloudCamera(CameraBase):
             points = points[select_mask]
             segImg = segImg[select_mask]
 
-        # pyb.removeAllUserDebugItems()
-        # pyb.addUserDebugPoints(points, np.tile([255, 0, 0], points.shape[0]).reshape(points.shape))
-        # from time import sleep
-        # sleep(2)
         return points.astype(np.float32), segImg
