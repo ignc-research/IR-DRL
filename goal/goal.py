@@ -68,6 +68,7 @@ class Goal(ABC):
         """
         This method calculates the reward received by the assigned robot for this particular goal.
         Takes as input the current step count.
+        As this method gets called every single env step, you can also use this to update/change things about the goal.
         The return value is a tuple of a float and four bools:
         - float: reward, should be normalized if self.normalize is True
         - bool #1: success signal

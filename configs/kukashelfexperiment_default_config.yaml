@@ -82,14 +82,27 @@ env:
     config:
       workspace_boundaries: [-3, 3, -3, 3, 0.0, 3]
       shelves_positions: 
-        - [-0.725, -1.05, 0.51]
-        - [-0.725, 1.55, 0.51]
+        - [-0.725, -1.25, 0.51]
+        - [-0.725, 1.75, 0.51]
       shelves_rotations: 
         - [90, 0, 0]
         - [90, 0, 0]  # rpy in degrees
-      humans_positions: []
-      humans_rotations: []
-      humans_trajectories: []
+      humans_positions: 
+        - [5, 5, 5]  # just to spawn them far away
+        - [5, 5, 5]
+        - [5, 5, 5]
+        - [5, 5, 5]
+      humans_rotations: 
+        - [0, 0, -90]
+        - [0, 0, 90]
+        - [0, 0, 90]
+        - [0, 0, 90]
+      humans_trajectories: 
+        - [[-0.55, 0.85, 1.0], [0.55, 0.85, 1.0]]
+        - [[-0.75, 0.85, 1.0], [0.75, 0.85, 1.0]]
+        - [[0.55, -0.85, 1.0], [-0.55, -0.85, 1.0]]
+        - [[0.75, -0.85, 1.0], [-0.75, -0.85, 1.0]]
+      humans_shuffle: True  # False: spawns one human for each pair of position, rotation, trajectory, True: spawns one human with a random pair from all positions, rotations, trajectories
       target_pos_override: []
       target_rot_override: []
       start_override: []

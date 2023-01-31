@@ -10,7 +10,7 @@ class Human(Obstacle):
     Implements a movable human as an obstacle as coded by Kolja and Kai.
     """
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, scale: float=1):
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, thresh: float, scale: float=1):
         super().__init__(position, rotation, trajectory, 0)
         self.human = None
         self.scale = scale
@@ -22,11 +22,12 @@ class Human(Obstacle):
         self.hand_raise_iter_max = 100
         self.hand_raise_iter_min = 0
         self.hand_raise_direction = 1
-        self.closeness_threshold = 2  # very large, but necessary
+        self.closeness_threshold = thresh
 
     def build(self) -> int:
         self.human = Man(0, partitioned=False, timestep=self.sim_step, scaling=self.scale, static=(len(self.trajectory)==0))
-        self.human.resetGlobalTransformation(self.position_orig, pyb.getEulerFromQuaternion(self.rotation_orig.tolist()))
+        #self.human.resetGlobalTransformation(self.position_orig, pyb.getEulerFromQuaternion(self.rotation_orig.tolist()))
+        self.human.advance(self.position_orig, self.rotation_orig.tolist())
         self.object_id = self.human.body_id
         return self.human.body_id
 
@@ -36,10 +37,14 @@ class Human(Obstacle):
         elif len(self.trajectory) == 1:
             raise Exception("Human trajectories need to be either empty or at least two elements")
         else:  # looping trajectory
+            # get the target from trajectory
             target_pos = self.trajectory[self.trajectory_idx]
+            # get current position
             self.position = np.array(pyb.getBasePositionAndOrientation(self.object_id)[0])
+            # get the last target (see below why)
             last_target = self.trajectory[self.trajectory_idx -1] if self.trajectory_idx > 0 else self.trajectory[len(self.trajectory) - 1]
 
+            # get rotation transform between last and current target
             direction = target_pos - last_target
             direction_norm = direction / np.linalg.norm(direction)
 
@@ -53,6 +58,12 @@ class Human(Obstacle):
                 self.trajectory_idx = (self.trajectory_idx + 1) % len(self.trajectory)
                 self.human.resetGlobalTransformation([0, 0, 0], [0, 0, 0])
             last_target = self.trajectory[self.trajectory_idx -1] if self.trajectory_idx > 0 else self.trajectory[len(self.trajectory) - 1]
+
+            # move human
+            # this is weird due to the underlying human skeleton library
+            # basically, this teleports the human to last_target and lets him face in quat direction
+            # then, it performs a slice of forward movement a sim_step long
+            # this is why we need to use last target here
             self.human.advance(last_target, quat)
 
 
