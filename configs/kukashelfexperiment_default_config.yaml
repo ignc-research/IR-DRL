@@ -8,6 +8,7 @@ run:
     save_freq : 30000
     save_folder: "./models/weights"  
     save_name: "PPO_default"
+    recurrent: False
     ppo_steps: 1024  
     batch_size: 512
     gamma: 0.99  
@@ -16,14 +17,20 @@ run:
       use: False
       activation_function: "ReLU"  
       layers:
-        layer1: 128
-        layer2: 128
-        value_function:
-          layer1: 64
-        policy_function:
-          layer1: 32
-          layer2: 32
-          layer3: 16      
+        - 128
+        - 128
+        - value_function:
+          - 64
+        - policy_function:
+          - 32
+          - 32
+          - 16   
+      lstm:
+        lstm_hidden_size: 512
+        n_lstm_layers: 2
+        shared_lstm: False
+        enable_critic_lstm: True
+
   eval:
     max_episodes: -1  
     logging: 1  
@@ -53,19 +60,21 @@ env:
             update_steps: 1
             add_to_observation_space: True
             add_to_logging: True
-            indicator_buckets: 6
+            indicator_buckets: 11
             ray_start: 0.01
-            ray_end: 0.3
-            num_rays_circle_directions: 5
-            num_rays_side: 5
+            ray_end: 0.65
+            ray_setup:
+              ee_forward: [1, 1]
+              ee_cone: [2, 5]
+              ee_side_circle: [5, 5]
+              ee_back_cone: [2, 5]
+              upper_arm: [8, 2]
             render: False
             indicator: True
-            activated_links: [0, 1, 2]
+            activated_links: [0, 1, 2, 3, 4]
       goal:
         type: "PositionCollision"
         config:
-          normalize_rewards: False
-          normalize_observations: False
           add_to_logging: True
           continue_after_success: True
           reward_success: 10
@@ -82,14 +91,27 @@ env:
     config:
       workspace_boundaries: [-3, 3, -3, 3, 0.0, 3]
       shelves_positions: 
-        - [-0.725, -1.05, 0.51]
-        - [-0.725, 1.55, 0.51]
+        - [-0.725, -1.25, 0.51]
+        - [-0.725, 1.75, 0.51]
       shelves_rotations: 
         - [90, 0, 0]
         - [90, 0, 0]  # rpy in degrees
-      humans_positions: []
-      humans_rotations: []
-      humans_trajectories: []
+      humans_positions: 
+        - [5, 5, 5]  # just to spawn them far away
+        - [5, 5, 5]
+        - [5, 5, 5]
+        - [5, 5, 5]
+      humans_rotations: 
+        - [0, 0, -90]
+        - [0, 0, 90]
+        - [0, 0, 90]
+        - [0, 0, 90]
+      humans_trajectories: 
+        - [[-0.55, 0.85, 1.0], [0.55, 0.85, 1.0]]
+        - [[-0.75, 0.85, 1.0], [0.75, 0.85, 1.0]]
+        - [[0.55, -0.85, 1.0], [-0.55, -0.85, 1.0]]
+        - [[0.75, -0.85, 1.0], [-0.75, -0.85, 1.0]]
+      humans_shuffle: True  # False: spawns one human for each pair of position, rotation, trajectory, True: spawns one human with a random pair from all positions, rotations, trajectories
       target_pos_override: []
       target_rot_override: []
       start_override: []

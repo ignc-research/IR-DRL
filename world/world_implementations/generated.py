@@ -67,7 +67,7 @@ class GeneratedWorld(World):
         trajectory = getTrajectory(obstacle)
 
         if obstacle_name == "human":
-            self.obstacle_objects.append(Human(position, rotation, trajectory, self.sim_step, scale))
+            self.obstacle_objects.append(Human(position, rotation, trajectory, self.sim_step, 1, scale))
         elif obstacle_name == "maze":
             self.obstacle_objects.append(MazeObstacle(position, rotation, trajectory, vel * self.sim_step, self.env_id, obstacle["params"], scale))
         elif obstacle_name == "shelf":

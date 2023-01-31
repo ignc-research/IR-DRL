@@ -24,6 +24,7 @@ class KukaShelfExperiment(World):
                        humans_positions: list,
                        humans_rotations: list,
                        humans_trajectories: list,
+                       humans_shuffle: bool,
                        target_pos_override: list=[],
                        target_rot_override: list=[],
                        start_override: list=[],
@@ -44,6 +45,10 @@ class KukaShelfExperiment(World):
         self.target_pos_override = [np.array(position) for position in target_pos_override]
         self.target_rot_override = [np.array(rotation) for rotation in target_rot_override]
         self.start_override = [np.array(position) for position in start_override]
+
+        # if this is set to true
+        # we spawn only one human and use the list of positions, rotations and trajectories as possible random starting points
+        self.humans_shuffle = humans_shuffle
 
         # shelf params
         if not shelf_params:
@@ -75,8 +80,14 @@ class KukaShelfExperiment(World):
             self.objects_ids.append(shelf.build())
         
         # build humans
-        for position, rotation, trajectory in zip(self.humans_positions, self.humans_rotations, self.humans_trajectories):
-            human = Human(position, rotation, trajectory, self.sim_step)
+        if not self.humans_shuffle:
+            for position, rotation, trajectory in zip(self.humans_positions, self.humans_rotations, self.humans_trajectories):
+                human = Human(position, rotation, trajectory, self.sim_step * 2, 0.2)
+                self.humans.append(human)
+                self.objects_ids.append(human.build())
+        else:
+            position, rotation, trajectory = choice(list(zip(self.humans_positions, self.humans_rotations, self.humans_trajectories)))
+            human = Human(position, rotation, trajectory, self.sim_step * 2, 0.2)
             self.humans.append(human)
             self.objects_ids.append(human.build())
 
@@ -87,11 +98,14 @@ class KukaShelfExperiment(World):
         self.ee_starting_points = []
         for human in self.humans:
             del human
+        self.humans = []
         self.obstacle_objects = []
     
     def update(self):
         for obstacle in self.obstacle_objects:
             obstacle.move()
+        for human in self.humans:
+            human.move()
 
     def create_ee_starting_points(self) -> list:
         if self.start_override:

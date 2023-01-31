@@ -49,40 +49,6 @@ def walk_dict_and_convert_to_our_format(node):
             # replace written Nones
             node[key] = None
 
-    return
-    for key, item in node.items():
-        if key == "robots" or key == "sensors":
-            for element in item:
-                walk_dict_and_convert_to_our_format(element)
-        if type(item) == dict:
-            walk_dict_and_convert_to_our_format(item)
-        elif type(item) == list:
-            #node[key] = np.array(item)
-            if len(item) == 0:
-                continue
-            if "orientation" in key or "rotation" in key or "angle" in key:
-                # convert to radians
-                # check if we have a nested list one or two levels deep
-                if len(item) > 0 and type(item[0]) == list:
-                    # check for next level (maximum level of nested lists we allow)
-                    if len(item[0]) > 0 and item[0][0] == list:  # two-nested
-                        item = [[[x * np.pi/180 for x in inner] for inner in outer] for outer in item]
-                        if "orientation" in key or "rotation" in key:
-                            item = [[pyb.getQuaternionFromEuler(inner) for inner in outer] for outer in item]
-                        node[key] = item
-                    else:  # one-nested
-                        item = [[x * np.pi/180 for x in inner] for inner in item]
-                        if "orientation" in key or "rotation" in key:
-                            item = [pyb.getQuaternionFromEuler(inner) for inner in item]
-                        node[key] = item
-                else:  # not nested
-                    item = [x * np.pi/180 for x in item]
-                    if "orientation" in key or "rotation" in key:
-                        item = pyb.getQuaternionFromEuler(item)
-                    node[key] = item
-        elif item == "None":
-            node[key] = None
-
 
 def parse_config(filepath, train):
     with open(filepath, "r") as infile:
@@ -106,17 +72,21 @@ def parse_config(filepath, train):
         pol_dict = dict(activation_fn=activation_function)
         net_arch = []
         vf_pi_dict = dict(vf=[], pi=[])
-        for key in config_raw["run"]["train"]["custom_policy"]["layers"]:
-            if "layer" in key:
-                net_arch.append(config_raw["run"]["train"]["custom_policy"]["layers"][key])
-            if "value" in key:
-                for key2 in config_raw["run"]["train"]["custom_policy"]["layers"][key]:
-                    vf_pi_dict["vf"].append(config_raw["run"]["train"]["custom_policy"]["layers"][key][key2])
-            elif "policy" in key:
-                for key2 in config_raw["run"]["train"]["custom_policy"]["layers"][key]:
-                    vf_pi_dict["pi"].append(config_raw["run"]["train"]["custom_policy"]["layers"][key][key2])
+        for ele in config_raw["run"]["train"]["custom_policy"]["layers"]:
+            if type(ele) == int:
+                net_arch.append(ele)
+            elif type(ele) == dict:
+                if "value_function" in ele:
+                    for layer in ele["value_function"]:
+                        vf_pi_dict["vf"].append(layer)
+                elif "policy_function" in ele:
+                    for layer in ele["policy_function"]:
+                        vf_pi_dict["pi"].append(layer)
         net_arch.append(vf_pi_dict)
         pol_dict["net_arch"] = net_arch
+        if config_raw["run"]["recurrent"]:
+            for key in config_raw["run"]["train"]["custom_policy"]["lstm"]:
+                pol_dict[key] = config_raw["run"]["train"]["custom_policy"]["lstm"][key]
         config_raw["run"]["custom_policy"] = pol_dict
 
     # set some defaults for train or eval
