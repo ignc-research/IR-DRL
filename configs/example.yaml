@@ -219,16 +219,12 @@ env:
             position: [2, 2, 1.5]
 
       #   goal definition
-      # here we define the goal that this roboter is supposed to persue
+      # here we define the goal that this roboter is supposed to pursue
       # each robot can only have one goal at a time
       # a robot can also have no goal at all, but at least one robot in the env must have a goal
       goal:
         type: "PositionCollision"
         config:
-          # bool, whether rewards are normalized
-          normalize_rewards: False
-          # bool, whether observations from this goal are normalized
-          normalize_observations: False
           # bool, whether this goal's logging data is collected
           add_to_logging: True
           # bool, whether the robot can continue to do things or be frozen if it achieved success (only relevant if there are other robots with goals in the env)
@@ -238,7 +234,7 @@ env:
           # float, reward given for reaching the position goal
           reward_success: 10
           # float, reward given for collision
-          reward_collision: -10
+          reward_collision: -5
           # float, multiplier for the reward given for distance to goal position
           reward_distance_mult: -0.01
           # float, initial distance threshold for position success

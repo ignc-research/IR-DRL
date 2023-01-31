@@ -71,8 +71,6 @@ env:
       goal:
         type: "PositionCollision"
         config:
-          normalize_rewards: False
-          normalize_observations: False
           add_to_logging: True
           continue_after_success: True
           reward_success: 10
