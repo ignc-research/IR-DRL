@@ -2,7 +2,7 @@
 # reinforcement learning" for table experiment
 run:
   load_model: True
-  model_path: "C:\Users\amirm\OneDrive\Desktop\IRL-DRL-current\IR-DRL\models\weights\PPO_default_8640000_steps.zip"
+  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/PPO_default_8640000_steps.zip"
   reset_num_timesteps: False
   train:
     num_envs : 8

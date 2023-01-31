@@ -73,7 +73,7 @@ if __name__ == "__main__":
         else:
             model = PPO.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
             # needs to be set on my pc when loading a model, dont know why, might not be needed on yours
-            model.policy.optimizer.param_groups[0]["capturable"] = True
+            model.policy.optimizer.param_groups[0]["capturable"] = False
 
         model.learn(total_timesteps=run_config["timesteps"], callback=callback, tb_log_name=run_config["save_name"], reset_num_timesteps=run_config["reset_num_timesteps"])
 

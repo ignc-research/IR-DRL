@@ -1,3 +1,5 @@
+import pandas
+
 from goal.goal import Goal
 import numpy as np
 from robot.robot import Robot
@@ -67,9 +69,9 @@ class PositionCollisionPCR(Goal):
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
-            ret["closest_obstacle_points"] = Box(low=np.repeat(np.array([-1, -1, 1], dtype=np.float32)[na, :], 5, axis=0),
-                                                 high=np.repeat(np.array([1, 1, 2], dtype=np.float32)[na, :], 5, axis=0),
-                                                 shape=(5, 3), dtype=np.float32)
+            ret["closest_obstacle_points"] = Box(low=np.repeat(np.array([-1, -1, 1], dtype=np.float32)[na, :], 6, axis=0),
+                                                 high=np.repeat(np.array([1, 1, 2], dtype=np.float32)[na, :], 6, axis=0),
+                                                 shape=(6, 3), dtype=np.float32)
             return ret
         else:
             return {}
@@ -183,58 +185,74 @@ class PositionCollisionPCR(Goal):
 
     def _set_min_distance_to_obstacle_and_closest_points(self):
         """
-        Compute the minimal distances from the robot skeleton to the obstacle point, aswell as the 5 closest obstacle points
-        to the robot skeleton
+        Set the closest points of each obstacle respectively and the minimal distance between the obstacles and the
+        robot skeletons
         """
-        # number of cloest points to retrieve
-        num_of_points = 5
-        # Compute minimal euclidean distances from the robot skeleton to the obstacle points
-        if self.pcr_sensor.points.shape[0] == 0:
-            self.obstacle_points = np.repeat(np.array([0, -3, 0])[na, :], 5, axis=0)
-            distances_to_obstacles = cdist(self.robot_skeleton_sensor.robot_skeleton,
-                                                           np.array([0, -3, 0])[na, :]).min(axis=1).round(10)
+        # DataFrame of the point cloud points and their segmentation classes
+        points_and_seg_df = pandas.DataFrame(self.pcr_sensor.points,
+                                             columns=["x", "y", "z"])
+        points_and_seg_df["object"] = self.pcr_sensor.segImg
+
+        # set indices of the robot skeleton points that should ignore the table
+        sklt_indx_ignore_table = [0, 1, 2, 3, 11, 12]
+
+        # set indices of the robot skeleton points that should consider the table
+        sklt_indx_consider_table = [4, 5, 6, 7, 8, 9, 10, 13, 14, 15]
+
+        # distance between all points and robot skeleton points that consider the table
+        points_and_seg_df["distance1"] = np.repeat(200, len(points_and_seg_df)).astype("u1")
+        points_and_seg_df.loc[:, "distance1"] = cdist(
+            self.robot_skeleton_sensor.robot_skeleton[sklt_indx_consider_table, :],
+            points_and_seg_df.loc[:, ["x", "y", "z"]]
+        ).min(axis=0)
+
+        # distance between all non table points and all robot skeleton points that do not consider the table
+        points_and_seg_df["distance2"] = np.repeat(200, len(points_and_seg_df)).astype("u1")
+        points_and_seg_df.loc[points_and_seg_df["object"] != 2, "distance2"] = cdist(
+            self.robot_skeleton_sensor.robot_skeleton[sklt_indx_ignore_table],
+            points_and_seg_df.loc[points_and_seg_df["object"] != 2, ["x", "y", "z"]]
+        ).min(axis=0)
+
+        # replace the two distances with the min of their min
+        points_and_seg_df["distance"] = points_and_seg_df[["distance1", "distance2"]].min(axis=1)
+        points_and_seg_df = points_and_seg_df[["x", "y", "z", "object", "distance"]]
+
+        # number of distinct objects in the point cloud
+        num_of_objects = points_and_seg_df["object"].nunique()
+
+        if num_of_objects > 6:
+            # get closest points in each group
+            indx_min = points_and_seg_df.groupby("object")["distance"].idxmin()
+            points_and_seg_df = points_and_seg_df.iloc[indx_min, :]
+            # take 6 closest points from grouped df
+            self.obstacle_points = points_and_seg_df.sort_values(
+                "distance", ascending=True).iloc[:6, :][["x", "y", "z"]].to_numpy(dtype=np.float32)
+
+        elif num_of_objects == 6:
+            # get closest points in each group
+            indx_min = points_and_seg_df.groupby("object")["distance"].idxmin()
+            points_and_seg_df = points_and_seg_df.iloc[indx_min, :]
+            # simply take the points as they are
+            self.obstacle_points = points_and_seg_df[["x", "y", "z"]].to_numpy(dtype=np.float32)
+
         else:
-            # all points in the point cloud
-            all_points = self.pcr_sensor.points
-            # all points except for the ones for the table
-            points_without_table = self.pcr_sensor.points[self.pcr_sensor.segImg != 2]
-            # concat the two together
-            points = np.concatenate([
-                points_without_table,
-                all_points
-            ], axis=0)
+            # take the closest point of each segmentation class and the 6 - n closest points in the entire point cloud
+            # that are not equal to any of the closest points of each segmentation mask
+            indx_min = points_and_seg_df.groupby("object")["distance"].idxmin()
+            a = points_and_seg_df.iloc[indx_min, :]
 
-            # set indices of the robot skeleton points that should ignore the table
-            sklt_indx_ignore_table = [0, 1, 2, 3, 11, 12]
-            # set indices of the robot skeleton points that should consider the table
-            sklt_indx_consider_table = [4, 5, 6, 7, 8, 9, 10, 13, 14, 15]
+            b = points_and_seg_df[~points_and_seg_df["distance"].isin(a["distance"].tolist())].sort_values(
+                "distance", ascending=True).iloc[0:6-num_of_objects, :][["x", "y", "z"]].to_numpy(dtype=np.float32)
+            a = a[["x", "y", "z"]].to_numpy(dtype=np.float32)
+            self.obstacle_points = np.concatenate([a, b], axis=0)
 
-            # compute distances for points that should ignore the table
-            distances_without_table = cdist(self.robot_skeleton_sensor.robot_skeleton[sklt_indx_ignore_table, :],
-                                       points_without_table).min(axis=0)
-            # compute distances for points that should consider the table
-            distances_with_table = cdist(self.robot_skeleton_sensor.robot_skeleton[sklt_indx_consider_table, :],
-                                       all_points).min(axis=0)
-
-            # concat the two together in the same order as the points
-            distances = np.concatenate([
-                distances_without_table,
-                distances_with_table
-            ], axis=0)
-
-            # get n closest obstacle points
-            n = num_of_points if len(distances) >= num_of_points else len(distances)
-            self.obstacle_points = points[np.argpartition(distances, n - 1)][:n]
-            distances_to_obstacles = distances.min().round(10)
-        # if we have less than n points just add some fake ones that are of the boundary anyways
-        n = num_of_points - self.obstacle_points.shape[0]
-        if n > 0:
-            self.obstacle_points = np.append(self.obstacle_points, np.repeat(np.array([0, -1, 0])[na, :], n, axis=0), axis=0)
+        # set closest distance to obstacles
+        self.min_distance_to_obstacles = points_and_seg_df["distance"].min().astype(np.float32)
+        # make sure type is right
+        self.obstacle_points.astype(np.float32)
 
         # display closest points
         if self.debug["closest_points"]:
             pyb.removeAllUserDebugItems()
             for point in self.obstacle_points:
-                pyb.addUserDebugLine(point, point + np.array([0,0,0.2]))
-
-        self.min_distance_to_obstacles = distances_to_obstacles.astype(np.float32).min()
+                pyb.addUserDebugLine(point, point + np.array([0, 0, 0.3]), lineColorRGB=[0, 0, 255], lineWidth=2)
