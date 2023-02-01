@@ -1,11 +1,11 @@
 # implements improved version of "Robot obstacle avoidance system using deep
 # reinforcement learning" for table experiment
 run:
-  load_model: False
-  model_path: ""
+  load_model: True
+  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/PPO__5040000_steps.zip"
   reset_num_timesteps: False
   train:
-    num_envs : 8
+    num_envs : 16
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"
@@ -31,7 +31,7 @@ run:
     logging: 1
 
 env:
-  max_steps_per_episode: 1024
+  max_steps_per_episode: 768
   use_physics_sim: True  # strictly speaking the original code had this at False
   sim_step: 0.00416666666  
   stat_buffer_size: 25  
@@ -87,7 +87,7 @@ env:
           add_to_observation_space: True
           add_to_logging: True
           continue_after_success: False
-          dist_threshold_start: 0.4
+          dist_threshold_start: 0.3
           dist_threshold_end : 0.01
           dist_threshold_increment_start: 0.01
           dist_threshold_increment_end: 0.001
