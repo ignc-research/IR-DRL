@@ -2,18 +2,18 @@
 # reinforcement learning" for table experiment
 run:
   load_model: True
-  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/PPO__5040000_steps.zip"
-  reset_num_timesteps: False
+  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/PPO__6960000_steps.zip"
+  reset_num_timesteps: True
   train:
     num_envs : 16
     timesteps: 15000000 
     save_freq : 30000
-    save_folder: "./models/weights"
+    save_folder: "./models_2/weights"
     save_name: "PPO_"
     ppo_steps: 1024  
     batch_size: 2048
     gamma: 0.95
-    tensorboard_folder: "./models/tensorboard_logs"
+    tensorboard_folder: "./models_2/tensorboard_logs"
     custom_policy:
       use: False
       activation_function: "ReLU"  
