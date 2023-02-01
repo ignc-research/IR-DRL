@@ -1,11 +1,10 @@
 import pandas
-
+import torch
 from goal.goal import Goal
 import numpy as np
 from robot.robot import Robot
 from gym.spaces import Box
 import pybullet as pyb
-from scipy.spatial.distance import cdist
 from numpy import newaxis as na
 import time
 
@@ -74,6 +73,11 @@ class PositionCollisionPCR(Goal):
 
         # stuff for debugging
         self.debug = goal_config["debug"]
+
+        # robot skeleton on gpu
+
+        # point cloud on gpu
+
 
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
@@ -206,21 +210,31 @@ class PositionCollisionPCR(Goal):
         t = time.time()
         # operations that should only be done when the point cloud sensor updates
         if update_pcr:
-            self.points_not_table_idx = np.where(self.pcr_sensor.segImg != 2)
-            self.distances = np.full((self.pcr_sensor.points.shape[0], 2), 100, dtype=np.float32)
+            # get indexes of points that are not part of the table
+            self.points_not_table_idx = torch.from_numpy(np.where(self.pcr_sensor.segImg != 2)[0])
+            # empty torch tensor for the distances
+            self.distances = torch.full((self.pcr_sensor.points.shape[0], 2), 100, dtype=torch.float32)
+            # move point cloud to GPU
+            #self.pcr_gpu = self.pcr_sensor.points.to("cuda:0")
+
+        # move torch tensor to GPU
+        #self.distances = self.distances.to("cuda:0")
+        # move robot skeleton to GPU
+        #robot_sklt_gpu = self.robot_skeleton_sensor.robot_skeleton.to("cuda:0")
 
         # set minimal distances
-        self.distances[:, 0] = cdist(self.robot_skeleton_sensor.robot_skeleton[self.sklt_indx_consider_table, :],
-                                self.pcr_sensor.points).min(axis=0)
-        self.distances[self.points_not_table_idx, 1] = cdist(
+        self.distances[:, 0], _ = torch.min(torch.cdist(self.robot_skeleton_sensor.robot_skeleton[self.sklt_indx_consider_table, :],
+                                            self.pcr_sensor.points), dim=0)
+        self.distances[self.points_not_table_idx, 1], _ = torch.min(torch.cdist(
             self.robot_skeleton_sensor.robot_skeleton[self.sklt_indx_ignore_table, :],
-            self.pcr_sensor.points[self.pcr_sensor.segImg != 2]).min(axis=0)
+            self.pcr_sensor.points[self.pcr_sensor.segImg != 2]), dim=0)
 
+        # create DataFrame with points, object ID and distance
         points_and_seg_df = pandas.DataFrame({"x": self.pcr_sensor.points[:, 0],
                                                    "y": self.pcr_sensor.points[:, 1],
                                                    "z": self.pcr_sensor.points[:, 2],
                                                    "object": self.pcr_sensor.segImg,
-                                                   "distance": self.distances.min(axis=1)})
+                                                   "distance": self.distances.numpy().min(axis=1)})
 
         # number of distinct objects in the point cloud
         num_of_objects = points_and_seg_df["object"].nunique()
@@ -249,9 +263,67 @@ class PositionCollisionPCR(Goal):
         # set closest distance to obstacles
         self.min_distance_to_obstacles = points_and_seg_df["distance"].min().astype(np.float32)
 
-        #print(time.time() - t)
         # display closest points
         if self.debug["closest_points"]:
             pyb.removeAllUserDebugItems()
             for point in self.obstacle_points:
                 pyb.addUserDebugLine(point, point + np.array([0, 0, 0.3]), lineColorRGB=[0, 0, 255], lineWidth=2)
+
+
+    # def _set_min_distance_to_obstacle_and_closest_points_old(self, update_pcr):
+    #     """
+    #     Set the closest points of each obstacle respectively and the minimal distance between the obstacles and the
+    #     robot skeletons
+    #     """
+    #     t = time.time()
+    #     # operations that should only be done when the point cloud sensor updates
+    #     if update_pcr:
+    #         self.points_not_table_idx = np.where(self.pcr_sensor.segImg != 2)
+    #         self.distances = np.full((self.pcr_sensor.points.shape[0], 2), 100, dtype=np.float32)
+    #
+    #     # set minimal distances
+    #     self.distances[:, 0] = cdist(self.robot_skeleton_sensor.robot_skeleton[self.sklt_indx_consider_table, :],
+    #                             self.pcr_sensor.points).min(axis=0)
+    #     self.distances[self.points_not_table_idx, 1] = cdist(
+    #         self.robot_skeleton_sensor.robot_skeleton[self.sklt_indx_ignore_table, :],
+    #         self.pcr_sensor.points[self.pcr_sensor.segImg != 2]).min(axis=0)
+    #
+    #     points_and_seg_df = pandas.DataFrame({"x": self.pcr_sensor.points[:, 0],
+    #                                                "y": self.pcr_sensor.points[:, 1],
+    #                                                "z": self.pcr_sensor.points[:, 2],
+    #                                                "object": self.pcr_sensor.segImg,
+    #                                                "distance": self.distances.min(axis=1)})
+    #
+    #     # number of distinct objects in the point cloud
+    #     num_of_objects = points_and_seg_df["object"].nunique()
+    #     # indexes of the min values per group
+    #     #indx_min = points_and_seg_df[["object", "distance"]].groupby("object").agg({"distance": "idxmin"})["distance"]
+    #     indx_min = points_and_seg_df[["object", "distance"]].groupby("object")["distance"].idxmin()
+    #
+    #     if num_of_objects > 6:
+    #         # take 6 closest points from grouped df
+    #         self.obstacle_points[:, :] = points_and_seg_df.iloc[indx_min, :].sort_values(
+    #             "distance", ascending=True).iloc[:6, :][["x", "y", "z"]].to_numpy(dtype=np.float32)
+    #
+    #     elif num_of_objects == 6:
+    #         # simply take the points as they are
+    #         self.obstacle_points[:, :] = points_and_seg_df.iloc[indx_min, :3][["x", "y", "z"]].to_numpy(dtype=np.float32)
+    #
+    #     else:
+    #         # take the closest point of each segmentation class and the 6 - n closest points in the entire point cloud
+    #         # that are not equal to any of the closest points of each segmentation mask
+    #         a = points_and_seg_df.iloc[indx_min, :]
+    #         b = points_and_seg_df[~points_and_seg_df["distance"].isin(a["distance"].tolist())].sort_values(
+    #             "distance", ascending=True).iloc[0:6 - num_of_objects, :][["x", "y", "z"]].to_numpy(dtype=np.float32)
+    #         a = a[["x", "y", "z"]].to_numpy(dtype=np.float32)
+    #         self.obstacle_points[:, :] = np.concatenate([a, b], axis=0)
+    #
+    #     # set closest distance to obstacles
+    #     self.min_distance_to_obstacles = points_and_seg_df["distance"].min().astype(np.float32)
+    #
+    #     #print(time.time() - t)
+    #     # display closest points
+    #     if self.debug["closest_points"]:
+    #         pyb.removeAllUserDebugItems()
+    #         for point in self.obstacle_points:
+    #             pyb.addUserDebugLine(point, point + np.array([0, 0, 0.3]), lineColorRGB=[0, 0, 255], lineWidth=2)
