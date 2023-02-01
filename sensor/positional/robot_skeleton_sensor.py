@@ -54,7 +54,6 @@ class RobotSkeletonSensor(Sensor):
 
         # cast to tensor
         self.robot_skeleton = torch.from_numpy(self.robot_skeleton)
-
     def update(self, step) -> dict:
         if step % self.update_steps == 0:
             self._set_skeleton()
