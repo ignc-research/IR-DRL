@@ -78,9 +78,9 @@ class PositionCollisionPCR(Goal):
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-                                               high=np.array([1, 1, 2], dtype=np.float32),
-                                               shape=(3,), dtype=np.float32)
+            # ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
+            #                                    high=np.array([1, 1, 2], dtype=np.float32),
+            #                                    shape=(3,), dtype=np.float32)
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
@@ -107,9 +107,9 @@ class PositionCollisionPCR(Goal):
                     self.distance_threshold_start - self.distance_threshold_end)
             increment = (
                                 self.distance_threshold_increment_start - self.distance_threshold_increment_end) * ratio_start_end + self.distance_threshold_increment_end
-            if success_rate > 0.7 and self.distance_threshold > self.distance_threshold_end:
+            if success_rate > 0.65 and self.distance_threshold > self.distance_threshold_end:
                 self.distance_threshold -= increment
-            elif success_rate < 0.7 and self.distance_threshold < self.distance_threshold_start:
+            elif success_rate < 0.65 and self.distance_threshold < self.distance_threshold_start:
                 self.distance_threshold += increment / 25  # upwards movement should be slower
             if self.distance_threshold > self.distance_threshold_start:
                 self.distance_threshold = self.distance_threshold_start
@@ -120,7 +120,7 @@ class PositionCollisionPCR(Goal):
 
     def get_observation(self) -> dict:
         # TODO: implement normalization
-        return {"end_effector_position": self.robot.position_rotation_sensor.position,
+        return {#"end_effector_position": self.robot.position_rotation_sensor.position,
                 "target_position": self.target,
                 "closest_obstacle_points": self.obstacle_points}
 
@@ -203,6 +203,7 @@ class PositionCollisionPCR(Goal):
         Set the closest points of each obstacle respectively and the minimal distance between the obstacles and the
         robot skeletons
         """
+        t = time.time()
         # operations that should only be done when the point cloud sensor updates
         if update_pcr:
             self.points_not_table_idx = np.where(self.pcr_sensor.segImg != 2)
@@ -224,6 +225,7 @@ class PositionCollisionPCR(Goal):
         # number of distinct objects in the point cloud
         num_of_objects = points_and_seg_df["object"].nunique()
         # indexes of the min values per group
+        #indx_min = points_and_seg_df[["object", "distance"]].groupby("object").agg({"distance": "idxmin"})["distance"]
         indx_min = points_and_seg_df[["object", "distance"]].groupby("object")["distance"].idxmin()
 
         if num_of_objects > 6:
@@ -247,6 +249,7 @@ class PositionCollisionPCR(Goal):
         # set closest distance to obstacles
         self.min_distance_to_obstacles = points_and_seg_df["distance"].min().astype(np.float32)
 
+        #print(time.time() - t)
         # display closest points
         if self.debug["closest_points"]:
             pyb.removeAllUserDebugItems()
