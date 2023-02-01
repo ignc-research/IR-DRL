@@ -52,23 +52,23 @@ env:
         sensor2:
           type: "StaticPointCloudCamera"
           config:
+            add_to_logging: True
             position: [0, 0, 2.2]
             target: [0, 0, 0]
             orientation: None
             objects_to_remove: [-1, 0, 1, 10]  # remove background, floor, robot and target point
-            camera_args: {type: "ds", fov: 100, width: 176, height: 120, up_vector: [0, 1, 0], near_val: 0.05, far_val: 1.2}
+            camera_args: {type: "ds", fov: 100, width: 126, height: 126, up_vector: [0, 1, 0], near_val: 0.05, far_val: 1.2}
             debug: None
             name: "PCR_camera"
             normalize: False
             add_to_observation_space: False
-            add_to_logging: False
             update_steps: 7
         sensor3:
           type: "RobotSkeletonSensor"
           config:
             debug: {"skeleton": False}
             normalize: False
-            add_to_observation_space: False
+            add_to_observation_space: True
             add_to_logging: False
             update_steps: 1
         sensor4:
@@ -87,7 +87,7 @@ env:
           add_to_observation_space: True
           add_to_logging: True
           continue_after_success: False
-          dist_threshold_start: 0.2
+          dist_threshold_start: 0.4
           dist_threshold_end : 0.01
           dist_threshold_increment_start: 0.01
           dist_threshold_increment_end: 0.001
