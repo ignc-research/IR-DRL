@@ -9,6 +9,7 @@
 ### personal YAML configs ###
 configs/*benno*
 configs/*kai*
+configs/*karim*
 
 # exclude the generated urdfs from maze and shelf class
 /world/obstacles/shelf/*shelf*.urdf
