@@ -145,7 +145,7 @@ class StaticPointCloudCamera(CameraBase):
         """
         # set depth values
         self.PixPos[:, 2] = (2 * depth - 1).flatten()
-        points = np.tensordot(self.tran_pix_world, self.PixPos, axes=(1, 1)).swapaxes(0, 1)
+        points = np.tensordot(self.tran_pix_world, self.PixPos, axes=(1, 1)).swapaxes(0, 1).astype(np.float32)
         points = (points / points[:, 3][:, na])[:, 0:3]
 
         return points
