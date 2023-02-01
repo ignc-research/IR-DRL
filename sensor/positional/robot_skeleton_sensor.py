@@ -1,4 +1,5 @@
 import pybullet as pyb
+import torch
 from gym.spaces import Box
 import numpy as np
 from numpy import newaxis as na
@@ -50,6 +51,9 @@ class RobotSkeletonSensor(Sensor):
             for i, point in enumerate(self.robot_skeleton):
                 # print(i, point[2].round(5))
                 pyb.addUserDebugLine(point, point + np.array([0, 0, 0.2]), lineColorRGB=[0, 0, 255])
+
+        # cast to tensor
+        self.robot_skeleton = torch.from_numpy(self.robot_skeleton)
     def update(self, step) -> dict:
         if step % self.update_steps == 0:
             self._set_skeleton()
