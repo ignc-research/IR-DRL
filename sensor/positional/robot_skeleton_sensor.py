@@ -43,7 +43,7 @@ class RobotSkeletonSensor(Sensor):
             self.robot_skeleton,
             interpolate(self.robot_skeleton[1, :], self.robot_skeleton[2, :], 4, 0.3, 1.5),
             interpolate(self.robot_skeleton[3, :], self.robot_skeleton[4, :], 3, 0.3, 1.2),
-        ], axis=0)
+        ], axis=0).astype(np.float32)
 
         # display skeleton points
         pyb.removeAllUserDebugItems()

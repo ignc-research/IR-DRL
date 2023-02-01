@@ -168,7 +168,7 @@ class StaticPointCloudCamera(CameraBase):
             points = points[select_mask]
             segImg = segImg[select_mask]
 
-        return torch.from_numpy(points), torch.from_numpy(segImg)
+        return torch.from_numpy(points), segImg
 
 
 
