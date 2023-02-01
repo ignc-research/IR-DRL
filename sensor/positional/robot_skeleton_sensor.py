@@ -4,8 +4,6 @@ import numpy as np
 from numpy import newaxis as na
 from sensor.sensor import Sensor
 from time import time
-import torch
-
 
 def interpolate(a, b, n_interpolations, upper_limit, lower_limit):
     r = (b - a)
@@ -37,10 +35,10 @@ class RobotSkeletonSensor(Sensor):
                     robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[4])
                     robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[0])
 
-        self.robot_skeleton = torch.asarray(robot_skeleton, dtype=torch.float32).round(decimals=10)
+        self.robot_skeleton = np.asarray(robot_skeleton, dtype=np.float32).round(10)
 
         # add extra points along the arms of the robot
-        self.robot_skeleton = torch.concatenate([
+        self.robot_skeleton = np.concatenate([
             self.robot_skeleton,
             interpolate(self.robot_skeleton[1, :], self.robot_skeleton[2, :], 4, 0.3, 1.5),
             interpolate(self.robot_skeleton[3, :], self.robot_skeleton[4, :], 3, 0.3, 1.2),
