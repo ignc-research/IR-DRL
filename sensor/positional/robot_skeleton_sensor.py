@@ -59,6 +59,7 @@ class RobotSkeletonSensor(Sensor):
         self.cpu_epoch = time()
         self._set_skeleton()
         self.cpu_time = time() - self.cpu_epoch
+        return {"robot_skeleton": self.robot_skeleton}
 
     def get_observation(self) -> dict:
         """
@@ -82,7 +83,10 @@ class RobotSkeletonSensor(Sensor):
         """
         if self.add_to_observation_space:
             obs_sp_ele = dict()
-            obs_sp_ele[self.robot.name + "_skeleton"] = Box(low=-5, high=5, shape=(10, 3))
+            obs_sp_ele["robot_skeleton"] = Box(
+                low=np.repeat(np.array([-1, -1, 1], dtype=np.float32)[na, :], 16, axis=0),
+                high=np.repeat(np.array([1, 1, 2], dtype=np.float32)[na, :], 16, axis=0),
+                shape=(16, 3), dtype=np.float32)
             return obs_sp_ele
         else:
             return {}
