@@ -207,39 +207,38 @@ class PositionCollisionPCR(Goal):
 
     def _set_min_distance_to_obstacle_and_closest_points(self, update_pcr):
         """
-        Set the closest points of each obstacle respectively and the minimal distance between the obstacles and the
-        robot skeletons
+        Set the closest obstacle cuboid and the shortest distance between robot skeleton and obstacle cuboids.
         """
-
+        # retrieve robot skeleton and obstacle cuboids
         robot_sklt = self.robot_skeleton_sensor.robot_skeleton
         # obstacles: [x_max, x_min, y_max, y_min, z_max, z_min, length, depth, height, x_center, y_center, z_center]
-        obstacles = self.pcr_sensor.obstacle_cuboids
-        obstacles = obstacles[:, :, na].repeat(robot_sklt.shape[0], axis=2)
+        obstacle_cuboids = self.pcr_sensor.obstacle_cuboids
+        obstacles_expanded = self.pcr_sensor.obstacle_cuboids[:, :, na].repeat(robot_sklt.shape[0], axis=2)
 
         # check relative x position
-        is_to_right = robot_sklt[:, 0] > obstacles[:, 0, :]
-        is_to_left = robot_sklt[:, 0] < obstacles[:, 1, :]
+        is_to_right = robot_sklt[:, 0] > obstacles_expanded[:, 0, :]
+        is_to_left = robot_sklt[:, 0] < obstacles_expanded[:, 1, :]
         # check relative y position
-        is_infront = robot_sklt[:, 1] > obstacles[:, 2, :]
-        is_behind = robot_sklt[:, 1] < obstacles[:, 3, :]
+        is_infront = robot_sklt[:, 1] > obstacles_expanded[:, 2, :]
+        is_behind = robot_sklt[:, 1] < obstacles_expanded[:, 3, :]
         # check relative z position
-        is_above = robot_sklt[:, 2] > obstacles[:, 4, :]
-        is_below = robot_sklt[:, 2] < obstacles[:, 5, :]
+        is_above = robot_sklt[:, 2] > obstacles_expanded[:, 4, :]
+        is_below = robot_sklt[:, 2] < obstacles_expanded[:, 5, :]
 
-        # should have shape n_of_obstacles x n_robot_skeleton_points x 3
-        robot_sklt_projections = robot_sklt[na, :, :].repeat(obstacles.shape[0], axis=0)
+        # set array containt the projections; should have shape n_of_obstacles x n_robot_skeleton_points x 3
+        robot_sklt_projections = robot_sklt[na, :, :].repeat(obstacles_expanded.shape[0], axis=0)
 
         # if is_to_right x_projection = x_max; if is_to_left x_projection = x_min
-        robot_sklt_projections[:, :, 0] = np.where(is_to_right, obstacles[:, 0, :], robot_sklt_projections[:, :, 0])
-        robot_sklt_projections[:, :, 0] = np.where(is_to_left, obstacles[:, 1, :], robot_sklt_projections[:, :, 0])
+        robot_sklt_projections[:, :, 0] = np.where(is_to_right, obstacles_expanded[:, 0, :], robot_sklt_projections[:, :, 0])
+        robot_sklt_projections[:, :, 0] = np.where(is_to_left, obstacles_expanded[:, 1, :], robot_sklt_projections[:, :, 0])
 
         # if is_infront y_projection = y_max; if is_behind y_projection = y_min
-        robot_sklt_projections[:, :, 1] = np.where(is_infront, obstacles[:, 2, :], robot_sklt_projections[:, :, 1])
-        robot_sklt_projections[:, :, 1] = np.where(is_behind, obstacles[:, 3, :], robot_sklt_projections[:, :, 1])
+        robot_sklt_projections[:, :, 1] = np.where(is_infront, obstacles_expanded[:, 2, :], robot_sklt_projections[:, :, 1])
+        robot_sklt_projections[:, :, 1] = np.where(is_behind, obstacles_expanded[:, 3, :], robot_sklt_projections[:, :, 1])
 
         # if is_above z_projection = z_max; if is_below z_projection = z_min
-        robot_sklt_projections[:, :, 2] = np.where(is_above, obstacles[:, 4, :], robot_sklt_projections[:, :, 2])
-        robot_sklt_projections[:, :, 2] = np.where(is_below, obstacles[:, 5, :], robot_sklt_projections[:, :, 2])
+        robot_sklt_projections[:, :, 2] = np.where(is_above, obstacles_expanded[:, 4, :], robot_sklt_projections[:, :, 2])
+        robot_sklt_projections[:, :, 2] = np.where(is_below, obstacles_expanded[:, 5, :], robot_sklt_projections[:, :, 2])
 
         # take the squared difference between projection and origin
         distances_proj_origin = np.square(robot_sklt_projections - robot_sklt)
@@ -252,15 +251,35 @@ class PositionCollisionPCR(Goal):
         # finish the computation of the distances between projection and origin by summing and taking the root
         distances_proj_origin = np.sqrt(distances_proj_origin.sum(axis=2))
 
-        # retrieve the closest obstacle points
-        self.obstacle_points = robot_sklt_projections[np.arange(0, len(obstacles)), distances_proj_origin.argmin(axis=1), :]
+        # retrieve the closest obstacle cuboid
+        min_idx = distances_proj_origin.min(axis=1).argmin()
+        self.closest_obstacle_cuboid = obstacle_cuboids[min_idx, :]
 
-        # set shortest distance to obstacles
+        # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
 
-        # print(time.time() - t)
-        # display closest points
-        if self.debug["closest_points"]:
+        # display closest obstacle cuboid
+        if self.debug["closest_obstacle_cuboid"]:
             pyb.removeAllUserDebugItems()
-            for point in self.obstacle_points:
-                pyb.addUserDebugLine(point, point + np.array([0, 0, 0.3]), lineColorRGB=[0, 0, 255], lineWidth=2)
+            # get edge values
+            x_max, x_min, y_max, y_min, z_max, z_min = self.closest_obstacle_cuboid[:6]
+            # function wrap
+            def draw_line(lineFrom, lineTo):
+                pyb.addUserDebugLine(lineFrom, lineTo, lineWidth=3, lineColorRGB=[0, 0, 255])
+
+            # draw from corner to corner
+            draw_line([x_min, y_max, z_max], [x_min, y_max, z_max])
+            draw_line([x_min, y_max, z_max], [x_min, y_min, z_max])
+            draw_line([x_min, y_max, z_max], [x_min, y_max, z_min])
+
+            draw_line([x_min, y_min, z_max], [x_min, y_max, z_max])
+            draw_line([x_min, y_min, z_max], [x_min, y_min, z_min])
+            draw_line([x_min, y_min, z_max], [x_max, y_min, z_min])
+
+            draw_line([x_max, y_max, z_min], [x_min, y_max, z_min])
+            draw_line([x_max, y_max, z_min], [x_max, y_min, z_min])
+            draw_line([x_max, y_max, z_min], [x_max, y_max, z_max])
+
+            draw_line([x_min, y_min, z_min], [x_max, y_min, z_min])
+            draw_line([x_min, y_min, z_min], [x_min, y_max, z_min])
+            draw_line([x_min, y_min, z_min], [x_min, y_min, z_max])
