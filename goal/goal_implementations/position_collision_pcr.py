@@ -1,5 +1,5 @@
 import pandas
-
+from time import sleep
 from goal.goal import Goal
 import numpy as np
 from robot.robot import Robot
@@ -65,10 +65,10 @@ class PositionCollisionPCR(Goal):
         self.pcr_shape_last = None
 
         # set indices of the robot skeleton points that should ignore the table
-        self.sklt_indx_ignore_table = [0, 1, 2, 3, 11, 12]
+        self.sklt_indx_ignore_table = [0, 1, 2, 3, 10, 11, 12]
 
         # set indices of the robot skeleton points that should consider the table
-        self.sklt_indx_consider_table = [4, 5, 6, 7, 8, 9, 10, 13, 14, 15]
+        self.sklt_indx_consider_table = [4, 5, 6, 7, 8, 9, 13, 14, 15]
 
         self.obstacle_points = np.empty((6,3), dtype=np.float32)
 
@@ -204,54 +204,58 @@ class PositionCollisionPCR(Goal):
         robot skeletons
         """
         t = time.time()
-        # operations that should only be done when the point cloud sensor updates
-        if update_pcr:
-            self.points_not_table_idx = np.where(self.pcr_sensor.segImg != 2)
-            self.distances = np.full((self.pcr_sensor.points.shape[0], 2), 100, dtype=np.float32)
 
-        # set minimal distances
-        self.distances[:, 0] = cdist(self.robot_skeleton_sensor.robot_skeleton[self.sklt_indx_consider_table, :],
-                                self.pcr_sensor.points).min(axis=0)
-        self.distances[self.points_not_table_idx, 1] = cdist(
-            self.robot_skeleton_sensor.robot_skeleton[self.sklt_indx_ignore_table, :],
-            self.pcr_sensor.points[self.pcr_sensor.segImg != 2]).min(axis=0)
+        robot_sklt = self.robot_skeleton_sensor.robot_skeleton
+        # obstacles: [x_max, x_min, y_max, y_min, z_max, z_min, length, depth, height, x_center, y_center, z_center]
+        obstacles = self.pcr_sensor.obstacle_cuboids
+        obstacles = obstacles[:, :, na].repeat(robot_sklt.shape[0], axis=2)
 
-        points_and_seg_df = pandas.DataFrame({"x": self.pcr_sensor.points[:, 0],
-                                                   "y": self.pcr_sensor.points[:, 1],
-                                                   "z": self.pcr_sensor.points[:, 2],
-                                                   "object": self.pcr_sensor.segImg,
-                                                   "distance": self.distances.min(axis=1)})
+        # check relative x position
+        is_to_right = robot_sklt[:, 0] > obstacles[:, 0, :]
+        is_to_left = robot_sklt[:, 0] < obstacles[:, 1, :]
+        # check relative y position
+        is_infront = robot_sklt[:, 1] > obstacles[:, 2, :]
+        is_behind = robot_sklt[:, 1] < obstacles[:, 3, :]
+        # check relative z position
+        is_above = robot_sklt[:, 2] > obstacles[:, 4, :]
+        is_below = robot_sklt[:, 2] < obstacles[:, 5, :]
 
-        # number of distinct objects in the point cloud
-        num_of_objects = points_and_seg_df["object"].nunique()
-        # indexes of the min values per group
-        #indx_min = points_and_seg_df[["object", "distance"]].groupby("object").agg({"distance": "idxmin"})["distance"]
-        indx_min = points_and_seg_df[["object", "distance"]].groupby("object")["distance"].idxmin()
+        # should have shape n_of_obstacles x n_robot_skeleton_points x 3
+        robot_sklt_projections = robot_sklt[na, :, :].repeat(obstacles.shape[0], axis=0)
 
-        if num_of_objects > 6:
-            # take 6 closest points from grouped df
-            self.obstacle_points[:, :] = points_and_seg_df.iloc[indx_min, :].sort_values(
-                "distance", ascending=True).iloc[:6, :][["x", "y", "z"]].to_numpy(dtype=np.float32)
+        # if is_to_right x_projection = x_max; if is_to_left x_projection = x_min
+        robot_sklt_projections[:, :, 0] = np.where(is_to_right, obstacles[:, 0, :], robot_sklt_projections[:, :, 0])
+        robot_sklt_projections[:, :, 0] = np.where(is_to_left, obstacles[:, 1, :], robot_sklt_projections[:, :, 0])
 
-        elif num_of_objects == 6:
-            # simply take the points as they are
-            self.obstacle_points[:, :] = points_and_seg_df.iloc[indx_min, :3][["x", "y", "z"]].to_numpy(dtype=np.float32)
+        # if is_infront y_projection = y_max; if is_behind y_projection = y_min
+        robot_sklt_projections[:, :, 1] = np.where(is_infront, obstacles[:, 2, :], robot_sklt_projections[:, :, 1])
+        robot_sklt_projections[:, :, 1] = np.where(is_behind, obstacles[:, 3, :], robot_sklt_projections[:, :, 1])
 
-        else:
-            # take the closest point of each segmentation class and the 6 - n closest points in the entire point cloud
-            # that are not equal to any of the closest points of each segmentation mask
-            a = points_and_seg_df.iloc[indx_min, :]
-            b = points_and_seg_df[~points_and_seg_df["distance"].isin(a["distance"].tolist())].sort_values(
-                "distance", ascending=True).iloc[0:6 - num_of_objects, :][["x", "y", "z"]].to_numpy(dtype=np.float32)
-            a = a[["x", "y", "z"]].to_numpy(dtype=np.float32)
-            self.obstacle_points[:, :] = np.concatenate([a, b], axis=0)
+        # if is_above z_projection = z_max; if is_below z_projection = z_min
+        robot_sklt_projections[:, :, 2] = np.where(is_above, obstacles[:, 4, :], robot_sklt_projections[:, :, 2])
+        robot_sklt_projections[:, :, 2] = np.where(is_below, obstacles[:, 5, :], robot_sklt_projections[:, :, 2])
 
-        # set closest distance to obstacles
-        self.min_distance_to_obstacles = points_and_seg_df["distance"].min().astype(np.float32)
+        # take the squared difference between projection and origin
+        distances_proj_origin = np.square(robot_sklt_projections - robot_sklt)
 
-        #print(time.time() - t)
+        # set the differences for the projections on the table for the skeleton points that should ignore collision
+        # with the table to infinity; this will make sure that these are not selected as the minimal distances
+        # note that this assumes the table to be the obstacle at index 0
+        distances_proj_origin[0, self.sklt_indx_ignore_table, :] = np.inf
+
+        # finish the computation of the distances between projection and origin by summing and taking the root
+        distances_proj_origin = np.sqrt(distances_proj_origin.sum(axis=2))
+
+        # retrieve the closest obstacle points
+        self.obstacle_points = robot_sklt_projections[np.arange(0, len(obstacles)), distances_proj_origin.argmin(axis=1), :]
+
+        # set shortest distance to obstacles
+        self.min_distance_to_obstacles = distances_proj_origin.min()
+
+        # print(time.time() - t)
         # display closest points
         if self.debug["closest_points"]:
             pyb.removeAllUserDebugItems()
             for point in self.obstacle_points:
                 pyb.addUserDebugLine(point, point + np.array([0, 0, 0.3]), lineColorRGB=[0, 0, 255], lineWidth=2)
+
