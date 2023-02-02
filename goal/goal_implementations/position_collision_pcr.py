@@ -115,7 +115,7 @@ class PositionCollisionPCR(Goal):
     def _set_observation(self):
         # get the data
         self.position = self.robot.position_rotation_sensor.position
-        self.target = self.robot.world.position_targets[self.robot.id]
+        self.target = self.robot.world.position_targets[self.robot.id].astype(np.float32)
         dif = self.target - self.position
         self.distance = np.linalg.norm(dif)
         self._set_min_distance_to_obstacle_and_closest_points()
@@ -177,7 +177,7 @@ class PositionCollisionPCR(Goal):
                                                      baseVisualShapeIndex=pyb.createVisualShape(
                                                          shapeType=pyb.GEOM_SPHERE, radius=self.distance_threshold,
                                                          rgbaColor=[0, 1, 0, 1]),
-                                                     basePosition=self.target)
+                                                    basePosition=self.target)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
