@@ -7,7 +7,8 @@ from ..camera import CameraBase, \
     CameraArgs  # to prevent circular imports the things within the package have to be imported using the relative path
 from numpy import newaxis as na
 from time import time
-
+from time import sleep
+import pandas as pd
 __all__ = [
     'StaticPointCloudCamera'
 ]
@@ -48,7 +49,9 @@ class StaticPointCloudCamera(CameraBase):
         self._set_camera()
 
         # create the arrays used when taking the images and when creating the pcr to make code faster
-        self.image = np.empty((self.img_resolution, 2), dtype=np.float32)
+        #self.image = np.empty((self.img_resolution, 2), dtype=np.float32)
+        self.depth = np.empty(self.img_resolution, dtype=np.float32)
+        self.seg_img_full = np.empty(self.img_resolution, dtype=int)
         self.W = np.arange(0, self.width)
         self.H = np.arange(0, self.height)
         self.X = ((2 * self.W - self.width) / self.width)[na, :].repeat(self.height, axis=0).flatten()
@@ -87,10 +90,10 @@ class StaticPointCloudCamera(CameraBase):
             viewMatrix=self.viewMatrix,
             projectionMatrix=self.projectionMatrix)
 
-        self.image[:, 0] = depth
-        self.image[:, 1] = seg
+        self.depth[:] = depth
+        self.seg_img_full[:] = seg
 
-        return self.image
+        return self.depth, self.seg_img_full
     def _adapt_to_environment(self):
         pass
 
@@ -98,19 +101,21 @@ class StaticPointCloudCamera(CameraBase):
         self.cpu_epoch = time()
         if step % self.update_steps == 0:
             # create point cloud
-            image = self._get_image()
-            self.points = self._depth_img_to_point_cloud(image[:, 0])
-            self.points, self.segImg = self._prepreprocess_point_cloud(self.points, image[:, 1])
-        self.cpu_time = time() - self.cpu_epoch
+            self.depth, self.seg_img_full = self._get_image()
+            self.points = self._depth_img_to_point_cloud(self.depth)
+            self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
+            self.obstacle_cuboids = self._pcr_to_cuboid(self.points, self.segImg)
+            self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()
 
     def reset(self):
         self.cpu_epoch = time()
         # create point cloud
-        image = self._get_image()
-        self.points = self._depth_img_to_point_cloud(image[:, 0])
-        self.points, self.segImg = self._prepreprocess_point_cloud(self.points, image[:, 1])
+        self.depth, self.seg_img_full = self._get_image()
+        self.points = self._depth_img_to_point_cloud(self.depth)
+        self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
+        self.obstacle_cuboids = self._pcr_to_cuboid(self.points, self.segImg)
         self.cpu_time = time() - self.cpu_epoch
         return {"point_cloud": self.points}
 
@@ -166,3 +171,30 @@ class StaticPointCloudCamera(CameraBase):
             segImg = segImg[select_mask]
 
         return points.astype(np.float32), segImg
+
+    def _pcr_to_cuboid(self, points, segImg):
+        """
+        Transform point cloud into a set of cuboids for each obstacle. A cuboid consists of middle point, length,
+        height and depth.
+        """
+        # create DataFrame with point coordinates and object ID
+        df = pd.DataFrame({
+            "x": points[:, 0],
+            "y": points[:, 1],
+            "z": points[:, 2],
+            "object": segImg
+        })
+
+        df = df.groupby("object").agg(["max", "min"])
+        df.columns = ["x_max", "x_min", "y_max", "y_min", "z_max", "z_min"]
+        df["length"] = df["x_max"] - df["x_min"]
+        df["depth"] = df["y_max"] - df["y_min"]
+        df["height"] = df["z_max"] - df["z_min"]
+        df["x_center"] = (df["x_max"] + df["x_min"]) / 2
+        df["y_center"] = (df["y_max"] + df["y_min"]) / 2
+        df["z_center"] = (df["y_max"] + df["y_min"]) / 2
+        #df = df[["x_center", "y_center", "z_center", "length", "depth", "height"]]
+
+        self.obstacle_cuboids = df.to_numpy()
+        return self.obstacle_cuboids
+
