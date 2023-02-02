@@ -237,7 +237,7 @@ class PositionCollisionPCR(Goal):
 
         # retrieve the closest obstacle cuboid
         min_idx = distances_proj_origin.min(axis=1).argmin()
-        self.closest_obstacle_cuboid = obstacle_cuboids[min_idx, :]
+        self.closest_obstacle_cuboid = obstacle_cuboids[min_idx, :].astype(np.float32)
 
         # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
