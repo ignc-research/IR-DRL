@@ -93,6 +93,7 @@ class PositionCollisionPCR(Goal):
             return {}
 
     def on_env_reset(self, success_rate):
+        t = time.time()
         self.timeout = False
         self.is_success = False
         self.collided = False
@@ -116,6 +117,7 @@ class PositionCollisionPCR(Goal):
             if self.distance_threshold < self.distance_threshold_end:
                 self.distance_threshold = self.distance_threshold_end
 
+        self.cpu_epoch = time.time() - t
         return self.metric_name, self.distance_threshold, True, True
 
     def get_observation(self) -> dict:
@@ -133,6 +135,8 @@ class PositionCollisionPCR(Goal):
         self._set_min_distance_to_obstacle_and_closest_points(update_pcr)
 
     def reward(self, step, action):
+        t = time.time()
+
         reward = 0
         self.step = step
         if not self.collided:
@@ -178,6 +182,8 @@ class PositionCollisionPCR(Goal):
 
         self.ep_reward += reward
         self.reward_value = reward
+
+        self.cpu_epoch = time.time() - t
         return self.reward_value, self.is_success, self.done, self.timeout, False
 
     def build_visual_aux(self):
@@ -196,6 +202,7 @@ class PositionCollisionPCR(Goal):
         logging_dict["distance_" + self.robot.name] = self.distance
         logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
         logging_dict["ep_reward"] = self.ep_reward
+        logging_dict["goal_cpu_time"] = self.cpu_epoch
         return logging_dict
 
     def _set_min_distance_to_obstacle_and_closest_points(self, update_pcr):
@@ -203,7 +210,6 @@ class PositionCollisionPCR(Goal):
         Set the closest points of each obstacle respectively and the minimal distance between the obstacles and the
         robot skeletons
         """
-        t = time.time()
 
         robot_sklt = self.robot_skeleton_sensor.robot_skeleton
         # obstacles: [x_max, x_min, y_max, y_min, z_max, z_min, length, depth, height, x_center, y_center, z_center]
@@ -258,4 +264,3 @@ class PositionCollisionPCR(Goal):
             pyb.removeAllUserDebugItems()
             for point in self.obstacle_points:
                 pyb.addUserDebugLine(point, point + np.array([0, 0, 0.3]), lineColorRGB=[0, 0, 255], lineWidth=2)
-
