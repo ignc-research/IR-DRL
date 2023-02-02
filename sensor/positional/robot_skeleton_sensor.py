@@ -48,7 +48,6 @@ class RobotSkeletonSensor(Sensor):
         pyb.removeAllUserDebugItems()
         if self.debug["skeleton"]:
             for i, point in enumerate(self.robot_skeleton):
-                # print(i, point[2].round(5))
                 pyb.addUserDebugLine(point, point + np.array([0, 0, 0.2]), lineColorRGB=[0, 0, 255])
     def update(self, step) -> dict:
         if step % self.update_steps == 0:
