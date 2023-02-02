@@ -28,7 +28,7 @@ run:
           layer3: 16      
   eval:
     max_episodes: -1
-    logging: 1
+    logging: 2
 
 env:
   max_steps_per_episode: 768
@@ -62,7 +62,7 @@ env:
             name: "PCR_camera"
             normalize: False
             add_to_observation_space: False
-            update_steps: 7
+            update_steps: 4
         sensor3:
           type: "RobotSkeletonSensor"
           config:
