@@ -5,7 +5,7 @@ run:
   model_path: ""
   reset_num_timesteps: True
   train:
-    num_envs : 3
+    num_envs : 6
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"
@@ -52,7 +52,7 @@ env:
         sensor2:
           type: "StaticPointCloudCamera"
           config:
-            use_gpu: True
+            use_gpu: False
             add_to_logging: True
             position: [0, 0, 2.2]
             target: [0, 0, 0]
