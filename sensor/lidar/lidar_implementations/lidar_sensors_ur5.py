@@ -124,9 +124,9 @@ class LidarSensorUR5(LidarSensor):
             frame_arm3[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_arm3[5]), (3,3))
             frame_arm3[0:3, 3] = linkState_arm3[4]
 
-            for angle in np.linspace(-3*np.pi/4, np.pi, self.ray_setup["wrist3_circle"][0]):
-                for i in range(self.ray_setup["wrist3_circle"][1]):
-                    interval = 0.26 / self.ray_setup["wrist3_circle"][1]  # evenly space rays along entire length, arm length of 0.26 found out by testing and does not account for potential urdf mesh scaling
+            for angle in np.linspace(-np.pi, np.pi - 2 * np.pi / self.ray_setup["upper_arm"][0], self.ray_setup["upper_arm"][0]):
+                for i in range(self.ray_setup["upper_arm"][1]):
+                    interval = 0.26 / self.ray_setup["upper_arm"][1]  # evenly space rays along entire length, arm length of 0.26 found out by testing and does not account for potential urdf mesh scaling
                     rays_starts.append(np.matmul(frame_arm3, np.array([0.0, 0.0, i * interval + 0.1, 1]).T)[0:3].tolist())
                     rays_ends.append(np.matmul(frame_arm3, np.array([self.ray_end * np.sin(angle), -self.ray_end * np.cos(angle), i * interval + 0.1, 1]).T)[0:3].tolist())
 
