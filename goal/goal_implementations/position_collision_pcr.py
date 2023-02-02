@@ -1,11 +1,7 @@
-import pandas
-from time import sleep
 from goal.goal import Goal
 import numpy as np
-from robot.robot import Robot
 from gym.spaces import Box
 import pybullet as pyb
-from scipy.spatial.distance import cdist
 from numpy import newaxis as na
 import time
 
@@ -44,6 +40,8 @@ class PositionCollisionPCR(Goal):
         self.distance_threshold_increment_end = goal_config["dist_threshold_increment_end"]
 
         # placeholders so that we have access in other methods without doing double work
+        self.cpu_epoch = None
+        self.step = None
         self.ep_reward = None
         self.distance = None
         self.position = None
@@ -56,21 +54,11 @@ class PositionCollisionPCR(Goal):
         # performance metric name
         self.metric_name = "distance_threshold"
 
-        # obstacle point cloud and robot skeleton
-        self.obstacle_points: np.array
-        self.points: np.array
-        self.robot_skeleton: np.array
-
-        # shape of the point cloud from the step before
-        self.pcr_shape_last = None
-
         # set indices of the robot skeleton points that should ignore the table
         self.sklt_indx_ignore_table = [0, 1, 2, 3, 10, 11, 12]
 
         # set indices of the robot skeleton points that should consider the table
         self.sklt_indx_consider_table = [4, 5, 6, 7, 8, 9, 13, 14, 15]
-
-        self.obstacle_points = np.empty((6,3), dtype=np.float32)
 
         # stuff for debugging
         self.debug = goal_config["debug"]
@@ -84,10 +72,9 @@ class PositionCollisionPCR(Goal):
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
-            ret["closest_obstacle_points"] = Box(
-                low=np.repeat(np.array([-1, -1, 1], dtype=np.float32)[na, :], 6, axis=0),
-                high=np.repeat(np.array([1, 1, 2], dtype=np.float32)[na, :], 6, axis=0),
-                shape=(6, 3), dtype=np.float32)
+            ret["closest_obstacle_cuboid"] = Box(low=np.array([0, 0, 0, -1, -1, 1]),
+                                                 high=np.array([1.5, 1.5, 1, 1, 1, 2]), shape=(6,),
+                                                 dtype=np.float32)
             return ret
         else:
             return {}
@@ -101,7 +88,7 @@ class PositionCollisionPCR(Goal):
         self.ep_reward = 0
         # set the distance threshold according to the success of the training
         # set observations
-        self._set_observation(update_pcr=True)
+        self._set_observation()
         if self.train:
             # calculate increment
             ratio_start_end = (self.distance_threshold - self.distance_threshold_end) / (
@@ -122,17 +109,16 @@ class PositionCollisionPCR(Goal):
 
     def get_observation(self) -> dict:
         # TODO: implement normalization
-        return {#"end_effector_position": self.robot.position_rotation_sensor.position,
-                "target_position": self.target,
-                "closest_obstacle_points": self.obstacle_points}
+        return {"target_position": self.target,
+                "closest_obstacle_cuboid": self.closest_obstacle_cuboid[6:]}
 
-    def _set_observation(self, update_pcr):
+    def _set_observation(self):
         # get the data
         self.position = self.robot.position_rotation_sensor.position
         self.target = self.robot.world.position_targets[self.robot.id]
         dif = self.target - self.position
         self.distance = np.linalg.norm(dif)
-        self._set_min_distance_to_obstacle_and_closest_points(update_pcr)
+        self._set_min_distance_to_obstacle_and_closest_points()
 
     def reward(self, step, action):
         t = time.time()
@@ -150,9 +136,7 @@ class PositionCollisionPCR(Goal):
         d_ref = 0.33
 
         # set observations
-        self._set_observation(update_pcr=True if step % 7 == 0 else False)
-        # set motion change
-        a = action  # note that the action is normalized
+        self._set_observation()
 
         # reward for distance to target
         R_E_T = -self.distance
@@ -205,7 +189,7 @@ class PositionCollisionPCR(Goal):
         logging_dict["goal_cpu_time"] = self.cpu_epoch
         return logging_dict
 
-    def _set_min_distance_to_obstacle_and_closest_points(self, update_pcr):
+    def _set_min_distance_to_obstacle_and_closest_points(self):
         """
         Set the closest obstacle cuboid and the shortest distance between robot skeleton and obstacle cuboids.
         """
@@ -263,6 +247,7 @@ class PositionCollisionPCR(Goal):
             pyb.removeAllUserDebugItems()
             # get edge values
             x_max, x_min, y_max, y_min, z_max, z_min = self.closest_obstacle_cuboid[:6]
+
             # function wrap
             def draw_line(lineFrom, lineTo):
                 pyb.addUserDebugLine(lineFrom, lineTo, lineWidth=3, lineColorRGB=[0, 0, 255])
