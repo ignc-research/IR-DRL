@@ -29,8 +29,9 @@ class JointsSensor(Sensor):
 
         # normalizing constants for faster normalizing
         self.normalizing_constant_a = 2 / self.robot.joints_range
+        self.normalizing_constant_a = self.normalizing_constant_a.astype(np.float32)
         self.normalizing_constant_b = np.ones(6) - np.multiply(self.normalizing_constant_a, self.robot.joints_limits_upper)
-
+        self.normalizing_constant_b = self.normalizing_constant_b.astype(np.float32)
         #self.update()
 
 
@@ -38,7 +39,7 @@ class JointsSensor(Sensor):
         self.cpu_epoch = time()
         if step % self.update_steps == 0:
             self.joints_angles_prev = self.joints_angles
-            self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids])
+            self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids]).astype(np.float32)
             self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / self.sim_step
         self.cpu_time = time() - self.cpu_epoch
 
@@ -46,7 +47,7 @@ class JointsSensor(Sensor):
 
     def reset(self):
         self.cpu_epoch = time()
-        self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids])
+        self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids]).astype(np.float32)
         self.joints_angles_prev = self.joints_angles
         self.joints_velocities = np.zeros(self.joints_dims)
         self.cpu_time = time() - self.cpu_epoch
