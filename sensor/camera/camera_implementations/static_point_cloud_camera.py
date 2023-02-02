@@ -105,7 +105,7 @@ class StaticPointCloudCamera(CameraBase):
             self.points = self._depth_img_to_point_cloud(self.depth)
             self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
             self.obstacle_cuboids = self._pcr_to_cuboid(self.points, self.segImg)
-            self.cpu_time = time() - self.cpu_epoch
+        self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()
 
