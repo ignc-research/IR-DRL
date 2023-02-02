@@ -193,7 +193,6 @@ class StaticPointCloudCamera(CameraBase):
         df["x_center"] = (df["x_max"] + df["x_min"]) / 2
         df["y_center"] = (df["y_max"] + df["y_min"]) / 2
         df["z_center"] = (df["y_max"] + df["y_min"]) / 2
-        #df = df[["x_center", "y_center", "z_center", "length", "depth", "height"]]
 
         self.obstacle_cuboids = df.to_numpy()
         return self.obstacle_cuboids
