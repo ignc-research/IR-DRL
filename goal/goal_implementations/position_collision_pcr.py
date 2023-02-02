@@ -250,7 +250,11 @@ class PositionCollisionPCR(Goal):
 
             # function wrap
             def draw_line(lineFrom, lineTo):
-                pyb.addUserDebugLine(lineFrom, lineTo, lineWidth=3, lineColorRGB=[0, 0, 255])
+                pyb.addUserDebugLine(lineFrom,
+                                     lineTo,
+                                     lineWidth=3,
+                                     lineColorRGB=[0, 0, 255],
+                                     lifeTime=10)
 
             # draw from corner to corner
             draw_line([x_min, y_max, z_max], [x_min, y_max, z_max])
@@ -268,3 +272,7 @@ class PositionCollisionPCR(Goal):
             draw_line([x_min, y_min, z_min], [x_max, y_min, z_min])
             draw_line([x_min, y_min, z_min], [x_min, y_max, z_min])
             draw_line([x_min, y_min, z_min], [x_min, y_min, z_max])
+
+            # draw additional line starting from center point
+            draw_line(self.closest_obstacle_cuboid[-3:],
+                       self.closest_obstacle_cuboid[-3:] + np.array([0, 0, 0.3]))
