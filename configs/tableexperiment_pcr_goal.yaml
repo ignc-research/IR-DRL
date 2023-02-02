@@ -5,7 +5,7 @@ run:
   model_path: ""
   reset_num_timesteps: True
   train:
-    num_envs : 16
+    num_envs : 8
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"
