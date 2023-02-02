@@ -33,6 +33,8 @@ class StaticPointCloudCamera(CameraBase):
         # pybullet objects to remove from point cloud
         self.objects_to_remove = sensor_config["objects_to_remove"]
 
+        if self.use_gpu:
+            self.objects_to_remove = torch.asarray(self.objects_to_remove).to("cuda:0")
         # points
         self.points: np.array = None
 
@@ -69,9 +71,9 @@ class StaticPointCloudCamera(CameraBase):
         self.PixPos[:, 3] = np.ones(self.img_resolution)
 
         if self.use_gpu:
-            self.PixPos = torch.from_numpy(self.PixPos)
-            self.depth = torch.empty(self.img_resolution, dtype=torch.float32)
-            self.seg_img_full = torch.empty(self.img_resolution, dtype=torch.int)
+            self.PixPos = torch.from_numpy(self.PixPos).to("cuda:0")
+            self.depth = torch.empty(self.img_resolution, dtype=torch.float32).to("cuda:0")
+            self.seg_img_full = torch.empty(self.img_resolution, dtype=torch.int).to("cuda:0")
 
     def _set_camera(self):
         if self.debug.get('position', False) or self.debug.get('orientation', False) or self.debug.get('target', False) or self.debug.get('lines', False):
@@ -95,7 +97,7 @@ class StaticPointCloudCamera(CameraBase):
                                                       np.asarray(self.viewMatrix, dtype=np.float32).reshape([4, 4], order='F')))
 
         if self.use_gpu:
-            self.tran_pix_world = torch.from_numpy(self.tran_pix_world)
+            self.tran_pix_world = torch.from_numpy(self.tran_pix_world).to("cuda:0")
 
     def _get_image(self):
         # getting image
@@ -126,7 +128,6 @@ class StaticPointCloudCamera(CameraBase):
             self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
             self.obstacle_cuboids = self._pcr_to_cuboid(self.points, self.segImg)
         self.cpu_time = time() - self.cpu_epoch
-
         return self.get_observation()
 
     def reset(self):
@@ -192,7 +193,7 @@ class StaticPointCloudCamera(CameraBase):
         if self.use_gpu:
             segImg = torch.flatten(segImg)
             if self.objects_to_remove is not None:
-                select_mask = torch.logical_not(torch.isin(segImg, torch.asarray(self.objects_to_remove)))
+                select_mask = torch.logical_not(torch.isin(segImg, self.objects_to_remove))
                 points = points[select_mask]
                 segImg = segImg[select_mask]
         else:
@@ -209,19 +210,23 @@ class StaticPointCloudCamera(CameraBase):
         height and depth.
         """
         if self.use_gpu:
-            counts = torch.bincount(segImg)
-            counts = counts[counts != 0]
-            obstacle_pcrs = torch.split(points, counts.tolist())
-
+            objects = torch.unique(segImg)
             min_values = []
             max_values = []
-            for obstacle_pcr in obstacle_pcrs:
-                print(len(obstacle_pcr))
-                min_values.append(torch.min(obstacle_pcr, dim=0)[0])
-                max_values.append(torch.max(obstacle_pcr, dim=0)[0])
+            for object in objects:
+                min_values.append(torch.min(points[segImg == object], dim=0)[0])
+                max_values.append(torch.max(points[segImg == object], dim=0)[0])
 
-            min_values = torch.cat(min_values, dim=0)
-            max_values = torch.cat(max_values)
+            min_values = torch.reshape(torch.cat(min_values, dim=0), (len(objects), 3)).to("cuda:0")
+            max_values = torch.reshape(torch.cat(max_values, dim=0), (len(objects), 3)).to("cuda:0")
+            measures = max_values - min_values
+            center_points = (max_values - min_values) / 2
+
+            self.obstacle_cuboids = torch.cat([max_values[:, 0][:, None], min_values[:, 0][:, None],
+                                               max_values[:, 1][:, None], min_values[:, 1][:, None],
+                                               max_values[:, 2][:, None], min_values[:, 2][:, None],
+                                               measures, center_points], dim=1).cpu().numpy()
+            return self.obstacle_cuboids
 
         else:
             # create DataFrame with point coordinates and object ID
@@ -239,7 +244,7 @@ class StaticPointCloudCamera(CameraBase):
             df["height"] = df["z_max"] - df["z_min"]
             df["x_center"] = (df["x_max"] + df["x_min"]) / 2
             df["y_center"] = (df["y_max"] + df["y_min"]) / 2
-            df["z_center"] = (df["y_max"] + df["y_min"]) / 2
+            df["z_center"] = (df["z_max"] + df["z_min"]) / 2
 
             self.obstacle_cuboids = df.to_numpy().astype(np.float32)
         return self.obstacle_cuboids
