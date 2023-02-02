@@ -95,9 +95,9 @@ class PositionCollisionPCR(Goal):
                     self.distance_threshold_start - self.distance_threshold_end)
             increment = (
                                 self.distance_threshold_increment_start - self.distance_threshold_increment_end) * ratio_start_end + self.distance_threshold_increment_end
-            if success_rate > 0.65 and self.distance_threshold > self.distance_threshold_end:
+            if success_rate > 0.8 and self.distance_threshold > self.distance_threshold_end:
                 self.distance_threshold -= increment
-            elif success_rate < 0.65 and self.distance_threshold < self.distance_threshold_start:
+            elif success_rate < 0.8 and self.distance_threshold < self.distance_threshold_start:
                 self.distance_threshold += increment / 25  # upwards movement should be slower
             if self.distance_threshold > self.distance_threshold_start:
                 self.distance_threshold = self.distance_threshold_start

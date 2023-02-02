@@ -52,6 +52,7 @@ env:
         sensor2:
           type: "StaticPointCloudCamera"
           config:
+            use_gpu: False
             add_to_logging: True
             position: [0, 0, 2.2]
             target: [0, 0, 0]
@@ -66,7 +67,7 @@ env:
         sensor3:
           type: "RobotSkeletonSensor"
           config:
-            debug: {"skeleton": False}
+            debug: {"skeleton": True}
             normalize: False
             add_to_observation_space: True
             add_to_logging: False
@@ -81,7 +82,7 @@ env:
       goal:
         type: "PositionCollisionPCR"
         config:
-          debug: {"closest_obstacle_cuboid": False}
+          debug: {"closest_obstacle_cuboid": True}
           normalize_rewards: False
           normalize_observations: False
           add_to_observation_space: True
