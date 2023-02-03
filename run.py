@@ -120,7 +120,9 @@ if __name__ == "__main__":
                     print(obs)
                     print("Agent action:")
                     print(act)
-                    input("Press any button to continue with next step....")
+                    inp = input("Press any button to continue with next step or press r to reset the episode:\n")
+                    if inp == "r":
+                        done = True
                 #exp_visualizer.update_imshow_from_obs(obs, fig, axs)
 
 
