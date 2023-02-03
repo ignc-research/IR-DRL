@@ -1,5 +1,3 @@
-import pybullet as p
-
 class UrdfWallGenerator:
     def __init__(self) -> None:
         self.segments = []
