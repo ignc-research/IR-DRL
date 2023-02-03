@@ -65,7 +65,10 @@ class RobotSkeletonSensor(Sensor):
         Returns the data currently stored. Does not perform an update.
         This must return the data in the same format as defined below in the gym space.
         """
-        return {"robot_skeleton": self.robot_skeleton}
+        if self.add_to_observation_space:
+            return {"robot_skeleton": self.robot_skeleton}
+        else:
+            return {}
 
     def _normalize(self) -> dict:
         """

@@ -66,17 +66,18 @@ class PositionCollisionPCR(Goal):
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            # ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-            #                                    high=np.array([1, 1, 2], dtype=np.float32),
-            #                                    shape=(3,), dtype=np.float32)
+            ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
+                                         high=np.array([1, 1, 2], dtype=np.float32),
+                                         shape=(3,), dtype=np.float32)
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
-            ret["distance_to_target"] = Box(low=0, high=2, shape=(1, ), dtype=np.float32)
-            ret["closest_projections"] = Box(low=np.repeat(np.array([-1, -1, 1])[na, :], 16, axis=0),
-                                               high=np.repeat(np.array([1, 1, 2])[na, :], 16, axis=0),
-                                               shape=(16, 3), dtype=np.float32)
-            ret["distances_to_obstacle"] = Box(low=0, high=2, shape=(16,), dtype=np.float32)
+            ret["distance_to_target"] = Box(low=0, high=2, shape=(1,), dtype=np.float32)
+            ret["closest_projection"] = Box(low=np.array([-1, -1, 1]),
+                                            high=np.array([1, 1, 2]),
+                                            shape=(3,), dtype=np.float32)
+            ret["shortest_distance_to_obstacle"] = Box(low=0, high=2, shape=(1,), dtype=np.float32)
+            ret["closest_robot_skeleton_point"] = Box(low=np.array([-1, -1, 1]), high=np.array([1, 1, 2]), shape=(3,))
             return ret
         else:
             return {}
@@ -111,10 +112,12 @@ class PositionCollisionPCR(Goal):
 
     def get_observation(self) -> dict:
         # TODO: implement normalization
-        return {"target_position": self.target,
+        return {"end_effector_position": self.position,
+                "target_position": self.target,
                 "distance_to_target": self.distance,
-                "closest_projections": self.closest_projections,
-                "distances_to_obstacle": self.distances_to_obstacle
+                "closest_projection": self.closest_projection,
+                "shortest_distance_to_obstacle": np.array([self.min_distance_to_obstacles]),
+                "closest_robot_skeleton_point": self.closest_robot_skeleton_point
                 }
 
     def _set_observation(self):
@@ -122,7 +125,7 @@ class PositionCollisionPCR(Goal):
         self.position = self.robot.position_rotation_sensor.position
         self.target = self.robot.world.position_targets[self.robot.id].astype(np.float32)
         dif = self.target - self.position
-        self.distance = np.linalg.norm(dif)
+        self.distance = np.array([np.linalg.norm(dif)])
         self._set_min_distance_to_obstacle_and_closest_points()
 
     def reward(self, step, action):
@@ -144,8 +147,7 @@ class PositionCollisionPCR(Goal):
         self._set_observation()
 
         # reward for distance to target
-        R_E_T = -self.distance
-
+        R_E_T = -self.distance[0]
         # reward for distance to obstacle
         R_R_O = -(d_ref / (self.min_distance_to_obstacles + d_ref)) ** k
 
@@ -157,7 +159,7 @@ class PositionCollisionPCR(Goal):
         if self.collided:
             self.done = True
             reward += -500
-        elif self.distance < self.distance_threshold:
+        elif self.distance[0] < self.distance_threshold:
             self.done = True
             self.is_success = True
             reward += 500
@@ -182,13 +184,13 @@ class PositionCollisionPCR(Goal):
                                                      baseVisualShapeIndex=pyb.createVisualShape(
                                                          shapeType=pyb.GEOM_SPHERE, radius=self.distance_threshold,
                                                          rgbaColor=[0, 1, 0, 1]),
-                                                    basePosition=self.target)
+                                                     basePosition=self.target)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
         logging_dict["reward_" + self.robot.name] = self.reward_value
         logging_dict["min_distance_to_obstacles"] = self.min_distance_to_obstacles
-        logging_dict["distance_" + self.robot.name] = self.distance
+        logging_dict["distance_" + self.robot.name] = self.distance[0]
         logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
         logging_dict["ep_reward"] = self.ep_reward
         logging_dict["goal_cpu_time"] = self.cpu_epoch
@@ -218,16 +220,22 @@ class PositionCollisionPCR(Goal):
         robot_sklt_projections = robot_sklt[na, :, :].repeat(obstacles_expanded.shape[0], axis=0)
 
         # if is_to_right x_projection = x_max; if is_to_left x_projection = x_min
-        robot_sklt_projections[:, :, 0] = np.where(is_to_right, obstacles_expanded[:, 0, :], robot_sklt_projections[:, :, 0])
-        robot_sklt_projections[:, :, 0] = np.where(is_to_left, obstacles_expanded[:, 1, :], robot_sklt_projections[:, :, 0])
+        robot_sklt_projections[:, :, 0] = np.where(is_to_right, obstacles_expanded[:, 0, :],
+                                                   robot_sklt_projections[:, :, 0])
+        robot_sklt_projections[:, :, 0] = np.where(is_to_left, obstacles_expanded[:, 1, :],
+                                                   robot_sklt_projections[:, :, 0])
 
         # if is_infront y_projection = y_max; if is_behind y_projection = y_min
-        robot_sklt_projections[:, :, 1] = np.where(is_infront, obstacles_expanded[:, 2, :], robot_sklt_projections[:, :, 1])
-        robot_sklt_projections[:, :, 1] = np.where(is_behind, obstacles_expanded[:, 3, :], robot_sklt_projections[:, :, 1])
+        robot_sklt_projections[:, :, 1] = np.where(is_infront, obstacles_expanded[:, 2, :],
+                                                   robot_sklt_projections[:, :, 1])
+        robot_sklt_projections[:, :, 1] = np.where(is_behind, obstacles_expanded[:, 3, :],
+                                                   robot_sklt_projections[:, :, 1])
 
         # if is_above z_projection = z_max; if is_below z_projection = z_min
-        robot_sklt_projections[:, :, 2] = np.where(is_above, obstacles_expanded[:, 4, :], robot_sklt_projections[:, :, 2])
-        robot_sklt_projections[:, :, 2] = np.where(is_below, obstacles_expanded[:, 5, :], robot_sklt_projections[:, :, 2])
+        robot_sklt_projections[:, :, 2] = np.where(is_above, obstacles_expanded[:, 4, :],
+                                                   robot_sklt_projections[:, :, 2])
+        robot_sklt_projections[:, :, 2] = np.where(is_below, obstacles_expanded[:, 5, :],
+                                                   robot_sklt_projections[:, :, 2])
 
         # take the squared difference between projection and origin
         distances_proj_origin = np.square(robot_sklt_projections - robot_sklt)
@@ -240,13 +248,20 @@ class PositionCollisionPCR(Goal):
         # finish the computation of the distances between projection and origin by summing and taking the root
         distances_proj_origin = np.sqrt(distances_proj_origin.sum(axis=2))
 
-        # retrieve the closest obstacle cuboid
-        min_idx = distances_proj_origin.min(axis=1).argmin()
-        self.closest_obstacle_cuboid = obstacle_cuboids[min_idx, :].astype(np.float32)
+        # index of the closest obstacle cuboid
+        min_idx_cuboid = distances_proj_origin.min(axis=1).argmin()
 
-        # retrieve the projections on the closest cuboid and the distances to them
-        self.closest_projections = robot_sklt_projections[min_idx, :, :]
-        self.distances_to_obstacle = distances_proj_origin[min_idx, :]
+        # index of the robot skeleton point that is the closest to the cuboid
+        min_idk_sklt = distances_proj_origin[min_idx_cuboid, :].argmin()
+
+        # get closest projection
+        self.closest_projection = robot_sklt_projections[min_idx_cuboid, min_idk_sklt, :]
+
+        # closest robot skeleton point
+        self.closest_robot_skeleton_point = robot_sklt[min_idk_sklt, :]
+
+        # closest cuboid for debugging
+        self.closest_obstacle_cuboid = obstacle_cuboids[min_idx_cuboid, :].astype(np.float32)
 
         # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
@@ -284,4 +299,4 @@ class PositionCollisionPCR(Goal):
 
             # draw additional line starting from center point
             draw_line(self.closest_obstacle_cuboid[-3:],
-                       self.closest_obstacle_cuboid[-3:] + np.array([0, 0, 0.3]))
+                      self.closest_obstacle_cuboid[-3:] + np.array([0, 0, 0.3]))

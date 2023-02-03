@@ -166,7 +166,6 @@ class ModularDRLEnv(gym.Env):
         for goal in self.goals:
             if goal.add_to_observation_space:
                 observation_space_dict = {**observation_space_dict, **goal.get_observation_space_element()}
-
         self.observation_space = gym.spaces.Dict(observation_space_dict)
 
         # construct action space from robots
