@@ -72,9 +72,11 @@ class PositionCollisionPCR(Goal):
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
-            ret["closest_obstacle_cuboid"] = Box(low=np.array([0, 0, 0, -1, -1, 1]),
-                                                 high=np.array([1.5, 1.5, 1, 1, 1, 2]), shape=(6,),
-                                                 dtype=np.float32)
+            ret["distance_to_target"] = Box(low=0, high=2, shape=(1, ), dtype=np.float32)
+            ret["closest_projections"] = Box(low=np.repeat(np.array([-1, -1, 1])[na, :], 16, axis=0),
+                                               high=np.repeat(np.array([1, 1, 2])[na, :], 16, axis=0),
+                                               shape=(16, 3), dtype=np.float32)
+            ret["distances_to_obstacle"] = Box(low=0, high=2, shape=(16,), dtype=np.float32)
             return ret
         else:
             return {}
@@ -110,7 +112,10 @@ class PositionCollisionPCR(Goal):
     def get_observation(self) -> dict:
         # TODO: implement normalization
         return {"target_position": self.target,
-                "closest_obstacle_cuboid": self.closest_obstacle_cuboid[6:]}
+                "distance_to_target": self.distance,
+                "closest_projections": self.closest_projections,
+                "distances_to_obstacle": self.distances_to_obstacle
+                }
 
     def _set_observation(self):
         # get the data
@@ -238,6 +243,10 @@ class PositionCollisionPCR(Goal):
         # retrieve the closest obstacle cuboid
         min_idx = distances_proj_origin.min(axis=1).argmin()
         self.closest_obstacle_cuboid = obstacle_cuboids[min_idx, :].astype(np.float32)
+
+        # retrieve the projections on the closest cuboid and the distances to them
+        self.closest_projections = robot_sklt_projections[min_idx, :, :]
+        self.distances_to_obstacle = distances_proj_origin[min_idx, :]
 
         # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
