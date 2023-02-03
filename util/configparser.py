@@ -16,7 +16,8 @@ def walk_dict_and_convert_to_our_format(node):
             # robots: robots field for robot definition
             # sensors: sensors field for sensor defitinion, both for robot bound and independet sensors
             # obstacles: obstacles for the generator world type
-            if key == "robots" or key == "sensors" or key == "obstacles":
+            exceptions = ["robots", "sensors", "obstacles", "humans", "shelves"]
+            if key in exceptions:
                 for element in item:
                     walk_dict_and_convert_to_our_format(element)
             # deal with rotations and angles

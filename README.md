@@ -46,4 +46,4 @@ Coming soon:
 
 ## Running the code
 
-To start training or evaluation, run ```python run.py configfile --train|--eval```. configfile should be the path to a valid YAML config file (see the examples in /configs/) while --train and --eval determine the mode the env will run in.
+To start training or evaluation, run ```python run.py configfile --train|--eval|--debug```. configfile should be the path to a valid YAML config file (see the examples in /configs/) while --train, --eval and --debug determine the mode the env will run in.
