@@ -67,7 +67,7 @@ class ModularDRLEnv(gym.Env):
         self.out_of_bounds_stat = [False, False, False, False]
         self.timeout_stat = [False, False, False, False]
         self.collision_stat = [False, False, False, False]
-        self.cumulated_rewards_stat = []
+        self.cumulated_rewards_stat = [0]
         self.goal_metrics = []
         self.reward = 0
         self.reward_cumulative = 0
@@ -314,6 +314,7 @@ class ModularDRLEnv(gym.Env):
         for idx, robot in enumerate(self.robots):
             if not self.active_robots[idx]:
                 action_offset += self.action_space_dims[idx]
+                exec_times_cpu.append(0)
                 continue
             # get the slice of the action vector that belongs to the current robot
             current_robot_action = action[action_offset : self.action_space_dims[idx] + action_offset]
@@ -339,25 +340,28 @@ class ModularDRLEnv(gym.Env):
         timeouts = []
         oobs = []
         action_offset = 0
-        for idx, goal in enumerate(self.goals):
-            # again get the slice of the entire action vector that belongs to the robot/goal in question
-            current_robot_action = action[action_offset : self.action_space_dims[idx] + action_offset]
+        for idx, robot in enumerate(self.robots):
+            goal = robot.goal
+            # only go trough calculations if robot has a goal and it is active
+            if goal is not None and self.active_robots[idx]:
+                # again get the slice of the entire action vector that belongs to the robot/goal in question
+                current_robot_action = action[action_offset : self.action_space_dims[idx] + action_offset]
+                # get reward of goal
+                reward_info = goal.reward(self.steps_current_episode, current_robot_action)  # tuple: reward, success, done, timeout, out_of_bounds
+                rewards.append(reward_info[0])
+                successes.append(reward_info[1])
+                # set respective robot to inactive after success, if needed
+                if reward_info[1] and not goal.continue_after_success:
+                    self.active_robots[idx] = False
+                dones.append(reward_info[2] if not reward_info[1] else False)  # if the goal sends a success signal, we discard it's done signal to allow other robots to continue working; in single robot envs the overall done is still send, see below
+                timeouts.append(reward_info[3])
+                oobs.append(reward_info[4])
             action_offset += self.action_space_dims[idx]
-            # get reward of goal
-            reward_info = goal.reward(self.steps_current_episode, current_robot_action)  # tuple: reward, success, done, timeout, out_of_bounds
-            rewards.append(reward_info[0])
-            successes.append(reward_info[1])
-            # set respective robot to inactive after success, if needed
-            if reward_info[1] and not goal.continue_after_success:
-                self.active_robots[idx] = False
-            dones.append(reward_info[2])
-            timeouts.append(reward_info[3])
-            oobs.append(reward_info[4])
 
         # determine overall env termination condition
         collision = self.world.collision
-        done = np.any(dones) or collision  # one done out of all goals/robots suffices for the entire env to be done or anything collided
         is_success = np.all(successes)  # all goals must be succesful for the entire env to be
+        done = np.any(dones) or collision or is_success  # one done out of all goals/robots suffices for the entire env to be done or anything collided or everything is successful
         timeout = np.any(timeouts)
         out_of_bounds = np.any(oobs)
 

@@ -4,7 +4,7 @@ import pybullet as pyb
 from world.obstacles.human import Human
 from world.obstacles.pybullet_shapes import Box
 from world.obstacles.shelf.shelf import ShelfObstacle
-from random import choice
+from random import choice, sample
 from util.quaternion_util import rotate_vector
 
 __all__ = [
@@ -19,36 +19,30 @@ class KukaShelfExperiment(World):
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
                        env_id: int,
-                       shelves_positions: list,
-                       shelves_rotations: list,
-                       humans_positions: list,
-                       humans_rotations: list,
-                       humans_trajectories: list,
-                       humans_shuffle: bool,
+                       shelves: dict,
+                       shuffle_humans: int,
+                       humans: dict,
+                       obstacles: dict,
                        target_pos_override: list=[],
                        target_rot_override: list=[],
                        start_override: list=[],
                        shelf_params: dict={}):
         super().__init__(workspace_boundaries, sim_step, env_id)
 
-        # positions and rotations of the shelves as numpy arrays
-        self.shelves_position = [np.array(position) for position in shelves_positions]
-        self.shelves_rotations = [np.array(rotation) for rotation in shelves_rotations]
-
-        # initial positions and rotations of the humans as numpy arrays
-        self.humans_positions = [np.array(position) for position in humans_positions]
-        self.humans_rotations = [np.array(rotation) for rotation in humans_rotations]
-        # trajectories of the humans as numpy arrays
-        self.humans_trajectories = [[np.array(position) for position in trajectory] for trajectory in humans_trajectories]
-
         # overrides for the target positions, useful for eval, a random one will be chosen
         self.target_pos_override = [np.array(position) for position in target_pos_override]
         self.target_rot_override = [np.array(rotation) for rotation in target_rot_override]
         self.start_override = [np.array(position) for position in start_override]
 
-        # if this is set to true
-        # we spawn only one human and use the list of positions, rotations and trajectories as possible random starting points
-        self.humans_shuffle = humans_shuffle
+        # get the obstacle setup
+        self.shelf_list = shelves
+        self.human_list = humans
+        self.obstacle_list = obstacles
+
+        # set shuffle mode
+        # if shuffle is larger than 0, instead of spawning all entries in humans
+        # we will spawn a random pick from the available positions
+        self.shuffle_humans = shuffle_humans
 
         # shelf params
         if not shelf_params:
@@ -65,10 +59,11 @@ class KukaShelfExperiment(World):
         # keep track of objects
         self.shelves = []
         self.humans = []
+        self.obstacle_objects = []
 
         # pre initialize the shelves to prevent their URDFs from being generated over and over
-        for position, rotation in zip(self.shelves_position, self.shelves_rotations):
-            shelf = ShelfObstacle(position, rotation, [], 0, self.env_id, self.shelf_params)
+        for shelf_entry in self.shelf_list:
+            shelf = ShelfObstacle(shelf_entry["position"], shelf_entry["rotation"], [], 0, self.env_id, self.shelf_params)
             self.shelves.append(shelf)
 
     def build(self):
@@ -80,16 +75,36 @@ class KukaShelfExperiment(World):
             self.objects_ids.append(shelf.build())
         
         # build humans
-        if not self.humans_shuffle:
-            for position, rotation, trajectory in zip(self.humans_positions, self.humans_rotations, self.humans_trajectories):
-                human = Human(position, rotation, trajectory, self.sim_step * 2, 0.2)
-                self.humans.append(human)
-                self.objects_ids.append(human.build())
+        if self.shuffle_humans == 0:
+            humans_to_build = self.human_list
         else:
-            position, rotation, trajectory = choice(list(zip(self.humans_positions, self.humans_rotations, self.humans_trajectories)))
-            human = Human(position, rotation, trajectory, self.sim_step * 2, 0.2)
+            num = choice(list(range(self.shuffle_humans))) + 1
+            humans_to_build = sample(self.human_list, num)
+        for entry in humans_to_build:
+            human = Human(entry["position"], entry["rotation"], entry["trajectory"], self.sim_step * 2, 0.2)
             self.humans.append(human)
-            self.objects_ids.append(human.build())
+            self.objects_ids.append(human.build()) 
+
+        # build obstacles
+        for entry in self.obstacle_list:
+            x_min, x_max, y_min, y_max, z_min, z_max = entry["zone"]
+            zone_low = [x_min, y_min, z_min]
+            zone_high = [x_max, y_max, z_max]
+            v_min, v_max = entry["velocity"]
+            b_min, b_max, l_min, l_max, h_min, h_max = entry["extents"]
+            extent_low = [b_min, l_min, h_min]
+            extent_high = [b_max, l_max, h_max]
+            random_num = choice(list(range(entry["num"]))) + 1
+            for i in range(random_num):
+                v = np.random.uniform(low=v_min, high=v_max)
+                pos = np.random.uniform(low=zone_low, high=zone_high, size=(3,))
+                traj = []
+                for i in range(3):
+                    traj.append(np.random.uniform(low=zone_low, high=zone_high, size=(3,)))
+                extents = np.random.uniform(low=extent_low, high=extent_high, size=(3,))
+                box = Box(pos, np.array([0, 0, 0, 1]), traj, v * self.sim_step, extents)
+                self.obstacle_objects.append(box)
+                self.objects_ids.append(box.build())
 
     def reset(self, success_rate):
         self.objects_ids = []
@@ -99,6 +114,8 @@ class KukaShelfExperiment(World):
         for human in self.humans:
             del human
         self.humans = []
+        for object in self.obstacle_objects:
+            del object
         self.obstacle_objects = []
     
     def update(self):
@@ -112,7 +129,7 @@ class KukaShelfExperiment(World):
             random_start = choice(self.start_override)
             return [(random_start, None)]
         else:
-            return [(None, None)]
+            return [(None, None) for robot in self.robots_in_world]
 
     def create_position_target(self) -> list:
         if self.target_pos_override:
@@ -121,21 +138,30 @@ class KukaShelfExperiment(World):
             return [random_target]
         else:
             # pick a random shelf from the ones in the sim
-            idx = choice(list(range(len(self.shelves_position))))
-            shelf_pos = self.shelves_position[idx]
-            shelf_rot = self.shelves_rotations[idx]
-            # get random shelf drawer
-            col = choice(list(range(self.shelf_params["cols"])))
-            row = choice(list(range(self.shelf_params["rows"])))
-            # calculate local x y z coordinate
-            z = self.shelf_params["shelf_depth"] / 2  # in the middle of the free space
-            x = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + col * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
-            y = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + row * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
-            local_target = np.array([x, y, z])
-            target = rotate_vector(local_target, shelf_rot) + shelf_pos
-            self.position_targets = [target]
+            targets = []
+            taken_shelf_pos = []
+            for robot in self.robots_in_world:
+                shelf = choice(self.shelf_list)
+                shelf_pos = shelf["position"]
+                shelf_rot = shelf["rotation"]
+                # get random shelf drawer
+                val = False
+                while not val:
+                    col = choice(list(range(self.shelf_params["cols"])))
+                    row = choice(list(range(self.shelf_params["rows"])))
+                    if (col, row) not in taken_shelf_pos:
+                        val = True
+                taken_shelf_pos.append((col, row))
+                # calculate local x y z coordinate
+                z = self.shelf_params["shelf_depth"] / 2  # in the middle of the free space
+                x = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + col * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
+                y = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + row * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
+                local_target = np.array([x, y, z])
+                target = rotate_vector(local_target, shelf_rot) + shelf_pos
+                targets.append(target)
+            self.position_targets = targets
 
-            return [target]
+            return targets
 
     def create_rotation_target(self) -> list:
         if self.target_rot_override:
