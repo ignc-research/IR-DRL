@@ -17,11 +17,11 @@ class ShelfGenerator:
         return cell_idx < len(grid[row_idx]) - 1 and grid[row_idx][cell_idx + 1]
 
     def generate(self):
-        rows = self.params["rows"]
-        columns = self.params["cols"]
-        element_size = self.params["element_size"]
-        shelf_depth = self.params["shelf_depth"]
-        wall_thickness = self.params["wall_thickness"]
+        rows = int(self.params["rows"])
+        columns = int(self.params["cols"])
+        element_size = float(self.params["element_size"])
+        shelf_depth = float(self.params["shelf_depth"])
+        wall_thickness = float(self.params["wall_thickness"])
 
         xy_offset = element_size / 2
         wall_offset = wall_thickness
