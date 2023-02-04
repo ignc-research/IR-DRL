@@ -67,7 +67,7 @@ class LidarSensorUR5(LidarSensor):
         # get the local frames, then use a local definition of the rays to translate them into the global coordinate system
         # end effector forwards ray:
         if "ee_forward" in self.ray_setup:
-            linkState_ee = pyb.getLinkState(self.robot.object_id, 7)
+            linkState_ee = pyb.getLinkState(self.robot.object_id, 6)
             frame_ee = np.eye(4)
             frame_ee[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_ee[5]), (3,3))
             frame_ee[0:3, 3] = linkState_ee[4]
