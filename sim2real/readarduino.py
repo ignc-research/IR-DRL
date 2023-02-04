@@ -31,7 +31,10 @@ serialInst.open()
 
 
 while True:
-	if serialInst.in_waiting:
-		packet = serialInst.readline()
-		print(packet.decode('utf').rstrip('\n'))
-        #TODO: Save it in Yaml File
+    if serialInst.in_waiting:
+        packet = int(serialInst.readline().decode('utf').rstrip('\n'))
+        print(packet)
+        if packet < 50:
+            print("STOP. TOO CLOSE")
+    #TODO: Save it in Yaml File
+    #TODO: Stop at a certain distance
