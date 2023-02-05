@@ -27,6 +27,9 @@ IMPORTANT NOTE: THE INERTIAL PROPERTIES ARE NOT CORRECT (PARTICULARLY THE ORIGIN
       <geometry>
         <mesh filename="stl/chest.stl" scale="1 1 1"/>
       </geometry>
+      <material name="red">
+          <color rgba="1 0 0 1"/>
+       </material>
       <origin rpy="0 0 0" xyz="0 0 0"/>
     </visual>
   </link>
@@ -48,6 +51,9 @@ IMPORTANT NOTE: THE INERTIAL PROPERTIES ARE NOT CORRECT (PARTICULARLY THE ORIGIN
         <mesh filename="stl/belly.stl" scale="1 1 1"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0"/>
+       <material name="red">
+          <color rgba="1 0 0 1"/>
+       </material>
     </visual>
   </link>
 
@@ -69,6 +75,9 @@ IMPORTANT NOTE: THE INERTIAL PROPERTIES ARE NOT CORRECT (PARTICULARLY THE ORIGIN
       <geometry>
         <mesh filename="stl/pelvis.stl" scale="1 1 1"/>
       </geometry>
+      <material name="red">
+          <color rgba="1 0 0 1"/>
+       </material>
       <origin rpy="0 0 0" xyz="0 0 0"/>
     </visual>
   </link>
@@ -91,6 +100,9 @@ IMPORTANT NOTE: THE INERTIAL PROPERTIES ARE NOT CORRECT (PARTICULARLY THE ORIGIN
       <geometry>
         <mesh filename="stl/leg_right.stl" scale="1 1 1"/>
       </geometry>
+      <material name="green">
+          <color rgba="0 1 0 1"/>
+       </material>
       <origin rpy="0 0 0" xyz="0 0 0"/>
     </visual>
   </link>
@@ -114,6 +126,9 @@ IMPORTANT NOTE: THE INERTIAL PROPERTIES ARE NOT CORRECT (PARTICULARLY THE ORIGIN
         <mesh filename="stl/leg_left.stl" scale="1 1 1"/>
       </geometry>
       <origin rpy="0 0 0" xyz="0 0 0"/>
+      <material name="green">
+          <color rgba="0 1 0 1"/>
+       </material>
     </visual>
   </link>
 
