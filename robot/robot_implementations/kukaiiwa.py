@@ -23,11 +23,11 @@ class Kukaiiwa(Robot):
         self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300., 300.])
         self.joints_max_velocities = np.deg2rad(np.array([98., 98., 100., 130., 140., 180., 180.]))
 
-        self.end_effector_link_id = 7
+        self.end_effector_link_id = 6
         self.base_link_id = 0
 
     def get_action_space_dims(self):
-        return (7, 7)  # 7 joints
+        return (7, 6)  # 7 joints
 
     def build(self):
         self.object_id = pyb.loadURDF("robots/predefined/kuka_iiwa/model.urdf",
