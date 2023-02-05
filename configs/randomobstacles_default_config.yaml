@@ -3,9 +3,9 @@ run:
   load_model: False
   model_path: "models/weights/PPO_K2I/model_64000_steps.zip"
   train:
-    num_envs : 16  
+    num_envs : 8  
     timesteps: 15000000 
-    save_freq : 200
+    save_freq : 30000
     save_folder: "./models/weights"  
     save_name: "ur5_1"
     recurrent: False
