@@ -22,3 +22,4 @@ class RobotRegistry:
 
 RobotRegistry.register('UR5')(UR5)
 RobotRegistry.register('KR16')(KR16)
+RobotRegistry.register('Kukaiiwa')(Kukaiiwa)
