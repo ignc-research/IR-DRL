@@ -115,6 +115,7 @@ if __name__ == "__main__":
                 obs, reward, done, info = env.step(act)
                 episode_starts = done
                 if args.debug:
+                    env.manual_control()
                     print("--------------")
                     print("Env observation:")
                     print(obs)

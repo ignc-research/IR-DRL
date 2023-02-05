@@ -27,7 +27,7 @@ class Kukaiiwa(Robot):
         self.base_link_id = 0
 
     def get_action_space_dims(self):
-        return (6, 6)  # 7 joints
+        return (7, 6) #Erster Wert wird genommen wenn cm mode = 0, 2. wert wenn != 0 # 7 joints
 
     def build(self):
         self.object_id = pyb.loadURDF("robots/predefined/kuka_iiwa/model.urdf",

@@ -110,7 +110,7 @@ class ModularDRLEnv(gym.Env):
                 jv = robo_entry["report_joint_velocities"]
             else:
                 jv = False
-            joint_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
+            joint_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": False, 
                                  "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot, "add_joint_velocities": jv}
             posrot_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
                                  "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot,

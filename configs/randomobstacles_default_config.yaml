@@ -5,9 +5,9 @@ run:
   train:
     num_envs : 16  
     timesteps: 15000000 
-    save_freq : 1000
+    save_freq : 200
     save_folder: "./models/weights"  
-    save_name: "PPO_K2I"
+    save_name: "ur5_1"
     recurrent: False
     ppo_steps: 1024  
     batch_size: 512
@@ -42,15 +42,15 @@ env:
   physics_steps_per_env_step: 1
   sim_step: 0.00416666666  
   stat_buffer_size: 25  
-  normalize_observations: False
+  normalize_observations: True
   normalize_rewards: False
   robots:
-    - type: "Kukaiiwa"
+    - type: "UR5"
       config:
         name: "ur5_1"
         base_position: [0, -0.12, 0.5]
         base_orientation: [0, 0, 0]
-        resting_angles: [0, 90, -30, -120, -80, 90, 90]
+        resting_angles: [0, 90, -30, -120, -80, 90]
         control_mode: 0
         xyz_delta: 0.005
         rpy_delta: 0.005
@@ -65,10 +65,10 @@ env:
             ray_end: 0.3
             ray_setup:
               ee_forward: [1, 1]
-              wrist3_circle: [10, 10]
-              wrist2_circle: [10, 10]
-              wrist1_circle: [10, 10]
-              upper_arm: [10, 10]
+              wrist3_circle: [5, 1]
+              wrist2_circle: [5, 1]
+              wrist1_circle: [5, 1]
+              upper_arm: [5, 1]
             render: False
             indicator: True
       goal:
