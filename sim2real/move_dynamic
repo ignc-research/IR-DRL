@@ -24,6 +24,7 @@ from cartesian_control_msgs.msg import (
 
 #TODO: calibration.yaml as object and print
 #TODO: find out joint winkel and save them as object
+#TODO: log joint time
 
 # Compatibility for python2 and python3
 if sys.version_info[0] < 3:
@@ -110,7 +111,7 @@ class TrajectoryClient:
         #Diese beiden nachfolgenden Befehle muessen ausgefuehrt werden, sonst wird die position liste nicht akzeptiert, da nicht anerkannt wird, dass sie float ist
         position = [[float(i) for i in sublist] for sublist in position]
         position = [i for sublist in position for i in sublist]
-        duration = [0.025]
+        duration = [3.0]
         #TODO: minimum finden
 
         while True: 
