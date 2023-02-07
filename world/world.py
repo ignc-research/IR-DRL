@@ -101,13 +101,40 @@ class World(ABC):
     def build_visual_aux(self):
         """
         This method should add objects that are not necessary to the purpose of the world and useful only for visual quality.
-        This could include things like lines marking the boundaries of the workspace.
+        By default, this method will mark the workspace boundaries, but you can extend it in your subclasses as you need.
         Visual objects related to a goal should be implemented by that goal.
         (This is because the world should be usable with all sorts of goals, even those that need different visualizations for their goals,
         e.g. a target sphere vs. a target cube)
-        Objects built here should NOT be added to self.object_ids but to self.aux_object_ids.
+        Objects built here should NOT be added to self.object_ids but to self.aux_object_ids. Dont forget to reset self.aux_object_ids in your reset methods.
         """
-        pass
+        a = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+                                lineToXYZ=[self.x_min, self.y_min, self.z_max])
+        b = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
+        c = pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
+        d = pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+
+        e = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
+        f = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+        g = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
+        h = pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+        
+        i = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_min])
+        j = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
+        k = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_min])
+        l = pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
+
+        self.aux_object_ids += [a, b, c, d, e, f, g, h, i, j, k , l]
     
     @abstractmethod
     def update(self):

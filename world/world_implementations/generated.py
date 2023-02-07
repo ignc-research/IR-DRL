@@ -99,6 +99,7 @@ class GeneratedWorld(World):
         for object in self.obstacle_objects:
             del object
         self.obstacle_objects = []
+        self.aux_object_ids = []
 
     def update(self):
         for obstacle in self.obstacle_objects:

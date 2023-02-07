@@ -28,7 +28,8 @@ class PositionCollisionGoal(Goal):
                        dist_threshold_end=1e-2,
                        dist_threshold_increment_start=1e-2,
                        dist_threshold_increment_end=1e-3,
-                       dist_threshold_overwrite:float=None):
+                       dist_threshold_overwrite:float=None,
+                       dist_threshold_change:float=0.8):
         super().__init__(robot, normalize_rewards, normalize_observations, train, True, add_to_logging, max_steps, continue_after_success)
 
         # set output name for observation space
@@ -53,6 +54,7 @@ class PositionCollisionGoal(Goal):
         self.distance_threshold_end = dist_threshold_end
         self.distance_threshold_increment_start = dist_threshold_increment_start
         self.distance_threshold_increment_end = dist_threshold_increment_end
+        self.distance_threshold_change = dist_threshold_change
 
         # set up normalizing constants for faster normalizing
         #     reward
@@ -179,9 +181,9 @@ class PositionCollisionGoal(Goal):
             # calculate increment
             ratio_start_end = (self.distance_threshold - self.distance_threshold_end) / (self.distance_threshold_start - self.distance_threshold_end)
             increment = (self.distance_threshold_increment_start - self.distance_threshold_increment_end) * ratio_start_end + self.distance_threshold_increment_end
-            if success_rate > 0.8 and self.distance_threshold > self.distance_threshold_end:
+            if success_rate > self.distance_threshold_change and self.distance_threshold > self.distance_threshold_end:
                 self.distance_threshold -= increment
-            elif success_rate < 0.8 and self.distance_threshold < self.distance_threshold_start:
+            elif success_rate < self.distance_threshold_change and self.distance_threshold < self.distance_threshold_start:
                 #self.distance_threshold += increment / 25  # upwards movement should be slower # DISABLED
                 pass
             if self.distance_threshold > self.distance_threshold_start:

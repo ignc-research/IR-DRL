@@ -37,11 +37,13 @@ Implemented:
 - Worlds (Scenarios):
     - Random Obstacles (Yifan)
     - Table Experiment with humans and random obstacles
+    - Kuka Shelf experiment
+    - World Generator
+    - Test Cases
 - Goal:
     - Position goal with collision avoidance (Yifan)
 
 Coming soon:
-- the three old testcases (one plate, two plates, moving plate)
 - variations of the testcases (different directions and angles)
 
 ## Running the code

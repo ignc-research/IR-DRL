@@ -149,6 +149,7 @@ class TableExperiment(World):
             del obstacle
         self.obstacle_objects = []
         self.humans = []
+        self.aux_object_ids = []
 
         if self.obstacle_training_schedule:
             if success_rate < 0.2:
