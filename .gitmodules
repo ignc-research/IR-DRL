@@ -1,0 +1,3 @@
+[submodule "submodules/pybullet-blender-recorder"]
+	path = submodules/pybullet-blender-recorder
+	url = https://github.com/huy-ha/pybullet-blender-recorder.git
