@@ -55,6 +55,7 @@ class Robot(ABC):
         self.base_link_id = None
 
         # PyBullet and URDF related variables
+        self.urdf_path = None  # set in subclass, should be the relative path to the robot's URDF file
         self.object_id = None  # PyBullet object id
         self.joints_ids = []  # array of joint ids, this gets filled at runtime
         self.joints_limits_lower = []  # this and the two below you have to fill for yourself in the subclass in __init__

@@ -8,3 +8,7 @@ pybullet==3.2.5
 tensorboard==2.11.2
 zennit==0.5.0
 mazelib==0.9.13
+PySimpleGUI==4.60.4
+urdfpy==0.0.22
+transforms3d==0.4.1
+networkx==3.0

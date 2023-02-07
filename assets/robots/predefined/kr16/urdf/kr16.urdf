@@ -25,7 +25,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="./meshes/collision/base_link.stl"/>
+        <mesh filename="../meshes/collision/base_link.stl"/>
       </geometry>
     </collision>
   </link>
@@ -48,7 +48,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="./meshes/collision/link_1.stl"/>
+        <mesh filename="../meshes/collision/link_1.stl"/>
       </geometry>
     </collision>
   </link>
@@ -71,7 +71,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="./meshes/collision/link_2.stl"/>
+        <mesh filename="../meshes/collision/link_2.stl"/>
       </geometry>
     </collision>
   </link>
@@ -94,7 +94,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="./meshes/collision/link_3.stl"/>
+        <mesh filename="../meshes/collision/link_3.stl"/>
       </geometry>
     </collision>
   </link>
@@ -117,7 +117,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="./meshes/collision/link_4.stl"/>
+        <mesh filename="../meshes/collision/link_4.stl"/>
       </geometry>
     </collision>
   </link>
@@ -140,7 +140,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="./meshes/collision/link_5.stl"/>
+        <mesh filename="../meshes/collision/link_5.stl"/>
       </geometry>
     </collision>
   </link>
@@ -163,7 +163,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="./meshes/collision/link_6.stl"/>
+        <mesh filename="../meshes/collision/link_6.stl"/>
       </geometry>
     </collision>
   </link>

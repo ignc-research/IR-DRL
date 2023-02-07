@@ -14,16 +14,18 @@ class CameraHolderUR5(Robot):
         self.end_effector_link_id = 7
         self.base_link_id = 1
 
+        self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300.])
+        self.joints_max_velocities = np.array([10., 10., 10., 10., 10., 10.])
+
+        self.urdf_path = "ur5/urdf/ur5.urdf"
+
     def get_action_space_dims(self):
         return (1,1)  # 6 joints
 
     def build(self):
 
-        self.object_id = pyb.loadURDF("ur5/urdf/ur5.urdf", basePosition=self.base_position.tolist(), baseOrientation=self.base_orientation.tolist(), useFixedBase=True)
+        self.object_id = pyb.loadURDF(self.urdf_path, basePosition=self.base_position.tolist(), baseOrientation=self.base_orientation.tolist(), useFixedBase=True)
         joints_info = [pyb.getJointInfo(self.id, i) for i in range(pyb.getNumJoints(self.id))]
         self.joints_ids = np.array([j[0] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
-
-        self.joints_forces = np.array([j[10] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
-        self.joints_vel_delta = np.array([j[11] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
 
         self.moveto_joints(self.resting_pose_angles, False) 

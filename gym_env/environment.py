@@ -3,6 +3,7 @@ import numpy as np
 import pybullet as pyb
 from time import process_time
 import pandas as pd
+from submodules.pybullet_blender_recorder.pyBulletSimRecorder import PyBulletRecorder
 
 # import abstracts
 from robot.robot import Robot
@@ -43,6 +44,9 @@ class ModularDRLEnv(gym.Env):
         self.max_episodes = env_config["max_episodes"]  
         # 0: no logging, 1: logging for console every episode, 2: logging for console every episode and to csv after maximum number of episodes has been reached or after every episode if max_episodes is -1
         self.logging = env_config["logging"] 
+        # dict for determining whether and how to use the pybullet recorder plugin, always off for training
+        self.pybullet_recorder_settings = env_config["pybullet_recorder"]
+        self.pybullet_blender_recorder = None
         # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
         self.use_physics_sim = env_config["use_physics_sim"]  
         # when using the physics sim, this is the amount of steps that we let pass per env step
@@ -76,7 +80,8 @@ class ModularDRLEnv(gym.Env):
         disp = pyb.DIRECT if not self.display else pyb.GUI
         pyb.connect(disp)
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS,0)
-        pyb.setAdditionalSearchPath("./assets/")
+        self.assets_path = "./assets/"
+        pyb.setAdditionalSearchPath(self.assets_path)
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
 
@@ -278,6 +283,12 @@ class ModularDRLEnv(gym.Env):
             for goal in self.goals:
                 goal.build_visual_aux()
 
+        # set up the pybullet blender recorder if wanted
+        if self.pybullet_recorder_settings["use"]:
+            self.pybullet_blender_recorder = PyBulletRecorder()
+            for robot in self.robots:
+                self.pybullet_blender_recorder.register_object(robot.object_id, self.assets_path + robot.urdf_path, self.pybullet_recorder_settings["scale"])
+
         # turn rendering back on
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
@@ -375,6 +386,10 @@ class ModularDRLEnv(gym.Env):
             self.reward = np.sum(rewards)
         self.reward_cumulative += self.reward
 
+        # handle pybullet blender recorder
+        if self.pybullet_recorder_settings["use"]:
+            self.pybullet_blender_recorder.add_keyframe()
+
         # update tracking variables and stats
         self.cpu_time = process_time() - self.cpu_epoch
         self.steps_current_episode += 1
@@ -395,6 +410,11 @@ class ModularDRLEnv(gym.Env):
             if len(self.cumulated_rewards_stat) > self.stat_buffer_size:
                 self.cumulated_rewards_stat.pop(0)
 
+            # dump pybullet recorder for this episode
+            if self.pybullet_recorder_settings["use"]:
+                self.pybullet_blender_recorder.save(self.pybullet_recorder_settings["save_path"] + "_" + str(self.episode) + ".pkl")
+
+        # handle logging
         if self.logging == 0:
             # no logging
             info = {}

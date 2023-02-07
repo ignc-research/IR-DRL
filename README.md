@@ -15,6 +15,8 @@ This repo implements a modular Gym env in which all relevant components, i.e. ro
 - tensorboard
 - zennit
 - mazelib
+- PySimpleGUI
+- urdfpy
 
 Once python is installed, you can use ```pip install -r requirements.txt``` to install the above packages in versions that work with the code in this repo.
 
