@@ -3,7 +3,6 @@ import numpy as np
 import pybullet as pyb
 from time import process_time
 import pandas as pd
-from submodules.pybullet_blender_recorder.pyBulletSimRecorder import PyBulletRecorder
 
 # import abstracts
 from robot.robot import Robot
@@ -285,9 +284,7 @@ class ModularDRLEnv(gym.Env):
 
         # set up the pybullet blender recorder if wanted
         if self.pybullet_recorder_settings["use"]:
-            self.pybullet_blender_recorder = PyBulletRecorder()
-            for robot in self.robots:
-                self.pybullet_blender_recorder.register_object(robot.object_id, self.assets_path + robot.urdf_path, self.pybullet_recorder_settings["scale"])
+            pass  # REIMPLEMENT LATER
 
         # turn rendering back on
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
@@ -388,7 +385,7 @@ class ModularDRLEnv(gym.Env):
 
         # handle pybullet blender recorder
         if self.pybullet_recorder_settings["use"]:
-            self.pybullet_blender_recorder.add_keyframe()
+            pass  # REIMPLEMENT LATER
 
         # update tracking variables and stats
         self.cpu_time = process_time() - self.cpu_epoch
@@ -412,7 +409,7 @@ class ModularDRLEnv(gym.Env):
 
             # dump pybullet recorder for this episode
             if self.pybullet_recorder_settings["use"]:
-                self.pybullet_blender_recorder.save(self.pybullet_recorder_settings["save_path"] + "_" + str(self.episode) + ".pkl")
+                pass  # REIMPLEMENT LATER
 
         # handle logging
         if self.logging == 0:

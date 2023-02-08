@@ -1,6 +1,0 @@
-[submodule "submodules/pybullet-blender-recorder"]
-	path = submodules/pybullet_blender_recorder
-	url = https://github.com/huy-ha/pybullet-blender-recorder.git
-[submodule "submodules/urdfpy"]
-	path = submodules/urdfpy
-	url = https://github.com/mmatl/urdfpy.git
