@@ -5,7 +5,7 @@ run:
   model_path: ""
   reset_num_timesteps: True
   train:
-    num_envs : 30
+    num_envs : 16
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"
@@ -57,7 +57,7 @@ env:
             position: [0, 0, 2.2]
             target: [0, 0, 0]
             orientation: None
-            objects_to_remove: [-1, 0, 1, 10]  # remove background, floor, robot and target point
+            objects_to_remove: [-1, 0, 1, 4]  # remove background, floor, robot and target point
             camera_args: {type: "ds", fov: 100, width: 126, height: 126, up_vector: [0, 1, 0], near_val: 0.05, far_val: 1.2}
             debug: None
             name: "PCR_camera"
@@ -98,9 +98,9 @@ env:
     type: "TableExperiment"
     config:
       workspace_boundaries: [-2, 2, -2, 2, 0, 5]
-      num_obstacles: 5
+      num_obstacles: 1
       obstacle_velocities: []
-      num_humans: 2
+      num_humans: 0
       human_positions: [[1.6, 0, 1.4], [1.6, 0, 1.4]]
       human_rotations: [[0, 0, 0], [0, 0, 90]]
       human_trajectories: [[[-2, 2, 1.4], [2, 2, 1.5]], []]
