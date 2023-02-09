@@ -111,8 +111,8 @@ class StaticPointCloudCamera(CameraBase):
             self.depth[:] = torch.asarray(depth)
             self.seg_img_full[:] = torch.asarray(seg)
         else:
-            self.depth[:] = depth
-            self.seg_img_full[:] = seg
+            self.depth[:] = np.asarray(depth).flatten()
+            self.seg_img_full[:] = np.asarray(seg).flatten()
 
         return self.depth, self.seg_img_full
 
