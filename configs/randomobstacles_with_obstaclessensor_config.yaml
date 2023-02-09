@@ -1,0 +1,93 @@
+# config that builds the env as Yifan had it
+run:
+  load_model: False  
+  model_path: "./models/weights/PPO_default/model_21120000_steps.zip"  
+  train:
+    num_envs : 16  
+    timesteps: 15000000 
+    save_freq : 30000
+    save_folder: "./models/weights"  
+    save_name: "PPO_obstaclesensor"
+    recurrent: False
+    ppo_steps: 1024  
+    batch_size: 512
+    gamma: 0.995 
+    tensorboard_folder: "./models/tensorboard_logs"
+    custom_policy:
+      use: False
+      activation_function: "ReLU"  
+      layers:
+        - 128
+        - 128
+        - value_function:
+          - 64
+        - policy_function:
+          - 32
+          - 32
+          - 16   
+      lstm:
+        lstm_hidden_size: 512
+        n_lstm_layers: 2
+        shared_lstm: False
+        enable_critic_lstm: True
+
+  eval:
+    max_episodes: -1  
+    logging: 1  
+    display_delay: 0.00416666666 
+    pybullet_recorder:
+      use: False
+      save_path: "demo"
+      scale: 1
+
+env:
+  max_steps_per_episode: 1024  
+  use_physics_sim: True  # strictly speaking the original code had this at False
+  physics_steps_per_env_step: 1
+  sim_step: 0.00416666666  
+  stat_buffer_size: 25  
+  normalize_observations: False
+  normalize_rewards: False
+  robots:
+    - type: "UR5" 
+      config:
+        name: "ur5_1"
+        base_position: [0, -0.12, 0.5]
+        base_orientation: [0, 0, 0]
+        resting_angles: [0, 90, -30, -120, -80, 90]
+        control_mode: 2
+        xyz_delta: 0.005
+        rpy_delta: 0.005
+      sensors:
+        - type: "Obstacle"
+          config:
+            update_steps: 1
+            add_to_observation_space: True
+            add_to_logging: True
+            num_obstacles: 4
+            max_distance: 5
+      goal:
+        type: "PositionCollision"
+        config:
+          add_to_logging: True
+          continue_after_success: True
+          reward_success: 20
+          reward_collision: -5
+          reward_distance_mult: -0.01
+          dist_threshold_start: 0.4
+          dist_threshold_end : 0.01
+          dist_threshold_increment_start: 0.01
+          dist_threshold_increment_end: 0.001
+          dist_threshold_overwrite:
+
+  world:
+    type: "RandomObstacle"
+    config:
+      workspace_boundaries: [-0.4, 0.4, 0.3, 0.7, 0.2, 0.5]
+      num_static_obstacles: 3
+      num_moving_obstacles: 1
+      box_measurements: [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
+      sphere_measurements: [0.005, 0.02]
+      moving_obstacles_vels: [0.5, 2]
+      moving_obstacles_directions: []
+      moving_obstacles_trajectory_length: [0.05, 0.75]
