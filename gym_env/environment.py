@@ -258,7 +258,7 @@ class ModularDRLEnv(gym.Env):
         # call the goals' update routine and get their metrics, if they exist
         self.goal_metrics = []
         for goal in self.goals:
-            self.goal_metrics.append(goal.on_env_reset(np.average(self.success_stat)))
+            self.goal_metrics.append(goal.on_env_reset(np.average(self.success_stat), self.episode))
 
         # render non-essential visual stuff
         if self.show_auxillary_geometry_world:

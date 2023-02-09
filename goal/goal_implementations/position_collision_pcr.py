@@ -82,7 +82,8 @@ class PositionCollisionPCR(Goal):
         else:
             return {}
 
-    def on_env_reset(self, success_rate):
+    def on_env_reset(self, success_rate, episode):
+        print(episode)
         t = time.time()
         self.timeout = False
         self.is_success = False
@@ -92,7 +93,7 @@ class PositionCollisionPCR(Goal):
         # set the distance threshold according to the success of the training
         # set observations
         self._set_observation()
-        if self.train:
+        if self.train and episode % 25 == 0:
             # calculate increment
             ratio_start_end = (self.distance_threshold - self.distance_threshold_end) / (
                     self.distance_threshold_start - self.distance_threshold_end)
