@@ -98,7 +98,7 @@ env:
     type: "TableExperiment"
     config:
       workspace_boundaries: [-2, 2, -2, 2, 0, 5]
-      num_obstacles: 1
+      num_obstacles: 0
       obstacle_velocities: []
       num_humans: 0
       human_positions: [[1.6, 0, 1.4], [1.6, 0, 1.4]]
@@ -110,3 +110,4 @@ env:
       obstacle_positions: []
       obstacle_trajectories: []
       obstacle_training_schedule: False
+      targets_path: "targets.txt"

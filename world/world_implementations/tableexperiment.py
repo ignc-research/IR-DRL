@@ -75,6 +75,12 @@ class TableExperiment(World):
 
         # wether num obstacles will be overwritten automatically depending on env success rate, might be useful for training
         self.obstacle_training_schedule = world_config["obstacle_training_schedule"]
+
+        # load targets
+        if world_config["targets_path"] is not None:
+            self.targets = np.loadtxt(world_config["targets_path"])
+        else:
+            self.targets = None
         
     def build(self):
         # ground plate
@@ -207,11 +213,10 @@ class TableExperiment(World):
     def create_position_target(self) -> list:
         # in contrast to other worlds, we will not check if for robots that need goals
         # this world only supports one robot with a position goal
-
         # use the preset targets if there are some
-        if self.targets:
-            self.position_targets = self.targets
-            return self.targets
+        if self.targets is not None:
+            idx = np.random.randint(0, len(self.targets))
+            return self.targets[idx, :]
         # otherwise generate randomly
         else:
             while True:
