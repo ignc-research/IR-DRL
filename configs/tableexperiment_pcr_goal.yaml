@@ -1,15 +1,15 @@
 # implements improved version of "Robot obstacle avoidance system using deep
 # reinforcement learning" for table experiment
 run:
-  load_model: False
-  model_path: ""
+  load_model: True
+  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/PPO__2400000_steps"
   reset_num_timesteps: True
   train:
     num_envs : 16
     timesteps: 8000000
     save_freq : 30000
     save_folder: "./models/weights"
-    save_name: "PPO"
+    save_name: "PPO2"
     ppo_steps: 1024  
     batch_size: 2048
     gamma: 0.95
