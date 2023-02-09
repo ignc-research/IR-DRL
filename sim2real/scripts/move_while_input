@@ -1,5 +1,32 @@
 #!/usr/bin/env python
 
+# -- BEGIN LICENSE BLOCK ----------------------------------------------
+# Copyright 2021 FZI Forschungszentrum Informatik
+# Created on behalf of Universal Robots A/S
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# -- END LICENSE BLOCK ------------------------------------------------
+#
+# ---------------------------------------------------------------------
+# !\file
+#
+# \author  Felix Exner mauch@fzi.de
+# \date    2021-08-05
+#
+#
+# ---------------------------------------------------------------------
+
+
 # Notes Karim: ask confirmation wurde rausgenommen for purposes of geschwindigkeit. function is still there just not used at the moment. 
 # if needed it can be reintegratet in the move_simple function
 
@@ -7,7 +34,6 @@
 import sys
 import yaml 
 import time
-import random
 import rospy
 import actionlib
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
@@ -21,10 +47,6 @@ from cartesian_control_msgs.msg import (
     FollowCartesianTrajectoryGoal,
     CartesianTrajectoryPoint,
 )
-
-#TODO: calibration.yaml as object and print
-#TODO: find out joint winkel and save them as object
-#TODO: log joint time
 
 # Compatibility for python2 and python3
 if sys.version_info[0] < 3:
@@ -107,12 +129,11 @@ class TrajectoryClient:
         goal = FollowJointTrajectoryGoal()
         goal.trajectory.joint_names = JOINT_NAMES
     
-        position= [[0, -1.57, -1.57, 0, 0, 0]]
+        position= [[1.57, -1.57, -1.57, 0, 0, 0]]
         #Diese beiden nachfolgenden Befehle muessen ausgefuehrt werden, sonst wird die position liste nicht akzeptiert, da nicht anerkannt wird, dass sie float ist
         position = [[float(i) for i in sublist] for sublist in position]
         position = [i for sublist in position for i in sublist]
-        duration = [3.0]
-        #TODO: minimum finden
+        duration = [5.0]
 
         while True: 
             #erste bereits vorgegebene Bewegung ausfuhren
@@ -124,17 +145,22 @@ class TrajectoryClient:
             if con.lower() != "y":
                 break
             else: 
-                position = self.generate_waypoint()
+                position = self.read_position()
+                #Diese beiden nachfolgenden Befehle muessen ausgefuehrt werden, sonst wird die position liste nicht akzeptiert 
+                #position = [[float(i) for i in sublist] for sublist in position]
+                #position = [i for sublist in position for i in sublist]
                 print("The position is: " + str(position) + " do you want to moveit it?")
-                duration = [2.0]
+                input("stop")
+                duration = [5.0]
                 self.move_simple(position,duration)
-                
+                break
 
     
     ###############################################################################################
     #                                                                                             #
-    # methods below are optional. All of them are useful, but not all are necesseraly needed,     #
-    # depending on the given usecase                                                                   #
+    # Methods defined below are for the sake of safety / flexibility of this demo script only.    #
+    # If you just want to copy the relevant parts to make your own motion script you don't have   #
+    # to use / copy all the functions below.                                                       #
     #                                                                                             #
     ###############################################################################################
 
@@ -170,17 +196,17 @@ class TrajectoryClient:
         rospy.loginfo("Executing trajectory using the {}".format(self.joint_trajectory_controller))
 
         trajectory_client.send_goal(goal)
-        #trajectory_client.wait_for_result()
+        trajectory_client.wait_for_result()
 
-        #result = trajectory_client.get_result()
-        #rospy.loginfo("Trajectory execution finished in state {}".format(result.error_code))
+        result = trajectory_client.get_result()
+        rospy.loginfo("Trajectory execution finished in state {}".format(result.error_code))
 
     ########## end #########
 
 
 
     def read_position(self):
-        path = 'src/waypointdata'
+        path = '/home/marktschreier/Desktop/Real-Life-Deployment/waypointdata/'
         file_name = 'waypoints.yaml'
         waypoint_list = []
 
@@ -196,26 +222,6 @@ class TrajectoryClient:
 
 
 
-    def generate_waypoint(self):
-        #file_path = '/home/marktschreier/Desktop/Real-Life-Deployment/waypointdata/waypoints.yaml'
-        file_path = 'src/waypointdata/waypoints.yaml'
-        duration_path = 'src/waypointdata/duration.yaml'
-        waypoint_list = []
-        duration_list=[]
-        x = round((-2 + (random.random()*2))*100)/100
-        y = round((-2 + (random.random()*2))*100)/100
-        z = round((-2 + (random.random()*2))*100)/100
-        
-        waypoint = [x,y,z,0,0,0]
-        print(waypoint)
-        waypoint_list.append(waypoint)
-        duration_list.append(5.0)
-        with open(file_path,'w') as f:
-            yaml.dump(waypoint_list,f,default_flow_style=False)
-            with open(duration_path,'w') as f:
-                yaml.dump(duration_list,f,default_flow_style=False)
-        return waypoint
-  
 
     def ask_confirmation(self, waypoint_list):
         """Ask the user for confirmation. This function is obviously not necessary, but makes sense
