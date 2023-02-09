@@ -3,7 +3,9 @@ import time
 from argparse import ArgumentParser
 from configs.configparser import parse_config
 from gym_env.environment import ModularDRLEnv
-
+import pybullet as pyb
+import numpy as np
+from motion_planner.rrt_planner import RRT
 # parse the three arguments
 parser = ArgumentParser(prog="Modular DRL Robot Gym Env",
                         description = "Builds and runs a modular gym env for simulated robots using a config file.")
@@ -17,9 +19,24 @@ args = parser.parse_args()
 run_config, env_config = parse_config(args.configfile, args.train)
 testo = ModularDRLEnv(env_config)
 
+
 while True:
     obs = testo.reset()
     done = False
     while not done:
         obs, reward, done, info = testo.step(testo.action_space.sample())
+        target = testo.world.position_targets[0]
+        robot = testo.robots[0]
+
+        # see if there is a collision free trajectory towards the goal
+        #rrt = RRT(robot.id, robot.joints_ids, [2], 7, max_iterations=10000, f=3)
+        #joint_pos = rrt.compute_trajectory(robot.resting_pose_angles, target)
+        #if joint_pos is not None:
+        #    print(target)
+        #    with open("targets.txt", "a") as f:
+         #       f.write(f"{target[0]} {target[1]} {target[2]}\n")
+
+
+
+
 

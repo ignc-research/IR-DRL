@@ -6,7 +6,7 @@ from numpy import newaxis as na
 import time
 
 
-class PositionCollisionPCR(Goal):
+class PositionCollisionPCR2(Goal):
     """
     This class implements a goal of reaching a certain position while avoiding collisions using a point cloud and robot
     skeleton sensor.
@@ -72,12 +72,12 @@ class PositionCollisionPCR(Goal):
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
-            ret["distance_to_target"] = Box(low=0, high=2, shape=(1,), dtype=np.float32)
-            ret["closest_projection"] = Box(low=np.array([-1, -1, 1]),
-                                            high=np.array([1, 1, 2]),
+            ret["ee_target_delta"] = Box(low=np.array([-2, -2, -1], dtype=np.float32),
+                                         high=np.array([2, 2, 1], dtype=np.float32),
+                                         shape=(3,), dtype=np.float32)
+            ret["closest_projection"] = Box(low=np.array([0, -np.pi / 2, 0]),
+                                            high=np.array([1.5, np.pi / 2, np.pi]),
                                             shape=(3,), dtype=np.float32)
-            ret["shortest_distance_to_obstacle"] = Box(low=0, high=2, shape=(1,), dtype=np.float32)
-            ret["closest_robot_skeleton_point"] = Box(low=np.array([-1, -1, 1]), high=np.array([1, 1, 2]), shape=(3,))
             return ret
         else:
             return {}
@@ -115,9 +115,8 @@ class PositionCollisionPCR(Goal):
         return {"end_effector_position": self.position,
                 "target_position": self.target,
                 "distance_to_target": self.distance,
-                "closest_projection": self.closest_projection,
-                "shortest_distance_to_obstacle": np.array([self.min_distance_to_obstacles]),
-                "closest_robot_skeleton_point": self.closest_robot_skeleton_point
+                "ee_target_delta": self.ee_target_delta,
+                "closest_projection": self.closest_projection
                 }
 
     def _set_observation(self):
@@ -125,6 +124,7 @@ class PositionCollisionPCR(Goal):
         self.position = self.robot.position_rotation_sensor.position
         self.target = self.robot.world.position_targets[self.robot.id].astype(np.float32)
         dif = self.target - self.position
+        self.ee_target_delta = self.position - self.target
         self.distance = np.array([np.linalg.norm(dif)])
         self._set_min_distance_to_obstacle_and_closest_points()
 
@@ -138,10 +138,9 @@ class PositionCollisionPCR(Goal):
 
         # set parameters
         lambda_1 = 1
-        lambda_2 = 15
+        lambda_2 = 1
+        d_min = 0.13
         lambda_3 = 0.06
-        k = 8
-        d_ref = 0.33
 
         # set observations
         self._set_observation()
@@ -149,7 +148,8 @@ class PositionCollisionPCR(Goal):
         # reward for distance to target
         R_E_T = -self.distance[0]
         # reward for distance to obstacle
-        R_R_O = -(d_ref / (self.min_distance_to_obstacles + d_ref)) ** k
+        R_R_O = -1.5 if self.min_distance_to_obstacles < d_min else 0
+
 
         # reward for motion change
         R_A = - np.sum(np.square(action))
@@ -256,6 +256,16 @@ class PositionCollisionPCR(Goal):
 
         # get closest projection
         self.closest_projection = robot_sklt_projections[min_idx_cuboid, min_idk_sklt, :]
+
+        # transform closest projection into spherical coordinates with respect to the end effector position
+        delta = self.position - self.closest_projection
+        if np.any(delta == 0):
+            delta = delta + 0.00001
+        self.closest_projection = np.asarray([
+            np.linalg.norm(delta),
+            np.arctan(delta[1] / delta[0]),
+            np.arccos(delta[2] / np.sqrt(np.sum(np.square(delta))))
+        ], dtype=np.float32)
 
         # closest robot skeleton point
         self.closest_robot_skeleton_point = robot_sklt[min_idk_sklt, :]

@@ -1,8 +1,8 @@
 # implements improved version of "Robot obstacle avoidance system using deep
 # reinforcement learning" for table experiment
 run:
-  load_model: True
-  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/PPO4_7680000_steps"
+  load_model: False
+  model_path: ""
   reset_num_timesteps: True
   train:
     num_envs : 16
@@ -80,7 +80,7 @@ env:
             add_to_logging: False
             update_steps: 1
       goal:
-        type: "PositionCollisionPCR"
+        type: "PositionCollisionPCR2"
         config:
           debug: {"closest_obstacle_cuboid": False}
           normalize_rewards: False
