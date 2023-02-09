@@ -83,7 +83,6 @@ class PositionCollisionPCR(Goal):
             return {}
 
     def on_env_reset(self, success_rate, episode):
-        print(episode)
         t = time.time()
         self.timeout = False
         self.is_success = False
