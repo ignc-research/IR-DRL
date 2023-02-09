@@ -150,7 +150,6 @@ class PositionCollisionPCR2(Goal):
         # reward for distance to obstacle
         R_R_O = -1.5 if self.min_distance_to_obstacles < d_min else 0
 
-
         # reward for motion change
         R_A = - np.sum(np.square(action))
 

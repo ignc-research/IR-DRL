@@ -6,10 +6,10 @@ run:
   reset_num_timesteps: True
   train:
     num_envs : 16
-    timesteps: 8000000
+    timesteps: 15000000
     save_freq : 15000
     save_folder: "./models/weights"
-    save_name: "PPO5"
+    save_name: "PCR_Goal_2"
     ppo_steps: 1024  
     batch_size: 2048
     gamma: 0.95
@@ -28,7 +28,7 @@ run:
           layer3: 16      
   eval:
     max_episodes: -1
-    logging: 1
+    logging: 0
 
 env:
   max_steps_per_episode: 2048
