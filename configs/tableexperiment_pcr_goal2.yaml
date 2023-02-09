@@ -28,7 +28,7 @@ run:
           layer3: 16      
   eval:
     max_episodes: -1
-    logging: 0
+    logging: 1
 
 env:
   max_steps_per_episode: 2048
