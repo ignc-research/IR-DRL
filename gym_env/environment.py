@@ -340,7 +340,7 @@ class ModularDRLEnv(gym.Env):
 
         # determine overall env termination condition
         collision = self.world.collision
-        done = np.any(dones) or collision  # one done out of all goals/robots suffices for the entire env to be done or anything collided
+        done = np.any(dones)  # one done out of all goals/robots suffices for the entire env to be done or anything collided
         is_success = np.all(successes)  # all goals must be succesful for the entire env to be
         timeout = np.any(timeouts)
         out_of_bounds = np.any(oobs)
