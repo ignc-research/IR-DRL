@@ -72,12 +72,10 @@ class PositionCollisionPCR2(Goal):
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
-            ret["ee_target_delta"] = Box(low=np.array([-2, -2, -1], dtype=np.float32),
-                                         high=np.array([2, 2, 1], dtype=np.float32),
-                                         shape=(3,), dtype=np.float32)
-            ret["closest_projection"] = Box(low=np.array([0, -np.pi / 2, 0]),
-                                            high=np.array([1.5, np.pi / 2, np.pi]),
-                                            shape=(3,), dtype=np.float32)
+
+            ret["clostest_cuboid"] = Box(low=np.array([0, 0, 0, -1, -1, 1]),
+                                            high=np.array([2.5, 2.5, 1, 1, 1, 2]),
+                                            shape=(6,), dtype=np.float32)
             return ret
         else:
             return {}
@@ -115,9 +113,7 @@ class PositionCollisionPCR2(Goal):
         # TODO: implement normalization
         return {"end_effector_position": self.position,
                 "target_position": self.target,
-                #"distance_to_target": self.distance,
-                "ee_target_delta": self.ee_target_delta,
-                "closest_projection": self.closest_projection
+                "clostest_cuboid": self.closest_obstacle_cuboid[-6:]
                 }
 
     def _set_observation(self):
@@ -275,7 +271,6 @@ class PositionCollisionPCR2(Goal):
 
         # closest cuboid for debugging
         self.closest_obstacle_cuboid = obstacle_cuboids[min_idx_cuboid, :].astype(np.float32)
-
         # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
 
