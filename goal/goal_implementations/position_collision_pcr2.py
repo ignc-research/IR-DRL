@@ -86,6 +86,7 @@ class PositionCollisionPCR2(Goal):
         t = time.time()
         self.timeout = False
         self.is_success = False
+        self.success = False
         self.collided = False
         self.done = False
         self.ep_reward = 0
@@ -114,7 +115,7 @@ class PositionCollisionPCR2(Goal):
         # TODO: implement normalization
         return {"end_effector_position": self.position,
                 "target_position": self.target,
-                "distance_to_target": self.distance,
+                #"distance_to_target": self.distance,
                 "ee_target_delta": self.ee_target_delta,
                 "closest_projection": self.closest_projection
                 }
@@ -132,47 +133,50 @@ class PositionCollisionPCR2(Goal):
         t = time.time()
 
         reward = 0
-        self.step = step
+
         if not self.collided:
             self.collided = self.robot.world.collision
 
         # set parameters
-        lambda_1 = 1
-        lambda_2 = 1
-        d_min = 0.13
-        lambda_3 = 0.06
+        lambda_1 = 1000
+        lambda_2 = 100
+        lambda_3 = 60
+        # reward_out = 0.01
+        dirac = 0.1
+        k = 8
+        d_ref = 0.33
 
         # set observations
         self._set_observation()
+        # set motion change
+        a = action  # note that the action is normalized
 
-        # reward for distance to target
-        R_E_T = -self.distance[0]
-        # reward for distance to obstacle
-        R_R_O = -1.5 if self.min_distance_to_obstacles < d_min else 0
+        # calculating Huber loss for distance of end effector to target
+        if self.distance < dirac:
+            R_E_T = 1 / 2 * (self.distance ** 2)
+        else:
+            R_E_T = dirac * (self.distance - 1 / 2 * dirac)
+        R_E_T = -R_E_T
 
-        # reward for motion change
-        R_A = - np.sum(np.square(action))
+        min_distance_to_obstacles = self.min_distance_to_obstacles
+        # calculating the distance between robot and obstacle
+        R_R_O = -(d_ref / (min_distance_to_obstacles + d_ref)) ** k
 
-        # success
-        self.is_success = False
-        if self.collided:
-            self.done = True
-            reward += -500
-        elif self.distance[0] < self.distance_threshold:
-            self.done = True
-            self.is_success = True
-            reward += 500
-        elif step > self.max_steps:
+        # calculate motion size
+        R_A = - np.sum(np.square(a))
+
+        # calculate reward
+        reward += lambda_1 * R_E_T + lambda_2 * R_R_O + lambda_3 * R_A
+        if self.distance <= self.distance_threshold and not self.success and not self.collided:
+            self.success = True
+        if step >= self.max_steps:
+            if self.success:
+                self.is_success = True
             self.done = True
             self.timeout = True
-            reward += -100
-        else:
-            # calculate reward
-            reward += lambda_1 * R_E_T + lambda_2 * R_R_O + lambda_3 * R_A
 
-        self.ep_reward += reward
         self.reward_value = reward
-
+        self.ep_reward += reward
         self.cpu_epoch = time.time() - t
         return self.reward_value, self.is_success, self.done, self.timeout, False
 
