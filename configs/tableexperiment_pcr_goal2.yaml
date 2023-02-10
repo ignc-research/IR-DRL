@@ -1,31 +1,22 @@
 # implements improved version of "Robot obstacle avoidance system using deep
 # reinforcement learning" for table experiment
 run:
-  load_model: True
-  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/PCR_Goal_2_8880000_steps"
+  load_model: False
+  model_path: ""
   reset_num_timesteps: True
   train:
+    algorithm: "TD3"
     num_envs : 16
     timesteps: 15000000
     save_freq : 15000
     save_folder: "./models/weights"
-    save_name: "PCR_Goal_2_2"
-    ppo_steps: 1024  
-    batch_size: 2048
-    gamma: 0.95
+    save_name: "Paper_1"
+    gamma: 0.99
+    tau: 0.001
+    learning_rate: 0.001
     tensorboard_folder: "./models/tensorboard_logs"
     custom_policy:
       use: False
-      activation_function: "ReLU"  
-      layers:
-        layer1: 128
-        layer2: 128
-        value_function:
-          layer1: 64
-        policy_function:
-          layer1: 32
-          layer2: 32
-          layer3: 16      
   eval:
     max_episodes: -1
     logging: 1
@@ -82,16 +73,16 @@ env:
       goal:
         type: "PositionCollisionPCR2"
         config:
-          debug: {"closest_obstacle_cuboid": True}
+          debug: {"closest_obstacle_cuboid": False}
           normalize_rewards: False
           normalize_observations: False
           add_to_observation_space: True
           add_to_logging: True
           continue_after_success: False
-          dist_threshold_start: 0.07
-          dist_threshold_end : 0.01
-          dist_threshold_increment_start: 0.001
-          dist_threshold_increment_end: 0.0001
+          dist_threshold_start: 0.01
+          dist_threshold_end : 0.001
+          dist_threshold_increment_start: 0.000000000001
+          dist_threshold_increment_end: 0
           dist_threshold_overwrite: "None"
 
   world:

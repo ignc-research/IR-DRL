@@ -21,6 +21,7 @@ from stable_baselines3 import PPO, TD3, SAC
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from callbacks.callbacks import MoreLoggingCustomCallback
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 import torch
 from os.path import isdir
 import numpy as np
@@ -68,13 +69,26 @@ if __name__ == "__main__":
 
         # create or load model
         if not run_config["load_model"]:
-            model = PPO("MultiInputPolicy", envs,
-                        policy_kwargs=run_config["custom_policy"],
-                        verbose=1,
-                        gamma=run_config["gamma"],
-                        tensorboard_log=run_config["tensorboard_folder"],
-                        n_steps=run_config["ppo_steps"],
-                        batch_size=run_config["batch_size"])
+            if run_config["algorithm"] == "PPO":
+                model = PPO("MultiInputPolicy", envs,
+                            policy_kwargs=run_config["custom_policy"],
+                            verbose=1,
+                            gamma=run_config["gamma"],
+                            tensorboard_log=run_config["tensorboard_folder"],
+                            n_steps=run_config["ppo_steps"],
+                            batch_size=run_config["batch_size"])
+            if run_config["algorithm"] == "TD3":
+                action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(6), sigma=np.ones(6))
+
+                model = TD3("MultiInputPolicy", envs,
+                            policy_kwargs=run_config["custom_policy"],
+                            train_freq=1,
+                            learning_rate=run_config["learning_rate"],
+                            tau=run_config["tau"],
+                            gamma=run_config["gamma"],
+                            action_noise=action_noise, verbose=1,
+                            tensorboard_log=run_config["tensorboard_folder"]
+                            )
             print(model.policy)
         else:
             model = PPO.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
