@@ -27,7 +27,6 @@ while True:
         obs, reward, done, info = testo.step(testo.action_space.sample())
         target = testo.world.position_targets[0]
         robot = testo.robots[0]
-        print(testo.observation_space)
         # see if there is a collision free trajectory towards the goal
         #rrt = RRT(robot.id, robot.joints_ids, [2], 7, max_iterations=10000, f=3)
         #joint_pos = rrt.compute_trajectory(robot.resting_pose_angles, target)
