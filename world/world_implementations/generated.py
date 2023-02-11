@@ -60,7 +60,7 @@ class GeneratedWorld(World):
     The obstacles will be placed between the p
     Depending on the configuration, some of these can be moving in various directions at various speeds
     """
-    obstacle_objects: list[Obstacle] = []
+    obstacle_objects = []
 
     def __init__(self, workspace_boundaries: list=[-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], 
                        sim_step: float=1/240 ):
