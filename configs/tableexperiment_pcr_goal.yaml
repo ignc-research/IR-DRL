@@ -9,7 +9,7 @@ run:
     timesteps: 8000000
     save_freq : 15000
     save_folder: "./models/weights"
-    save_name: "PPO5"
+    save_name: "Paper_1_PPO"
     ppo_steps: 1024  
     batch_size: 2048
     gamma: 0.95
@@ -31,7 +31,7 @@ run:
     logging: 1
 
 env:
-  max_steps_per_episode: 2048
+  max_steps_per_episode: 1024
   use_physics_sim: True  # strictly speaking the original code had this at False
   sim_step: 0.00416666666  
   stat_buffer_size: 25  
@@ -88,7 +88,7 @@ env:
           add_to_observation_space: True
           add_to_logging: True
           continue_after_success: False
-          dist_threshold_start: 0.15
+          dist_threshold_start: 0.4
           dist_threshold_end : 0.01
           dist_threshold_increment_start: 0.01
           dist_threshold_increment_end: 0.001
