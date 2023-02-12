@@ -11,7 +11,7 @@ __all__ = [
 
 class ObstacleSensor(Sensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, num_obstacles: int, max_distance: float):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, num_obstacles: int, max_distance: float, reference_link_id: int):
         
         super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
 
@@ -25,10 +25,12 @@ class ObstacleSensor(Sensor):
         # default observation
         # 0 0 0 vector and max distance, gets used when there are not enough obstacles in the env currently to fill out the observation
         self.default_observation = np.array([[0, 0, 0, self.max_distance] for _ in range(self.num_obstacles)], dtype=np.float32).flatten()
+        # link id of the robot part in reference to which the distances and vectors will be reported
+        self.reference_link_id = reference_link_id
 
         # set output data field name
-        self.output_name = "nearest_" + str(self.num_obstacles) + "_obstacles_" + self.robot.name
-        self.output_name_time = "obstacle_sensor_cpu_time_" + self.robot.name
+        self.output_name = "nearest_" + str(self.num_obstacles) + "_obstacles_link_" + str(self.reference_link_id) + "_" + self.robot.name
+        self.output_name_time = "obstacle_sensor_link_" + str(self.reference_link_id) + "_cpu_time_" + self.robot.name
 
         # init data storage
         self.output_vector = None
@@ -78,12 +80,12 @@ class ObstacleSensor(Sensor):
         # get nearest robots
         for robot in self.robot.world.robots_in_world:
             if robot.object_id != self.robot.object_id:
-                closestPoints = pyb.getClosestPoints(self.robot.object_id, robot.object_id, self.max_distance, self.robot.end_effector_link_id)
+                closestPoints = pyb.getClosestPoints(self.robot.object_id, robot.object_id, self.max_distance, self.reference_link_id)
                 min_val = min(closestPoints, key=lambda x: x[8])  # index 8 is the distance in the object returned by pybullet
                 res.append(np.hstack([-np.array(min_val[7]), min_val[8]]))  # direction vector and distance
         # get nearest obstacles
         for obstacle_id in self.robot.world.objects_ids:
-            closestPoints = pyb.getClosestPoints(self.robot.object_id, obstacle_id, self.max_distance, self.robot.end_effector_link_id)
+            closestPoints = pyb.getClosestPoints(self.robot.object_id, obstacle_id, self.max_distance, self.reference_link_id)
             min_val = min(closestPoints, key=lambda x: x[8])
             res.append(np.hstack([-np.array(min_val[7]), min_val[8]]))
         # sort
