@@ -10,11 +10,43 @@ from time import time
 from time import sleep
 import pandas as pd
 import torch
+import math
 
+from pcr_encoder import models
+from collections import OrderedDict
 
 __all__ = [
     'StaticPointCloudCamera'
 ]
+
+def undo_normalize(points, mean, scale):
+    res = points / scale.unsqueeze(1).unsqueeze(1)
+    res = res + mean.unsqueeze(2).expand_as(points)
+
+    return res
+
+
+def normalize_unit_cube(points):
+    bb_max = points.max(-1)[0]
+    bb_min = points.min(-1)[0]
+    length = (bb_max - bb_min).max()
+    mean = (bb_max + bb_min) / 2.0
+    scale = 1.0 / length
+    res = (points - mean.unsqueeze(1)) * scale
+    return res.clamp(-0.5, 0.5), mean, scale
+
+
+def normalize_batch(points):
+    mean = []
+    scale = []
+    res = []
+    for i in range(points.shape[0]):
+        out = normalize_unit_cube(points[i])
+        mean.append(out[1])
+        scale.append(out[2])
+        res.append(out[0])
+
+    return torch.stack(res), torch.stack(mean), torch.stack(scale)
 
 
 class StaticPointCloudCamera(CameraBase):
@@ -33,6 +65,7 @@ class StaticPointCloudCamera(CameraBase):
         # pybullet objects to remove from point cloud
         self.objects_to_remove = sensor_config["objects_to_remove"]
 
+        # number of points in the encoded point cloud
         if self.use_gpu:
             self.objects_to_remove = torch.asarray(self.objects_to_remove).to("cuda:0")
         # points
@@ -58,7 +91,6 @@ class StaticPointCloudCamera(CameraBase):
         self._set_camera()
 
         # create the arrays used when taking the images and when creating the pcr to make code faster
-        #self.image = np.empty((self.img_resolution, 2), dtype=np.float32)
         self.depth = np.empty(self.img_resolution, dtype=np.float32)
         self.seg_img_full = np.empty(self.img_resolution, dtype=int)
         self.W = np.arange(0, self.width)
@@ -70,10 +102,40 @@ class StaticPointCloudCamera(CameraBase):
         self.PixPos[:, 1] = self.Y
         self.PixPos[:, 3] = np.ones(self.img_resolution)
 
+        # encoded point cloud
+        self.n_points_encoded_pcr = sensor_config["n_points_encoded_pcr"]
+        self.encoded_pcr = np.empty((self.n_points_encoded_pcr, 3), dtype=np.float32)
+        self.device = "cuda:0" if self.use_gpu else "cpu"
+        # load the encoder
+        self.net = models.GridAutoEncoderAdaIN(rnd_dim=2,
+                                          enc_p=0,
+                                          dec_p=0.2,
+                                          adain_layer=None).to(self.device)
+        total_params = 0
+        for param in self.net.parameters():
+            total_params += np.prod(param.size())
+        print("Network parameters: {}".format(total_params))
+        state_dict = torch.load("pcr_encoder/models/pretrained/model_full_transformations.state")
+
+        new_state_dict = OrderedDict()
+        changed = False
+        for k, v in state_dict.items():
+            if k[:7] == "module.":
+                changed = True
+                new_state_dict[k[7:]] = v
+            else:
+                new_state_dict[k] = v
+        if changed:
+            state_dict = new_state_dict
+        self.net.load_state_dict(state_dict)
+        self.net.eval()
+
         if self.use_gpu:
+            self.encoded_pcr = torch.from_numpy(self.encoded_pcr).to("cuda:0")
             self.PixPos = torch.from_numpy(self.PixPos).to("cuda:0")
             self.depth = torch.empty(self.img_resolution, dtype=torch.float32).to("cuda:0")
             self.seg_img_full = torch.empty(self.img_resolution, dtype=torch.int).to("cuda:0")
+
 
     def _set_camera(self):
         if self.debug.get('position', False) or self.debug.get('orientation', False) or self.debug.get('target', False) or self.debug.get('lines', False):
@@ -108,8 +170,8 @@ class StaticPointCloudCamera(CameraBase):
             projectionMatrix=self.projectionMatrix)
 
         if self.use_gpu:
-            self.depth[:] = torch.asarray(depth)
-            self.seg_img_full[:] = torch.asarray(seg)
+            self.depth[:] = torch.flatten(torch.asarray(depth))
+            self.seg_img_full[:] = torch.flatten(torch.asarray(seg))
         else:
             self.depth[:] = np.asarray(depth).flatten()
             self.seg_img_full[:] = np.asarray(seg).flatten()
@@ -126,7 +188,8 @@ class StaticPointCloudCamera(CameraBase):
             self.depth, self.seg_img_full = self._get_image()
             self.points = self._depth_img_to_point_cloud(self.depth)
             self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
-            self.obstacle_cuboids = self._pcr_to_cuboid(self.points, self.segImg)
+            self.obstacle_cuboids = self._pcr_to_cuboids(self.points, self.segImg)
+            self.pcr_encoded = self._encode_pcr(self.points, self.segImg)
         self.cpu_time = time() - self.cpu_epoch
         return self.get_observation()
 
@@ -136,7 +199,8 @@ class StaticPointCloudCamera(CameraBase):
         self.depth, self.seg_img_full = self._get_image()
         self.points = self._depth_img_to_point_cloud(self.depth)
         self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
-        self.obstacle_cuboids = self._pcr_to_cuboid(self.points, self.segImg)
+        self.obstacle_cuboids = self._pcr_to_cuboids(self.points, self.segImg)
+        self.pcr_encoded = self._encode_pcr(self.points, self.segImg)
         self.cpu_time = time() - self.cpu_epoch
         return {"point_cloud": self.points}
 
@@ -204,7 +268,7 @@ class StaticPointCloudCamera(CameraBase):
 
         return points, segImg
 
-    def _pcr_to_cuboid(self, points, segImg):
+    def _pcr_to_cuboids(self, points, segImg):
         """
         Transform point cloud into a set of cuboids for each obstacle. A cuboid consists of middle point, length,
         height and depth.
@@ -248,4 +312,30 @@ class StaticPointCloudCamera(CameraBase):
 
             self.obstacle_cuboids = df.to_numpy().astype(np.float32)
         return self.obstacle_cuboids
+
+    def _encode_pcr(self, points, segImg):
+        # how many points for each object
+
+        segImg_unique, counts = torch.unique(segImg, return_counts=True)
+
+        n_points = counts / segImg.size()[0] * self.n_points_encoded_pcr
+        n_points = torch.round(n_points)
+
+        for object in segImg_unique:
+            select_mask = segImg == object.item()
+            inp = points[select_mask]
+            n_points = self.n_points_encoded_pcr
+            inp = inp[None, :, :]
+            inp = torch.swapaxes(inp, 1, 2)
+            inp, mean, scale = normalize_batch(inp)
+            pred, _, _, _ = self.net(inp, n_points, False)
+            pred = undo_normalize(pred, mean, scale)
+            pred = torch.squeeze(pred)
+            pred = torch.swapaxes(pred, 0, 1)
+
+        #     colors = np.repeat(np.array([0, 0, 255])[na, :], n_points, axis=0)
+        #     pyb.addUserDebugPoints(np.asarray(pred.detach().cpu()), colors, pointSize=2)
+        # sleep(352343)
+        #self.net.forward(torch.from_numpy(self.points))
+
 

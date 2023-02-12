@@ -15,7 +15,7 @@ run:
     save_name: "Paper_1"
     gamma: 0.99
     tau: 0.001
-    learning_rate: 0.003
+    learning_rate: 0.002
     tensorboard_folder: "./models/tensorboard_logs"
     custom_policy:
       use: False
@@ -45,7 +45,8 @@ env:
         sensor2:
           type: "StaticPointCloudCamera"
           config:
-            use_gpu: False
+            n_points_encoded_pcr: 1000
+            use_gpu: True
             add_to_logging: True
             position: [0, 0, 2.2]
             target: [0, 0, 0]
@@ -56,13 +57,13 @@ env:
             name: "PCR_camera"
             normalize: False
             add_to_observation_space: False
-            update_steps: 4
+            update_steps: 6
         sensor3:
           type: "RobotSkeletonSensor"
           config:
             debug: {"skeleton": False}
             normalize: False
-            add_to_observation_space: False
+            add_to_observation_space: True
             add_to_logging: False
             update_steps: 1
         sensor4:

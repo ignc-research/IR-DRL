@@ -66,16 +66,15 @@ class PositionCollisionPCR2(Goal):
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-                                         high=np.array([1, 1, 2], dtype=np.float32),
-                                         shape=(3,), dtype=np.float32)
+            # ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
+            #                              high=np.array([1, 1, 2], dtype=np.float32),
+            #                              shape=(3,), dtype=np.float32)
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
-
-            ret["clostest_cuboid"] = Box(low=np.array([0, 0, 0, -1, -1, 1]),
-                                            high=np.array([2.5, 2.5, 1, 1, 1, 2]),
-                                            shape=(6,), dtype=np.float32)
+            ret["closest_obstacle_point"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
+                                                high=np.array([1, 1, 2], dtype=np.float32),
+                                                shape=(3,), dtype=np.float32)
             return ret
         else:
             return {}
@@ -111,9 +110,8 @@ class PositionCollisionPCR2(Goal):
 
     def get_observation(self) -> dict:
         # TODO: implement normalization
-        return {"end_effector_position": self.position,
-                "target_position": self.target,
-                "clostest_cuboid": self.closest_obstacle_cuboid[-6:]
+        return {"target_position": self.target,
+                "closest_obstacle_point": self.closest_projection
                 }
 
     def _set_observation(self):
@@ -255,16 +253,6 @@ class PositionCollisionPCR2(Goal):
 
         # get closest projection
         self.closest_projection = robot_sklt_projections[min_idx_cuboid, min_idk_sklt, :]
-
-        # transform closest projection into spherical coordinates with respect to the end effector position
-        delta = self.position - self.closest_projection
-        if np.any(delta == 0):
-            delta = delta + 0.00001
-        self.closest_projection = np.asarray([
-            np.linalg.norm(delta),
-            np.arctan(delta[1] / delta[0]),
-            np.arccos(delta[2] / np.sqrt(np.sum(np.square(delta))))
-        ], dtype=np.float32)
 
         # closest robot skeleton point
         self.closest_robot_skeleton_point = robot_sklt[min_idk_sklt, :]
