@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from time import time
+import pybullet as pyb
 
 class Sensor(ABC):
     """
@@ -35,8 +36,8 @@ class Sensor(ABC):
         # see the joint sensor implementation for an example 
         self.update_steps = update_steps
 
-        # at the end of init the sensor should also update itself
-        # self.update()  # add this in your subclass at the end of __init__ without the comment
+        # list of auxillary visual objects, this gets purged every env step!
+        self.aux_visual_pyb_objects = []
 
     @abstractmethod
     def update(self, step) -> dict:
@@ -90,4 +91,19 @@ class Sensor(ABC):
         You can also add custom methods for returning specific pieces of data other than this method, however only this method will be used for automatic logging.
         """
         return {}
+
+    def build_visual_aux(self):
+        """
+        You can use this method to draw visual objects useful for demonstration or debug purposes.
+        Add all these objects' ids to self.aux_visual_pyb_objects, where they will get deleted from on every step automatically. 
+        """
+        pass
+
+    def delete_visual_aux(self):
+        """
+        Deletes all visual aides created by this sensor.
+        """
+        for aux_object in self.aux_visual_pyb_objects:
+            pyb.removeUserDebugItem(aux_object)
+        self.aux_visual_pyb_objects = []
 

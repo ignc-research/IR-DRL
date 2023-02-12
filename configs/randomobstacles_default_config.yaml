@@ -35,6 +35,9 @@ run:
     max_episodes: -1  
     logging: 1  
     display_delay: 0.00416666666 
+    show_world_aux: True
+    show_goal_aux: True
+    show_sensor_aux: False
     pybullet_recorder:
       use: False
       save_path: "demo"
@@ -73,7 +76,6 @@ env:
               wrist2_circle: [10, 10]
               wrist1_circle: [10, 10]
               upper_arm: [10, 10]
-            render: False
             indicator: True
       goal:
         type: "PositionCollision"

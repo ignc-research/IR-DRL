@@ -34,9 +34,11 @@ class ModularDRLEnv(gym.Env):
         # flag for rendering
         self.display = env_config["display"]
         # flag for rendering auxillary geometry spawned by the scenario
-        self.show_auxillary_geometry_world = env_config["display_extra"]
+        self.show_auxillary_geometry_world = env_config["show_world_aux"]
         # flag for rendering auxillary geometry spawned by the goals
-        self.show_auxillary_geometry_goal = env_config["display_extra"]
+        self.show_auxillary_geometry_goal = env_config["show_goal_aux"]
+        # flag for rendering auxillary geometry spawned by the sensors
+        self.show_auxillary_geometry_sensors = env_config["show_sensor_aux"]
         # maximum steps in an episode before timeout
         self.max_steps_per_episode = env_config["max_steps_per_episode"]
         # number of episodes after which the code will exit on its own, if set to -1 will continue indefinitely until stopped from the outside
@@ -281,6 +283,10 @@ class ModularDRLEnv(gym.Env):
         if self.show_auxillary_geometry_goal:
             for goal in self.goals:
                 goal.build_visual_aux()
+        if self.show_auxillary_geometry_sensors:
+            for sensor in self.sensors:
+                sensor.delete_visual_aux()
+                sensor.build_visual_aux()
 
         # set up the pybullet blender recorder if wanted
         if self.pybullet_recorder_settings["use"]:
@@ -386,6 +392,12 @@ class ModularDRLEnv(gym.Env):
         # handle pybullet blender recorder
         if self.pybullet_recorder_settings["use"]:
             pass  # REIMPLEMENT LATER
+
+        # visual help, if enabled
+        if self.show_auxillary_geometry_sensors:
+            for sensor in self.sensors:
+                sensor.delete_visual_aux()
+                sensor.build_visual_aux()
 
         # update tracking variables and stats
         self.cpu_time = process_time() - self.cpu_epoch

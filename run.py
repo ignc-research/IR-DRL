@@ -109,20 +109,34 @@ if __name__ == "__main__":
             # episode start signals for recurrent model
             episode_start = True if run_config["recurrent"] else None
             state = None
+            steps = 0
+            next_steps = 1
+            offset = 0
             while not done:
                 sleep(run_config["display_delay"])
                 act, state = model.predict(obs, state=(state if run_config["recurrent"] else None), episode_start=episode_start)
                 obs, reward, done, info = env.step(act)
                 episode_starts = done
+                steps += 1
                 if args.debug:
                     print("--------------")
+                    print("Step:")
+                    print(steps)
                     print("Env observation:")
                     print(obs)
                     print("Agent action:")
                     print(act)
-                    inp = input("Press any button to continue with next step or press r to reset the episode:\n")
-                    if inp == "r":
-                        done = True
+                    if (steps - offset) % next_steps == 0:
+                        inp = input("Press any button to continue one step, enter a number to continue that number of steps or press r to reset the episode:\n")
+                        if inp == "r":
+                            done = True
+                        else:
+                            try:
+                                next_steps = int(inp)
+                                next_steps = 1 if next_steps == 0 else next_steps
+                                offset = steps
+                            except ValueError:
+                                next_steps = 1
                 #exp_visualizer.update_imshow_from_obs(obs, fig, axs)
 
 

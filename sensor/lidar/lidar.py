@@ -9,14 +9,11 @@ class LidarSensor(Sensor):
     Must be subclassed for each robot because the setup of the rays changes.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot:Robot, indicator_buckets:int, render:bool=False, indicator:bool=True):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot:Robot, indicator_buckets:int, indicator:bool=True):
         super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
 
         # set associated robot
         self.robot = robot
-
-        # bool for whether the rays get rendered
-        self.render = render
 
         # bool for wether the return data is the distances measured by the lidar or a processed indicator
         self.indicator = indicator

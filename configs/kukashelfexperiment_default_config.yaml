@@ -35,6 +35,9 @@ run:
     max_episodes: -1  
     logging: 1  
     display_delay: 0.00416666666 
+    show_world_aux: True
+    show_goal_aux: True
+    show_sensor_aux: False
     pybullet_recorder:
       use: False
       save_path: "demo"
@@ -73,7 +76,6 @@ env:
               ee_side_circle: [5, 5]
               ee_back_cone: [2, 5]
               upper_arm: [8, 2]
-            render: False
             indicator: True
             activated_links: [0, 1, 2, 3, 4]
       goal:

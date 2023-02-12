@@ -34,6 +34,7 @@ class ObstacleSensor(Sensor):
 
         # init data storage
         self.output_vector = None
+        self.data_raw = None
 
         # normalizing constants for faster normalizing
         self.normalizing_constant_a = 2 / (np.ones(4 * self.num_obstacles) * self.max_distance * 2)
@@ -43,7 +44,8 @@ class ObstacleSensor(Sensor):
         self.cpu_epoch = process_time()
         if step % self.update_steps == 0:
             self.output_vector = self.default_observation
-            new_data = self._run_obstacle_detection()
+            self.data_raw = self._run_obstacle_detection()
+            new_data = self._process(self.data_raw)
             self.output_vector[:len(new_data)] = new_data
         self.cpu_time = process_time() - self.cpu_epoch
 
@@ -52,7 +54,8 @@ class ObstacleSensor(Sensor):
     def reset(self):
         self.cpu_epoch = process_time()
         self.output_vector = self.default_observation
-        new_data = self._run_obstacle_detection()
+        self.data_raw = self._run_obstacle_detection()
+        new_data = self._process(self.data_raw)
         self.output_vector[:len(new_data)] = new_data
         self.cpu_time = process_time() - self.cpu_epoch
 
@@ -82,25 +85,24 @@ class ObstacleSensor(Sensor):
             if robot.object_id != self.robot.object_id:
                 closestPoints = pyb.getClosestPoints(self.robot.object_id, robot.object_id, self.max_distance, self.reference_link_id)
                 min_val = min(closestPoints, key=lambda x: x[8])  # index 8 is the distance in the object returned by pybullet
-                res.append(np.hstack([-np.array(min_val[7]), min_val[8]]))  # direction vector and distance
+                res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8]]))  # start, end, distance
         # get nearest obstacles
         for obstacle_id in self.robot.world.objects_ids:
             closestPoints = pyb.getClosestPoints(self.robot.object_id, obstacle_id, self.max_distance, self.reference_link_id)
             min_val = min(closestPoints, key=lambda x: x[8])
-            res.append(np.hstack([-np.array(min_val[7]), min_val[8]]))
+            res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8]]))
         # sort
-        res.sort(key=lambda x: x[3])
+        res.sort(key=lambda x: x[6])
         # extract n closest ones
         smallest_n = res[:self.num_obstacles]
 
-        """
-        line_starts = [self.robot.position_rotation_sensor.position for i in range(self.num_obstacles)]
-        line_ends = [line_starts[i] + (ele[3] * ele[0:3]) for i, ele in enumerate(smallest_n)]
-        for i in range(len(line_starts)):
-            pyb.addUserDebugLine(line_starts[i], line_ends[i], [0, 0, 1])
-        """
+        return np.array(smallest_n)
 
-        return np.array(smallest_n).flatten()
+    def _process(self, data_raw):
+        data_processed = []
+        for i in range(len(data_raw)):
+            data_processed.append(np.hstack([data_raw[i][3:6] -  data_raw[i][0:3], data_raw[i][6]]))
+        return np.array(data_processed).flatten()
 
     def get_data_for_logging(self) -> dict:
         if not self.add_to_logging:
@@ -111,3 +113,12 @@ class ObstacleSensor(Sensor):
         logging_dict[self.output_name_time] = self.cpu_time
 
         return logging_dict
+
+    def build_visual_aux(self):
+        position = np.array(pyb.getLinkState(self.robot.object_id, self.reference_link_id)[4])
+
+        line_starts = [self.data_raw[i][0:3] for i in range(len(self.data_raw))]
+        line_ends = [self.data_raw[i][3:6] for i in range(len(self.data_raw))]
+
+        for i in range(len(line_starts)):
+            self.aux_visual_pyb_objects.append(pyb.addUserDebugLine(line_starts[i], line_ends[i], [0, 0, 1]))

@@ -10,8 +10,8 @@ __all__ = [
 
 class LidarSensorKR16(LidarSensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, ray_setup: dict, render: bool = False, indicator: bool = True):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, render, indicator)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, ray_setup: dict, indicator: bool = True):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, indicator)
 
         # dict which governs which robot links get lidar rays and how many
         # possible keys:
@@ -46,14 +46,19 @@ class LidarSensorKR16(LidarSensor):
         # and then keep only those that were activated by the user, this way we can process the results from the PyBullet call in the right order
         self.output_order = [ele for ele in self.output_order if ele in self.ray_setup]
 
+        # data storage
+        self.rays_starts = []
+        self.rays_ends = []
+        self.results = []
+
 
     def get_observation_space_element(self) -> dict:
         return {self.output_name: Box(low=-1, high=1, shape=(self.lidar_indicator_shape,), dtype=np.float32)}
 
     def _get_lidar_data(self):
         
-        rays_starts = []
-        rays_ends = []
+        self.rays_starts = []
+        self.rays_ends = []
 
         
         linkState_ee = pyb.getLinkState(self.robot.object_id, 6)
@@ -64,8 +69,8 @@ class LidarSensorKR16(LidarSensor):
         # deal with all activated links
         # end effector forwards ray:
         if "ee_forward" in self.ray_setup:
-            rays_starts.append(np.matmul(frame_ee, np.array([0, 0, self.ray_start, 1]).T)[0:3].tolist())
-            rays_ends.append(np.matmul(frame_ee, np.array([0, 0, self.ray_end, 1]).T)[0:3].tolist())
+            self.rays_starts.append(np.matmul(frame_ee, np.array([0, 0, self.ray_start, 1]).T)[0:3].tolist())
+            self.rays_ends.append(np.matmul(frame_ee, np.array([0, 0, self.ray_end, 1]).T)[0:3].tolist())
 
         interval = -0.005
         # cone rays from end effector
@@ -76,8 +81,8 @@ class LidarSensorKR16(LidarSensor):
                     l = self.ray_end * np.cos(angle)
                     x_end = l * np.cos(2 * np.pi * i / self.ray_setup["ee_cone"][1])
                     y_end = l * np.sin(2 * np.pi * i / self.ray_setup["ee_cone"][1])
-                    rays_starts.append(np.matmul(frame_ee, np.array([0, 0, self.ray_start, 1]).T)[0:3].tolist())
-                    rays_ends.append(np.matmul(frame_ee, np.array([x_end, y_end, z, 1]).T)[0:3].tolist())
+                    self.rays_starts.append(np.matmul(frame_ee, np.array([0, 0, self.ray_start, 1]).T)[0:3].tolist())
+                    self.rays_ends.append(np.matmul(frame_ee, np.array([x_end, y_end, z, 1]).T)[0:3].tolist())
         
         # around head circle rays
         if "ee_side_circle" in self.ray_setup:
@@ -89,8 +94,8 @@ class LidarSensorKR16(LidarSensor):
                     z_end = i * interval - 0.1
                     x_end = self.ray_end * np.cos(angle)
                     y_end = self.ray_end * np.sin(angle)
-                    rays_starts.append(np.matmul(frame_ee, np.array([x_start, y_start, z_start, 1]).T)[0:3].tolist())
-                    rays_ends.append(np.matmul(frame_ee, np.array([x_end, y_end, z_end, 1]).T)[0:3].tolist())
+                    self.rays_starts.append(np.matmul(frame_ee, np.array([x_start, y_start, z_start, 1]).T)[0:3].tolist())
+                    self.rays_ends.append(np.matmul(frame_ee, np.array([x_end, y_end, z_end, 1]).T)[0:3].tolist())
 
         # rays from the back of the end effector
         if "ee_back_cone" in self.ray_setup:
@@ -100,8 +105,8 @@ class LidarSensorKR16(LidarSensor):
                     z_end = self.ray_end * np.sin(angle)
                     x_end = l * np.cos(np.pi * i / self.ray_setup["ee_back_cone"][1] - np.pi / 2)
                     y_end = l * np.sin(np.pi * i / self.ray_setup["ee_back_cone"][1] - np.pi / 2)
-                    rays_starts.append(np.matmul(frame_ee, np.array([0, 0, self.ray_start - 0.25, 1]).T)[0:3].tolist())
-                    rays_ends.append(np.matmul(frame_ee, np.array([x_end, y_end, z_end - 0.25, 1]).T)[0:3].tolist())
+                    self.rays_starts.append(np.matmul(frame_ee, np.array([0, 0, self.ray_start - 0.25, 1]).T)[0:3].tolist())
+                    self.rays_ends.append(np.matmul(frame_ee, np.array([x_end, y_end, z_end - 0.25, 1]).T)[0:3].tolist())
 
         # rays around the upper arm of the end effector
         if "upper_arm" in self.ray_setup: 
@@ -113,24 +118,12 @@ class LidarSensorKR16(LidarSensor):
             extra_offset = 0.095
             for angle in np.linspace(0, 2 * np.pi - 2 * np.pi/self.ray_setup["upper_arm"][0], self.ray_setup["upper_arm"][0]):
                 for i in range(self.ray_setup["upper_arm"][1]):
-                    rays_starts.append(np.matmul(frame_arm, np.array([i * interval + 0.5, (self.ray_start + extra_offset) * np.sin(angle), (-self.ray_start - extra_offset) * np.cos(angle) - 0.05, 1]).T)[0:3].tolist())
-                    rays_ends.append(np.matmul(frame_arm, np.array([i * interval + 0.5, self.ray_end * np.sin(angle), -self.ray_end * np.cos(angle) - 0.05, 1]).T)[0:3].tolist())
+                    self.rays_starts.append(np.matmul(frame_arm, np.array([i * interval + 0.5, (self.ray_start + extra_offset) * np.sin(angle), (-self.ray_start - extra_offset) * np.cos(angle) - 0.05, 1]).T)[0:3].tolist())
+                    self.rays_ends.append(np.matmul(frame_arm, np.array([i * interval + 0.5, self.ray_end * np.sin(angle), -self.ray_end * np.cos(angle) - 0.05, 1]).T)[0:3].tolist())
 
-        results = pyb.rayTestBatch(rays_starts, rays_ends)
+        self.results = pyb.rayTestBatch(self.rays_starts, self.rays_ends)
         
-        if self.render:
-            hitRayColor = [0, 1, 0]
-            missRayColor = [1, 0, 0]
-
-            pyb.removeAllUserDebugItems()  # this will kill workspace borders if they are displayed 
-
-            for index, result in enumerate(results):
-                if result[0] == -1:
-                    pyb.addUserDebugLine(rays_starts[index], rays_ends[index], missRayColor)
-                else:
-                    pyb.addUserDebugLine(rays_starts[index], rays_ends[index], hitRayColor)
-        
-        return np.array(results, dtype=object)[:,2]  # keeps only the distance information
+        return np.array(self.results, dtype=object)[:,2]  # keeps only the distance information
 
     def _process_raw_lidar(self, raw_lidar_data):
 
@@ -152,3 +145,13 @@ class LidarSensorKR16(LidarSensor):
             indicator_offset += self.ray_setup[self.output_order[j]][0]
     
         return indicator, distances
+
+    def build_visual_aux(self):
+        hitRayColor = [0, 1, 0]
+        missRayColor = [1, 0, 0]
+
+        for index, result in enumerate(self.results):
+            if result[0] == -1:
+                self.aux_visual_pyb_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], missRayColor))
+            else:
+                self.aux_visual_pyb_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], hitRayColor))

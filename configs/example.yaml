@@ -71,6 +71,12 @@ run:
     # int, 0: no logging at all, 1: logging into console at the end of an episode, 
     # 2: same as 1 + log for entire episode put into csv file in model/env_logs (if max_episodes is not -1 this will only happen at the end of the last episode such that the file contains all episodes)
     logging: 1 
+    # float, sleep added to make movements pass slower for better visiblity
+    display_delay: 0
+    # bool, flags for showing visual aides like goal markings or workspace borders
+    show_world_aux: True
+    show_goal_aux: True
+    show_sensor_aux: False
     # attributes for the pybullet blender recorder
     pybullet_recorder:
       use: False  # wether the recorder is turned on or off
@@ -161,8 +167,6 @@ env:
               wrist2_circle: [10, 10]
               wrist1_circle: [10, 10]
               upper_arm: [10, 10]
-            # bool, whether to render the lidar rays in the PyBullet simulation
-            render: False
             # bool, whether the output will report the indicator or raw measured distances
             indicator: True
             # list, allows to configure which links will be equipped with lidar, see class file for details
