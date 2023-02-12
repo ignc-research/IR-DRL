@@ -7,7 +7,7 @@ run:
   train:
     num_envs : 16
     algorithm: "PPO"
-    timesteps: 8000000
+    timesteps: 30000000
     save_freq : 15000
     save_folder: "./models/weights"
     save_name: "Paper_1_PPO"
