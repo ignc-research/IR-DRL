@@ -14,6 +14,7 @@ import math
 
 from pcr_encoder import models
 from collections import OrderedDict
+from gym.spaces import Box
 
 __all__ = [
     'StaticPointCloudCamera'
@@ -208,9 +209,14 @@ class StaticPointCloudCamera(CameraBase):
         self.cpu_time = time() - self.cpu_epoch
         return {"point_cloud": self.points}
 
+    def get_observation_space_element(self) -> Dict:
+        if self.add_to_observation_space:
+            return {"obstacle_pcr": Box(low=np.array([-1, -1, 1], dtype=np.float32)[na, :].repeat(self.n_points_encoded_obstacle_pcr, axis=0),
+                                                    high=np.array([1, 1, 2], dtype=np.float32)[na, :].repeat(self.n_points_encoded_obstacle_pcr, axis=0),
+                                                    shape=(self.n_points_encoded_obstacle_pcr, 3), dtype=np.float32)}
     def get_observation(self):
-        """Point Cloud should not be added to observation space from here"""
-        pass
+        if self.add_to_observation_space:
+            return {"obstacle_pcr": self.encoded_pcr}
 
     def _normalize(self):
         """
@@ -334,15 +340,16 @@ class StaticPointCloudCamera(CameraBase):
             inp = inp[None, :, :]
             inp = torch.swapaxes(inp, 1, 2)
             inp, mean, scale = normalize_batch(inp)
+            inp = torch.clamp(inp, -0.5, 0.5)
             pred, _, _, _ = self.net(inp, n_points, False)
             pred = undo_normalize(pred, mean, scale)
             pred = torch.squeeze(pred)
             pred = torch.swapaxes(pred, 0, 1)
 
             self.encoded_pcr[i * n_points:n_points * (i + 1), :] = pred.to("cpu").detach()
-
-        colors = np.repeat(np.array([0, 0, 255])[na, :], n_points, axis=0)
-        pyb.addUserDebugPoints(np.asarray(self.encoded_pcr) + np.array([0, 0, 1]), colors, pointSize=2)
-        sleep(352343)
+        # print(points.shape)
+        # colors = np.repeat(np.array([0, 0, 255])[na, :], n_points, axis=0)
+        # pyb.addUserDebugPoints(np.asarray(self.encoded_pcr + np.array([0, 0, 0.5])), colors, pointSize=2)
+        # sleep(352343)
 
 

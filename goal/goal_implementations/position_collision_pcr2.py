@@ -66,15 +66,13 @@ class PositionCollisionPCR2(Goal):
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            # ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-            #                              high=np.array([1, 1, 2], dtype=np.float32),
-            #                              shape=(3,), dtype=np.float32)
+            ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
+                                         high=np.array([1, 1, 2], dtype=np.float32),
+                                         shape=(3,), dtype=np.float32)
             ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
                                          high=np.array([1, 1, 2], dtype=np.float32),
                                          shape=(3,), dtype=np.float32)
-            ret["closest_obstacle_point"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-                                                high=np.array([1, 1, 2], dtype=np.float32),
-                                                shape=(3,), dtype=np.float32)
+
             return ret
         else:
             return {}
@@ -111,7 +109,7 @@ class PositionCollisionPCR2(Goal):
     def get_observation(self) -> dict:
         # TODO: implement normalization
         return {"target_position": self.target,
-                "closest_obstacle_point": self.closest_projection
+                "end_effector_position": self.position
                 }
 
     def _set_observation(self):
