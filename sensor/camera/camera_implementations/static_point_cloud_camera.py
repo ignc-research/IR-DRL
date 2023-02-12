@@ -65,9 +65,9 @@ class StaticPointCloudCamera(CameraBase):
         # pybullet objects to remove from point cloud
         self.objects_to_remove = sensor_config["objects_to_remove"]
 
-        # number of points in the encoded point cloud
         if self.use_gpu:
             self.objects_to_remove = torch.asarray(self.objects_to_remove).to("cuda:0")
+
         # points
         self.points: np.array = None
 
@@ -103,8 +103,13 @@ class StaticPointCloudCamera(CameraBase):
         self.PixPos[:, 3] = np.ones(self.img_resolution)
 
         # encoded point cloud
-        self.n_points_encoded_pcr = sensor_config["n_points_encoded_pcr"]
-        self.encoded_pcr = np.empty((self.n_points_encoded_pcr, 3), dtype=np.float32)
+        self.n_points_encoded_obstacle_pcr = sensor_config["n_points_encoded_obstacle_pcr"]
+        self.encoded_pcr = np.empty((self.n_points_encoded_obstacle_pcr, 3))
+
+        # self.encoded_pcr[-50:] = np.concatenate([
+        #     np.repeat(edge[:, na, :], n_y, axis=1) - y[na, :, :]
+        # ])
+
         self.device = "cuda:0" if self.use_gpu else "cpu"
         # load the encoder
         self.net = models.GridAutoEncoderAdaIN(rnd_dim=2,
@@ -131,7 +136,6 @@ class StaticPointCloudCamera(CameraBase):
         self.net.eval()
 
         if self.use_gpu:
-            self.encoded_pcr = torch.from_numpy(self.encoded_pcr).to("cuda:0")
             self.PixPos = torch.from_numpy(self.PixPos).to("cuda:0")
             self.depth = torch.empty(self.img_resolution, dtype=torch.float32).to("cuda:0")
             self.seg_img_full = torch.empty(self.img_resolution, dtype=torch.int).to("cuda:0")
@@ -314,17 +318,19 @@ class StaticPointCloudCamera(CameraBase):
         return self.obstacle_cuboids
 
     def _encode_pcr(self, points, segImg):
-        # how many points for each object
+        # remove table
+        select_mask = segImg != 2
+        segImg = segImg[select_mask]
+        points = points[select_mask]
 
         segImg_unique, counts = torch.unique(segImg, return_counts=True)
 
-        n_points = counts / segImg.size()[0] * self.n_points_encoded_pcr
-        n_points = torch.round(n_points)
+        n_points = self.n_points_encoded_obstacle_pcr
 
-        for object in segImg_unique:
+        j = 0
+        for i, object in enumerate(segImg_unique):
             select_mask = segImg == object.item()
             inp = points[select_mask]
-            n_points = self.n_points_encoded_pcr
             inp = inp[None, :, :]
             inp = torch.swapaxes(inp, 1, 2)
             inp, mean, scale = normalize_batch(inp)
@@ -333,9 +339,10 @@ class StaticPointCloudCamera(CameraBase):
             pred = torch.squeeze(pred)
             pred = torch.swapaxes(pred, 0, 1)
 
-        #     colors = np.repeat(np.array([0, 0, 255])[na, :], n_points, axis=0)
-        #     pyb.addUserDebugPoints(np.asarray(pred.detach().cpu()), colors, pointSize=2)
-        # sleep(352343)
-        #self.net.forward(torch.from_numpy(self.points))
+            self.encoded_pcr[i * n_points:n_points * (i + 1), :] = pred.to("cpu").detach()
+
+        colors = np.repeat(np.array([0, 0, 255])[na, :], n_points, axis=0)
+        pyb.addUserDebugPoints(np.asarray(self.encoded_pcr) + np.array([0, 0, 1]), colors, pointSize=2)
+        sleep(352343)
 
 

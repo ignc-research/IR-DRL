@@ -45,7 +45,7 @@ env:
         sensor2:
           type: "StaticPointCloudCamera"
           config:
-            n_points_encoded_pcr: 1000
+            n_points_encoded_obstacle_pcr: 50
             use_gpu: True
             add_to_logging: True
             position: [0, 0, 2.2]
@@ -65,7 +65,7 @@ env:
             normalize: False
             add_to_observation_space: True
             add_to_logging: False
-            update_steps: 1
+            update_steps: 2
         sensor4:
           type: VelocitySensor
           config:

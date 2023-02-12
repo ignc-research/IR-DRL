@@ -18,6 +18,8 @@ class GridEncoder(nn.Module):
             x = x.unsqueeze(0)
 
         # input is expected to be in range -0.5 - 0.5
+        if x.min() < -0.5:
+            print(x.min())
         assert (x.min() >= -0.5)
         assert (x.min() <= 0.5)
 
