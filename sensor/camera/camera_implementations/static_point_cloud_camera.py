@@ -78,8 +78,8 @@ class StaticPointCloudCamera(CameraBase):
         # target
         self.target = sensor_config["target"]
 
-        # whether to encode pcr or or not
-        self.encode_pcr = sensor_config["encode_pcr"]
+        # what type of encoding to use NN, cuboid, or None
+        self.pcr_encoding = sensor_config["pcr_encoding"]
 
         # whether to update the matrices or not
         self.update_matrices = True
@@ -116,7 +116,7 @@ class StaticPointCloudCamera(CameraBase):
 
         self.device = "cuda:0" if self.use_gpu else "cpu"
         # load the encoder
-        if self.encode_pcr:
+        if self.pcr_encoding == "NN":
             self.net = models.GridAutoEncoderAdaIN(rnd_dim=2,
                                               enc_p=0,
                                               dec_p=0.2,
@@ -198,8 +198,10 @@ class StaticPointCloudCamera(CameraBase):
             self.points = self._depth_img_to_point_cloud(self.depth)
             self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
             self.obstacle_cuboids = self._pcr_to_cuboids(self.points, self.segImg)
-            if self.encode_pcr:
+            if self.pcr_encoding == "NN":
                 self.pcr_encoded = self._encode_pcr_nn(self.points, self.segImg)
+            if self.pcr_encoding == "cuboid":
+                self.pcr_encoded = self.encode_cuboid_pcr(self.obstacle_cuboids)
         self.cpu_time = time() - self.cpu_epoch
         return self.get_observation()
 
@@ -210,8 +212,10 @@ class StaticPointCloudCamera(CameraBase):
         self.points = self._depth_img_to_point_cloud(self.depth)
         self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
         self.obstacle_cuboids = self._pcr_to_cuboids(self.points, self.segImg)
-        if self.encode_pcr:
+        if self.pcr_encoding == "NN":
             self.pcr_encoded = self._encode_pcr_nn(self.points, self.segImg)
+        if self.pcr_encoding == "cuboid":
+            self.pcr_encoded = self.encode_cuboid_pcr(self.obstacle_cuboids)
         self.cpu_time = time() - self.cpu_epoch
         return {"point_cloud": self.points}
 
@@ -362,3 +366,49 @@ class StaticPointCloudCamera(CameraBase):
         # pyb.addUserDebugPoints(np.asarray(self.encoded_pcr + np.array([0, 0, 0.5])), colors, pointSize=2)
         # sleep(352343)
 
+    @staticmethod
+    def encode_cuboid_pcr(cuboid, n_points=30):
+        # has to be dividable by 6
+        assert n_points % 6 == 0
+
+        x_max, x_min, y_max, y_min, z_max, z_min, length, depth, height, x_center, y_center, z_center = cuboid
+        length = x_max - x_min
+        depth = y_max - y_min
+        height = z_max - z_min
+
+        def create_plane(min1, max1, axis1, min2, max2, axis2, const_val, axis_const, n_points=n_points / 6):
+            plane_points = np.empty((n_points, 3))
+            n = np.sqrt(n_points)
+            A, B = np.mgrid[
+                   min1:max1:n * 1j,
+                   min2:max2:n * 1j
+                   ]
+            A = A.reshape((n_points))
+            B = B.reshape((n_points))
+
+            plane_points[:, axis1] = A
+            plane_points[:, axis2] = B
+            plane_points[:, axis_const] = const_val
+
+            return plane_points
+
+        front_plane = create_plane(x_min, x_max, 0, z_min, z_max, 2, y_min, 1)
+        back_plane = front_plane + np.array([0, depth, 0])
+
+        right_plane = create_plane(y_min, y_max, 1, z_min, z_max, 2, x_max, 0)
+        left_plane = right_plane - np.array([length, 0, 0])
+
+        top_plane = create_plane(x_min, x_max, 0, y_min, y_max, 1, z_max, 2)
+        bottom_plane = top_plane - np.array([0, 0, height])
+
+        planes = [front_plane, back_plane, right_plane, left_plane, top_plane, bottom_plane]
+        cuboid_pcr = np.concatenate(planes, axis=0)
+
+        return cuboid_pcr
+        # from matplotlib import pyplot as plt
+        # fig = plt.figure()
+        # ax = fig.add_subplot(projection='3d')
+        # colors = ["red", "green", "blue", "orange", "black", "brown"]
+        # for i, plane in enumerate(planes):
+        #     ax.scatter(plane[:, 0], plane[:, 1], plane[:, 2], c=colors[i])
+        # plt.show()
