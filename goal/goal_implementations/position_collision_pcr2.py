@@ -51,6 +51,11 @@ class PositionCollisionPCR2(Goal):
         self.is_success = False
         self.done = False
 
+        # workspace bounderies
+        self.boundaries = goal_config["boundaries"]
+        self.boundaries_min = np.array([self.boundaries[0], self.boundaries[2], self.boundaries[4]])
+        self.boundaries_max = np.array([self.boundaries[1], self.boundaries[3], self.boundaries[5]])
+        self.boundaries_range = self.boundaries_max - self.boundaries_min
         # performance metric name
         self.metric_name = "distance_threshold"
 
@@ -66,12 +71,9 @@ class PositionCollisionPCR2(Goal):
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-                                         high=np.array([1, 1, 2], dtype=np.float32),
-                                         shape=(3,), dtype=np.float32)
-            ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-                                         high=np.array([1, 1, 2], dtype=np.float32),
-                                         shape=(3,), dtype=np.float32)
+            ret["end_effector_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["target_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["encoded_cuboid"] = Box(low=-1, high=1, shape=(96, 3), dtype=np.float32)
 
             return ret
         else:
@@ -106,11 +108,21 @@ class PositionCollisionPCR2(Goal):
         self.cpu_epoch = time.time() - t
         return self.metric_name, self.distance_threshold, True, True
 
+    def normalize_coordinates(self, points):
+        points = np.clip(points, a_min=self.boundaries_min, a_max=self.boundaries_max)
+        points = 2 * (points - self.boundaries_min) / (self.boundaries_max - self.boundaries_min) - 1
+        return points
+
+
     def get_observation(self) -> dict:
-        # TODO: implement normalization
-        return {"target_position": self.target,
-                "end_effector_position": self.position
-                }
+        if self.normalize_observations:
+            return {"target_position": self.normalize_coordinates(self.target),
+                    "end_effector_position": self.normalize_coordinates(self.position),
+                    "encoded_cuboid": self.normalize_coordinates(self.obstacle_encoded)}
+        else:
+            return {"target_position": self.target,
+                    "end_effector_position": self.position,
+                    "encoded_cuboid": self.obstacle_encoded}
 
     def _set_observation(self):
         # get the data
@@ -260,8 +272,13 @@ class PositionCollisionPCR2(Goal):
         # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
 
-        # encode closest cuboid
-        self.closest_cuboid_encoded = self.encode_cuboid_pcr(self.closest_obstacle_cuboid)
+        if len(obstacle_cuboids) != 1:
+            # encode obstacle cuboid
+            self.obstacle_encoded = self.encode_cuboid_pcr(cuboid=obstacle_cuboids[1])
+
+        # colors = np.repeat(np.array([0, 0, 255])[na, :], 25 * 6, axis=0)
+        # pyb.addUserDebugPoints(np.asarray(self.obstacle_encoded), colors, pointSize=2)
+        # time.sleep(352343)
 
         # display closest obstacle cuboid
         if self.debug["closest_obstacle_cuboid"]:
@@ -299,7 +316,7 @@ class PositionCollisionPCR2(Goal):
                       self.closest_obstacle_cuboid[-3:] + np.array([0, 0, 0.3]))
 
     @staticmethod
-    def encode_cuboid_pcr(cuboid, points_per_plane=36):
+    def encode_cuboid_pcr(cuboid, points_per_plane=25):
         # has to have an even square root
         assert np.sqrt(points_per_plane).is_integer()
 

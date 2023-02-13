@@ -77,9 +77,10 @@ env:
       goal:
         type: "PositionCollisionPCR2"
         config:
+          boundaries: [-2, 2, -2, 2, 0, 3]
           debug: {"closest_obstacle_cuboid": False}
           normalize_rewards: False
-          normalize_observations: False
+          normalize_observations: True
           add_to_observation_space: True
           add_to_logging: True
           continue_after_success: False
