@@ -67,9 +67,9 @@ class TestcasesWorld(World):
             if self.test3_phase == 0:
                 # this is only works if the first robot is the one performing the test as we require for this class
                 dist_threshold = self.robots_in_world[0].goal.distance_threshold  # warning: this will crash if the goal has no such thing as a distance threshold
-                ee_pos = self.robots[0].position_rotation_sensor.position
+                ee_pos = self.robots_in_world[0].position_rotation_sensor.position
                 dist = np.linalg.norm(ee_pos - self.position_target_3_1)
-                if dist <= dist_threshold:
+                if dist <= dist_threshold * 4:
                     # overwrite current with new target
                     self.position_targets = [self.position_target_3_2]
                     for robot in self.robots_in_world[1:]:
@@ -86,15 +86,18 @@ class TestcasesWorld(World):
         self.objects_ids.append(obst.build())
 
     def _build_test_3(self):
-        obst1 = Box([-0.1,0.4,0.26], [0, 0, 0, 1], [0.002,0.1,0.05])
-        obst2 = Box([0.1,0.4,0.26], [0, 0, 0, 1], [0.002,0.1,0.05])
+        obst1 = Box([-0.1,0.4,0.26], [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
+        obst2 = Box([0.1,0.4,0.26], [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
         self.obstacle_objects.append(obst1)
         self.obstacle_objects.append(obst2)
         self.objects_ids.append(obst1.build())
         self.objects_ids.append(obst2.build())
 
     def create_ee_starting_points(self) -> list:
-        self.ee_starting_points.append((self.robot_ee_start_positions[self.current_test_mode - 1], self.robot_ee_start_orientations[self.current_test_mode - 1]))
+        if self.current_test_mode != 3:
+            self.ee_starting_points.append((self.robot_ee_start_positions[self.current_test_mode - 1], self.robot_ee_start_orientations[self.current_test_mode - 1]))
+        else:
+            self.ee_starting_points.append((np.array([-2.19674683,  1.14504719, -1.81837821, -0.92372966, -1.57090127, -0.62589908]),))
         for robot in self.robots_in_world[1:]:
             self.ee_starting_points.append((None, None))
         return self.ee_starting_points

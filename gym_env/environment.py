@@ -251,6 +251,9 @@ class ModularDRLEnv(gym.Env):
             for idx, robot in enumerate(self.robots):
                 if ee_starting_points[idx][0] is None:
                     continue  # nothing to do here
+                elif len(ee_starting_points[idx]) == 1:
+                    # joints
+                    self.robots[idx].moveto_joints(ee_starting_points[idx][0], False)
                 elif ee_starting_points[idx][1] is None:
                     # only position
                     self.robots[idx].moveto_xyz(ee_starting_points[idx][0], False)

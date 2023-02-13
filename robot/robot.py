@@ -148,15 +148,21 @@ class Robot(ABC):
 
             # transform action (-1 to 1) to desired new joint angles
             new_joints = action * (self.joints_range / 2) + (self.joints_limits_lower + self.joints_limits_upper) / 2
-            
+
             # if we don't use the physics sim, which will only perform a step towards the desired new joints, 
             # we have to clamp the new joint angles such that they move with at most the maximum velocity within the next sim step
             if not self.use_physics_sim:
                 # compute the maximum step we do in that direction
                 joint_delta = new_joints - self.joints_sensor.joints_angles
-                joint_delta = joint_delta / np.linalg.norm(joint_delta)
-                joint_delta = joint_delta * self.joints_max_velocities * self.sim_step
-
+                joint_dist = np.linalg.norm(joint_delta)
+                joint_dist = joint_dist if joint_dist != 0 else 1
+                joint_delta = joint_delta / joint_dist
+                step_times_velocity = np.min(self.joints_max_velocities) * self.sim_step
+                if joint_dist > step_times_velocity:
+                    joint_mul = step_times_velocity
+                else:
+                    joint_mul = joint_dist
+                joint_delta = joint_delta * joint_mul
                 # compute the joint angles we can actually go to
                 new_joints = joint_delta + self.joints_sensor.joints_angles
 
