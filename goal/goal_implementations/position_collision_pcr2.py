@@ -159,7 +159,7 @@ class PositionCollisionPCR2(Goal):
         a = action  # note that the action is normalized
 
         # calculating Huber loss for distance of end effector to target
-        if self.distance > 1.55: self.distance = 1.55
+        if self.distance > 1.55: self.distance = np.array([1.55])
         if self.distance < dirac:
             R_E_T = 1 / 2 * (self.distance ** 2)
         else:
