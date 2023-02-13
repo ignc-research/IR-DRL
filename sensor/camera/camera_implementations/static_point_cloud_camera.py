@@ -324,11 +324,14 @@ class StaticPointCloudCamera(CameraBase):
         return self.obstacle_cuboids
 
     def _encode_pcr(self, points, segImg):
-        # remove table
+        # remove table if there is at least 2 non table points otherwise removing everything but the table
         select_mask = segImg != 2
-        if torch.any(select_mask):
+        if torch.sum(select_mask) > 1:
             segImg = segImg[select_mask]
             points = points[select_mask]
+        else:
+            segImg = segImg[torch.logical_not(select_mask)]
+            points = points[torch.logical_not(select_mask)]
 
         segImg_unique, counts = torch.unique(segImg, return_counts=True)
 
