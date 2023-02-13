@@ -67,58 +67,6 @@ CARTESIAN_TRAJECTORY_CONTROLLERS = [
 CONFLICTING_CONTROLLERS = ["joint_group_vel_controller", "twist_controller"]
 
 
-class listener_node:
-
-
-    def __init__(self, action_rate, control_rate):
-
-        #self.action_timer = rospy.timer(rospy.Duration(1 / action_rate), self.cbAction)
-        #self.control_timer = rospy.timer(rospy.Duration(1 / control_rate), self.cbControl)
-
-        self.end_effector_link_id = 6
-
-        # data storage
-        self.end_effector_xyz = None
-        self.end_effector_rpy = None
-        self.end_effector_quat = None
-        self.action = None
-        self.joints = None
-        #TODO: Wir nehmen erstmal nur den tool0_controller, bei bedarf weitere links reinladen, dann allerdings neu berechnen, da die werte immer nur in Abhaengigkeit zum parent link gezeigt werden
-        self.ee_transform = {
-            "translation": [],
-            "rotation": []
-        }
-        
-        #initialise listener 
-        rospy.init_node('listener', anonymous=True)
-        rospy.Subscriber("/tf", TFMessage, self.cbGetPos)
-        rospy.Subscriber("/joint_states", JointState, self.cbGetJoints)
-
-        rospy.spin()
-        
-
-    def cbAction(self, event):
-        return
-
-    def cbControl(self, event):
-        return
-    
-    def cbGetPos(self, data):
-        for entry in data.transforms:
-            parent_frame_id = entry.header.frame_id
-            frame_id = entry.child_frame_id
-            if parent_frame_id == "base" and frame_id == "tool0_controller":
-                xyz = np.array([entry.transform.translation.x, entry.transform.translation.y, entry.transform.translation.z])
-                quat = np.array([entry.transform.rotation.x, entry.transform.rotation.y, entry.transform.rotation.z, entry.transform.rotation.w])
-                self.ee_transform["translation"] = xyz
-                self.ee_transform["rotation"] = -quat #anpassung an rviz werte
-
-    def cbGetJoints(self, data):
-        self.joints = np.array(data.position, dtype=np.float32)
-        print(self.joints)
-
-  
-
 class TrajectoryClient:
     """Small trajectory client to test a joint trajectory"""
 
@@ -183,7 +131,6 @@ class TrajectoryClient:
                 print("The position is: " + str(position) + " do you want to moveit it?")
                 duration = [2.0]
                 self.move_simple(position,duration)
-                #self.get_joint_position()
                 ##delay einbauen 
 
                 
@@ -252,19 +199,7 @@ class TrajectoryClient:
         # return the newest waypoint in the form of [[x,y,z,0,0,0]]
         return (waypoint_list[-1])
 
-    def get_joint_position(hz):
-        def callback(data):
-            print(data.transforms[0].transform.translation)
-
-        def listener():
-            rospy.init_node('listener', anonymous=True)
-            print("subscribed")
-            rospy.Subscriber("/tf", TFMessage, callback)
-            rate = rospy.Rate(hz)
-            while not rospy.is_shutdown():
-                rate.sleep()
-
-        listener()
+   
 
     def generate_waypoint(self):
         #file_path = '/home/marktschreier/Desktop/Real-Life-Deployment/waypointdata/waypoints.yaml'
@@ -275,14 +210,11 @@ class TrajectoryClient:
         x = round((-2 + (random.random()*2))*100)/100
         y = round((-2 + (random.random()*2))*100)/100
         z = round((-2 + (random.random()*2))*100)/100
-        #waypoint = np.random.uniform(low=-np.pi, high=np.pi, size=(6,))
-        inp = input("Put in 6 joints angles in degrees, separated by spaces: \n")
-        waypoint = [float(ele) * np.pi/180 for ele in inp.split(" ")]
         
-        #waypoint = [x,y,z,0,0,0]
+        waypoint = [x,y,z,0,0,0]
         print(waypoint)
         waypoint_list.append(waypoint)
-        duration_list.append(10.0)
+        duration_list.append(5.0)
         with open(file_path,'w') as f:
             yaml.dump(waypoint_list,f,default_flow_style=False)
             with open(duration_path,'w') as f:
@@ -375,7 +307,7 @@ class TrajectoryClient:
 
 
 if __name__ == "__main__":
-    #test_listener = listener_node(100, 10)
+  
     client = TrajectoryClient()
 
     # The controller choice is obviously not required to move the robot. It is a part of this demo
