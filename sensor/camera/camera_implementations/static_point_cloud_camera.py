@@ -326,8 +326,9 @@ class StaticPointCloudCamera(CameraBase):
     def _encode_pcr(self, points, segImg):
         # remove table
         select_mask = segImg != 2
-        segImg = segImg[select_mask]
-        points = points[select_mask]
+        if torch.any(select_mask):
+            segImg = segImg[select_mask]
+            points = points[select_mask]
 
         segImg_unique, counts = torch.unique(segImg, return_counts=True)
 
