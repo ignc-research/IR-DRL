@@ -15,7 +15,8 @@ class TestcasesWorld(World):
     """
 
     def __init__(self, sim_step:float, env_id:int, test_mode: int):
-        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.4], sim_step, env_id)
+        #super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.4], sim_step, env_id)
+        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, env_id)
 
         self.test_mode = test_mode # 0: random, 1: one plate, 2: moving obstacle, 3: two plates
         self.current_test_mode = 0  # for random
@@ -47,7 +48,7 @@ class TestcasesWorld(World):
         elif self.current_test_mode == 3:
             self._build_test_3()
             
-    def reset(self):
+    def reset(self, success_rate):
         if self.test_mode == 0:
             self.current_test_mode = choice([1, 2, 3])
         else:
@@ -80,7 +81,7 @@ class TestcasesWorld(World):
         self.objects_ids.append(obst.build())
 
     def _build_test_2(self):
-        obst = Box([-0.3, 0.4, 0.3], [0, 0, 0, 1], [np.array([-0.3, 0.4, 0.3]), np.array([-0.3, 0.8, 0.3])], 0.15, [0.05,0.05,0.002])
+        obst = Box([-0.3, 0.4, 0.3], [0, 0, 0, 1], [np.array([-0.3, 0.4, 0.3]), np.array([-0.3, 0.8, 0.3])], 0.015, [0.05,0.05,0.002])
         self.obstacle_objects.append(obst)
         self.objects_ids.append(obst.build())
 
