@@ -68,6 +68,9 @@ class PositionCollisionPCR2(Goal):
         # stuff for debugging
         self.debug = goal_config["debug"]
 
+        # we initialize the encoded obstacle with a made up obstacle that is far from the robots reach
+        self.obstacle_encoded = self.encode_cuboid_pcr(
+                np.array([-1.99, -2, -1.99, -2, 2.99, 3, 0.01, 0.01, 0.01, -1.995, -1.995, -2.995]))
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
@@ -172,8 +175,6 @@ class PositionCollisionPCR2(Goal):
 
         if self.normalize_rewards:
             reward = (lambda_1 * (R_E_T / 0.15) + lambda_2 * (R_R_O) + lambda_3 * (R_A / 6)) / lambda_1
-            print(reward)
-            #print((R_E_T / 0.1))
         else:
             # calculate reward
             reward = lambda_1 * R_E_T + lambda_2 * R_R_O + lambda_3 * R_A
@@ -322,7 +323,7 @@ class PositionCollisionPCR2(Goal):
                       self.closest_obstacle_cuboid[-3:] + np.array([0, 0, 0.3]))
 
     @staticmethod
-    def encode_cuboid_pcr(cuboid, points_per_plane=25):
+    def encode_cuboid_pcr(cuboid, points_per_plane=16):
         # has to have an even square root
         assert np.sqrt(points_per_plane).is_integer()
 
