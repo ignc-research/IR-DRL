@@ -78,6 +78,9 @@ class StaticPointCloudCamera(CameraBase):
         # target
         self.target = sensor_config["target"]
 
+        # whether to encode pcr or or not
+        self.encode_pcr = sensor_config["encode_pcr"]
+
         # whether to update the matrices or not
         self.update_matrices = True
         if sensor_config["debug"] is None:
@@ -113,28 +116,29 @@ class StaticPointCloudCamera(CameraBase):
 
         self.device = "cuda:0" if self.use_gpu else "cpu"
         # load the encoder
-        self.net = models.GridAutoEncoderAdaIN(rnd_dim=2,
-                                          enc_p=0,
-                                          dec_p=0.2,
-                                          adain_layer=None).to(self.device)
-        total_params = 0
-        for param in self.net.parameters():
-            total_params += np.prod(param.size())
-        print("Network parameters: {}".format(total_params))
-        state_dict = torch.load("pcr_encoder/models/pretrained/model_full_transformations.state")
+        if self.encode_pcr:
+            self.net = models.GridAutoEncoderAdaIN(rnd_dim=2,
+                                              enc_p=0,
+                                              dec_p=0.2,
+                                              adain_layer=None).to(self.device)
+            total_params = 0
+            for param in self.net.parameters():
+                total_params += np.prod(param.size())
+            print("Network parameters: {}".format(total_params))
+            state_dict = torch.load("pcr_encoder/models/pretrained/model_full_transformations.state")
 
-        new_state_dict = OrderedDict()
-        changed = False
-        for k, v in state_dict.items():
-            if k[:7] == "module.":
-                changed = True
-                new_state_dict[k[7:]] = v
-            else:
-                new_state_dict[k] = v
-        if changed:
-            state_dict = new_state_dict
-        self.net.load_state_dict(state_dict)
-        self.net.eval()
+            new_state_dict = OrderedDict()
+            changed = False
+            for k, v in state_dict.items():
+                if k[:7] == "module.":
+                    changed = True
+                    new_state_dict[k[7:]] = v
+                else:
+                    new_state_dict[k] = v
+            if changed:
+                state_dict = new_state_dict
+            self.net.load_state_dict(state_dict)
+            self.net.eval()
 
         if self.use_gpu:
             self.PixPos = torch.from_numpy(self.PixPos).to("cuda:0")
@@ -194,7 +198,8 @@ class StaticPointCloudCamera(CameraBase):
             self.points = self._depth_img_to_point_cloud(self.depth)
             self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
             self.obstacle_cuboids = self._pcr_to_cuboids(self.points, self.segImg)
-            self.pcr_encoded = self._encode_pcr(self.points, self.segImg)
+            if self.encode_pcr:
+                self.pcr_encoded = self._encode_pcr_nn(self.points, self.segImg)
         self.cpu_time = time() - self.cpu_epoch
         return self.get_observation()
 
@@ -205,7 +210,8 @@ class StaticPointCloudCamera(CameraBase):
         self.points = self._depth_img_to_point_cloud(self.depth)
         self.points, self.segImg = self._prepreprocess_point_cloud(self.points, self.seg_img_full)
         self.obstacle_cuboids = self._pcr_to_cuboids(self.points, self.segImg)
-        self.pcr_encoded = self._encode_pcr(self.points, self.segImg)
+        if self.encode_pcr:
+            self.pcr_encoded = self._encode_pcr_nn(self.points, self.segImg)
         self.cpu_time = time() - self.cpu_epoch
         return {"point_cloud": self.points}
 
@@ -323,7 +329,7 @@ class StaticPointCloudCamera(CameraBase):
             self.obstacle_cuboids = df.to_numpy().astype(np.float32)
         return self.obstacle_cuboids
 
-    def _encode_pcr(self, points, segImg):
+    def _encode_pcr_nn(self, points, segImg):
         # remove table if there is at least 2 non table points otherwise removing everything but the table
         select_mask = segImg != 2
         if torch.sum(select_mask) > 1:
@@ -355,5 +361,4 @@ class StaticPointCloudCamera(CameraBase):
         # colors = np.repeat(np.array([0, 0, 255])[na, :], n_points, axis=0)
         # pyb.addUserDebugPoints(np.asarray(self.encoded_pcr + np.array([0, 0, 0.5])), colors, pointSize=2)
         # sleep(352343)
-
 

@@ -56,8 +56,9 @@ env:
             debug: None
             name: "PCR_camera"
             normalize: False
-            add_to_observation_space: True
-            update_steps: 6
+            encode_pcr: False
+            add_to_observation_space: False
+            update_steps: 4
         sensor3:
           type: "RobotSkeletonSensor"
           config:
