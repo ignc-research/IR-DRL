@@ -260,6 +260,9 @@ class PositionCollisionPCR2(Goal):
         # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
 
+        # encode closest cuboid
+        self.closest_cuboid_encoded = self.encode_cuboid_pcr(self.closest_obstacle_cuboid)
+
         # display closest obstacle cuboid
         if self.debug["closest_obstacle_cuboid"]:
             pyb.removeAllUserDebugItems()
@@ -294,3 +297,44 @@ class PositionCollisionPCR2(Goal):
             # draw additional line starting from center point
             draw_line(self.closest_obstacle_cuboid[-3:],
                       self.closest_obstacle_cuboid[-3:] + np.array([0, 0, 0.3]))
+
+    @staticmethod
+    def encode_cuboid_pcr(cuboid, points_per_plane=36):
+        # has to have an even square root
+        assert np.sqrt(points_per_plane).is_integer()
+
+        x_max, x_min, y_max, y_min, z_max, z_min, length, depth, height, x_center, y_center, z_center = cuboid
+        length = x_max - x_min
+        depth = y_max - y_min
+        height = z_max - z_min
+
+        def create_plane(min1, max1, axis1, min2, max2, axis2, const_val, axis_const, n_points=points_per_plane):
+            n = np.sqrt(points_per_plane).astype(int)
+            plane_points = np.empty((n_points, 3))
+            A, B = np.mgrid[
+                   min1:max1:n * 1j,
+                   min2:max2:n * 1j
+                   ]
+            A = A.reshape((n_points, ))
+            B = B.reshape((n_points, ))
+
+            plane_points[:, axis1] = A
+            plane_points[:, axis2] = B
+            plane_points[:, axis_const] = const_val
+
+            return plane_points
+
+        front_plane = create_plane(x_min, x_max, 0, z_min, z_max, 2, y_min, 1)
+        back_plane = front_plane + np.array([0, depth, 0])
+
+        right_plane = create_plane(y_min, y_max, 1, z_min, z_max, 2, x_max, 0)
+        left_plane = right_plane - np.array([length, 0, 0])
+
+        top_plane = create_plane(x_min, x_max, 0, y_min, y_max, 1, z_max, 2)
+        bottom_plane = top_plane - np.array([0, 0, height])
+
+        planes = [front_plane, back_plane, right_plane, left_plane, top_plane, bottom_plane]
+        cuboid_pcr = np.concatenate(planes, axis=0)
+
+        return cuboid_pcr
+

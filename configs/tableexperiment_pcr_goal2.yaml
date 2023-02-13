@@ -56,7 +56,7 @@ env:
             debug: None
             name: "PCR_camera"
             normalize: False
-            encode_pcr: False
+            pcr_encoding: None
             add_to_observation_space: False
             update_steps: 4
         sensor3:
