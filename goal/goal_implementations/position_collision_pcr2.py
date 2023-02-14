@@ -173,18 +173,28 @@ class PositionCollisionPCR2(Goal):
         # calculate motion size
         R_A = - np.sum(np.square(a))
 
-        if self.normalize_rewards:
-            reward = (lambda_1 * (R_E_T / 0.15) + lambda_2 * (R_R_O) + lambda_3 * (R_A / 6)) / lambda_1
-        else:
-            # calculate reward
-            reward = lambda_1 * R_E_T + lambda_2 * R_R_O + lambda_3 * R_A
-        if self.distance <= self.distance_threshold and not self.success and not self.collided:
-            self.success = True
-        if step >= self.max_steps:
-            if self.success:
-                self.is_success = True
+        # success
+        self.is_success = False
+        if self.collided:
+            self.done = True
+            reward += -100
+        elif self.distance[0] < self.distance_threshold:
+            self.done = True
+            self.is_success = True
+            reward += 100
+        elif step > self.max_steps:
             self.done = True
             self.timeout = True
+            reward += -50
+        else:
+            if self.normalize_rewards:
+                reward = (lambda_1 * (R_E_T / 0.15) + lambda_2 * (R_R_O) + lambda_3 * (R_A / 6)) / lambda_1
+                #print("Distance reward:", self.distance, (R_E_T / 0.15))
+                #print("Distance to obstacle reward:", self.min_distance_to_obstacles, lambda_2 * (R_R_O) / lambda_1)
+                #print("Motion size reward:", a, lambda_3 * (R_A / 6) / lambda_1)
+            else:
+                # calculate reward
+                reward = lambda_1 * R_E_T + lambda_2 * R_R_O + lambda_3 * R_A
 
         self.reward_value = reward
         self.ep_reward += reward
@@ -283,7 +293,7 @@ class PositionCollisionPCR2(Goal):
             # encode obstacle cuboid
             self.obstacle_encoded = self.encode_cuboid_pcr(cuboid=obstacle_cuboids[1])
 
-        # colors = np.repeat(np.array([0, 0, 255])[na, :], 25 * 6, axis=0)
+        # colors = np.repeat(np.array([0, 0, 255])[na, :], len(self.obstacle_encoded), axis=0)
         # pyb.addUserDebugPoints(np.asarray(self.obstacle_encoded), colors, pointSize=2)
         # time.sleep(352343)
 

@@ -88,7 +88,8 @@ if __name__ == "__main__":
                             gamma=run_config["gamma"],
                             action_noise=action_noise, verbose=1,
                             tensorboard_log=run_config["tensorboard_folder"],
-                            batch_size=run_config["batch_size"]
+                            batch_size=run_config["batch_size"],
+                            device="cuda:0"
                             )
             print(model.policy)
         else:
