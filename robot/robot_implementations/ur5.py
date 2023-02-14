@@ -32,7 +32,7 @@ class UR5(Robot):
     def build(self):
 
         self.object_id = pyb.loadURDF(self.urdf_path, basePosition=self.base_position.tolist(), baseOrientation=self.base_orientation.tolist(), useFixedBase=True)
-        joints_info = [pyb.getJointInfo(self.id, i) for i in range(pyb.getNumJoints(self.id))]
+        joints_info = [pyb.getJointInfo(self.object_id, i) for i in range(pyb.getNumJoints(self.object_id))]
         self.joints_ids = np.array([j[0] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
 
         self.moveto_joints(self.resting_pose_angles, False)     
