@@ -33,3 +33,19 @@ class Box(Obstacle):
                                     basePosition=self.position_orig)
 
         return self.object_id
+
+class Cylinder(Obstacle):
+
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, radius: float, height: float, color: list=[0.65,0.65,0.65,1]) -> None:
+        super().__init__(position, rotation, trajectory, move_step)
+
+        self.radius = radius
+        self.color = color
+        self.height = height
+
+    def build(self) -> int:
+        self.object_id =pyb.createMultiBody(baseMass=0,
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=self.radius, height=self.height, rgbaColor=self.color),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_CYLINDER, radius=self.radius, height=self.height),
+                                    basePosition=self.position_orig)
+        return self.object_id
