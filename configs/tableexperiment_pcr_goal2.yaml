@@ -2,7 +2,7 @@
 # reinforcement learning" for table experiment
 run:
   load_model: True
-  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/Paper_1_800000_steps.zip"
+  model_path: "C:/Users/amirm/OneDrive/Desktop/IRL-DRL-current/IR-DRL/models/weights/Paper_1_2_1680000_steps.zip"
   reset_num_timesteps: True
   train:
     algorithm: "TD3"

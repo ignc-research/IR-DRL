@@ -105,9 +105,28 @@ if __name__ == "__main__":
     else:
         env = ModularDRLEnv(env_config)
         if not run_config["load_model"]:
-            model = PPO("MultiInputPolicy", env, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"])
+            if run_config["algorithm"] == "PPO":
+                model = PPO("MultiInputPolicy", env, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"])
+            if run_config["algorithm"] == "TD3":
+                action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(6), sigma=np.ones(6))
+                model = TD3("MultiInputPolicy", env,
+                            policy_kwargs=run_config["custom_policy"],
+                            train_freq=1,
+                            learning_rate=run_config["learning_rate"],
+                            tau=run_config["tau"],
+                            gamma=run_config["gamma"],
+                            action_noise=action_noise, verbose=1,
+                            tensorboard_log=run_config["tensorboard_folder"],
+                            batch_size=run_config["batch_size"],
+                            device="cuda:0"
+                            )
+
         else:
-            model = PPO.load(run_config["model_path"], env=env)
+            if run_config["algorithm"] == "PPO":
+                model = PPO.load(run_config["model_path"], env=env)
+            if run_config["algorithm"] == "TD3":
+                model = TD3.load(run_config["model_path"], env=env, tensorboard_log=run_config["tensorboard_folder"])
+
 
         #explainer = ExplainPPO(env, model, extractor_bias= 'camera')
         #exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')
