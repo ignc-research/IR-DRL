@@ -6,7 +6,7 @@ run:
   reset_num_timesteps: True
   train:
     algorithm: "TD3"
-    num_envs : 8
+    num_envs : 12
     timesteps: 15000000
     save_freq : 20000
     ppo_steps: 1024
