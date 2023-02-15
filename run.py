@@ -94,7 +94,7 @@ if __name__ == "__main__":
             print(model.policy)
         else:
             if run_config["algorithm"] == "TD3":
-                mdel = TD3.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
+                model = TD3.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
             elif run_config["algorithm"] == "PPO":
                 model = PPO.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
             # needs to be set on my pc when loading a model, dont know why, might not be needed on yours
