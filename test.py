@@ -25,8 +25,7 @@ while True:
     done = False
     while not done:
         obs, reward, done, info = testo.step(testo.action_space.sample())
-        target = testo.world.position_targets[0]
-        robot = testo.robots[0]
+
 
 
 

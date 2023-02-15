@@ -74,10 +74,12 @@ class PositionCollisionPCR2(Goal):
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            ret["end_effector_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
             ret["target_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
-            ret["encoded_cuboid"] = Box(low=-1, high=1, shape=(96, 3), dtype=np.float32)
-
+            ret["end_effector_position"] = Box(low=-1, high=1, shape=(3,), dtype=np.float32)
+            ret["ee_target_delta"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["closest_robot_sklt_point"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["closest_projection"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["sklt_projection_delta"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
             return ret
         else:
             return {}
@@ -119,9 +121,20 @@ class PositionCollisionPCR2(Goal):
 
     def get_observation(self) -> dict:
         if self.normalize_observations:
-            return {"target_position": self.normalize_coordinates(self.target),
-                    "end_effector_position": self.normalize_coordinates(self.position),
-                    "encoded_cuboid": self.normalize_coordinates(self.obstacle_encoded)}
+            target_pos = self.normalize_coordinates(self.target)
+            end_effector_position = self.normalize_coordinates(self.position)
+            ee_target_delta = (target_pos - end_effector_position) / 2
+            closest_robot_sklt_point = self.normalize_coordinates(self.closest_robot_skeleton_point)
+            closest_projection = self.normalize_coordinates(self.closest_projection)
+            sklt_projection_delta = (closest_projection - closest_robot_sklt_point) / 2
+
+            return {"target_position": target_pos,
+                    "end_effector_position": end_effector_position,
+                    "ee_target_delta": ee_target_delta,
+                    "closest_robot_sklt_point": closest_robot_sklt_point,
+                    "closest_projection": closest_projection,
+                    "sklt_projection_delta": sklt_projection_delta
+                    }
         else:
             return {"target_position": self.target,
                     "end_effector_position": self.position,
@@ -289,9 +302,9 @@ class PositionCollisionPCR2(Goal):
         # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
 
-        if len(obstacle_cuboids) != 1:
-            # encode obstacle cuboid
-            self.obstacle_encoded = self.encode_cuboid_pcr(cuboid=obstacle_cuboids[1])
+        # if len(obstacle_cuboids) != 1:
+        #     # encode obstacle cuboid
+        #     self.obstacle_encoded = self.encode_cuboid_pcr(cuboid=obstacle_cuboids[1])
 
         # colors = np.repeat(np.array([0, 0, 255])[na, :], len(self.obstacle_encoded), axis=0)
         # pyb.addUserDebugPoints(np.asarray(self.obstacle_encoded), colors, pointSize=2)

@@ -6,7 +6,7 @@ run:
   reset_num_timesteps: True
   train:
     algorithm: "TD3"
-    num_envs : 8
+    num_envs : 16
     timesteps: 15000000
     save_freq : 20000
     ppo_steps: 1024
@@ -24,7 +24,7 @@ run:
     logging: 1
 
 env:
-  max_steps_per_episode: 512
+  max_steps_per_episode: 800
   use_physics_sim: True  # strictly speaking the original code had this at False
   sim_step: 0.00416666666  
   stat_buffer_size: 25  
