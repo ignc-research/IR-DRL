@@ -44,12 +44,11 @@ class GeneratedWorld(World):
     The obstacles will be placed between the p
     Depending on the configuration, some of these can be moving in various directions at various speeds
     """
-    obstacle_objects: list[Obstacle] = []
 
     def __init__(self, workspace_boundaries: list,
                        sim_step: float,
                        env_id: int,
-                       obstacles: dict ):
+                       obstacles: dict):
         """
         :param workspace_boundaries: List of 6 floats containing the bounds of the workspace in the following order: xmin, xmax, ymin, ymax, zmin, zmax
         :param sim_step: float for the time per sim step
@@ -72,6 +71,8 @@ class GeneratedWorld(World):
             self.obstacle_objects.append(MazeObstacle(position, rotation, trajectory, vel * self.sim_step, self.env_id, obstacle["params"], scale))
         elif obstacle_name == "shelf":
             self.obstacle_objects.append(ShelfObstacle(position, rotation, trajectory, vel * self.sim_step, self.env_id, obstacle["params"], scale))
+        elif obstacle_name == "box":
+            self.obstacle_objects.append(Box(position, rotation, trajectory, self.sim_step * vel, obstacle["params"]["halfExtents"]))
         else:
             urdfs = findUrdfs(obstacle_name)
             if len(urdfs) > 0:
@@ -110,7 +111,7 @@ class GeneratedWorld(World):
         return self.ee_starting_points
 
     def create_position_target(self):
-        self.position_targets.append([0,0,0])
+        self.position_targets.append(np.array([0.25, 0.25, 1.8]))
         return self.position_targets
 
     def create_rotation_target(self) -> list:

@@ -62,8 +62,10 @@ class RandomObstacleWorld(World):
         ground_plate = pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01])
         self.objects_ids.append(ground_plate)
 
+        rand_number = choice(range(self.num_moving_obstacles + self.num_static_obstacles)) + 1
+
         # add the moving obstacles
-        for i in range(self.num_moving_obstacles + self.num_static_obstacles):
+        for i in range(rand_number):
             # pick a one of the robots' starting positions randomly to...
             idx = choice(range(len(self.ee_starting_points)))
             # ... generate a random position between halfway between it and its target

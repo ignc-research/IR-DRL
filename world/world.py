@@ -14,6 +14,8 @@ class World(ABC):
         self.objects_ids = []
         # list that will contain all purely visual PyBullet object ids (e.g. explicatory lines, workspace boundaries etc.)
         self.aux_object_ids = []
+        # list that will contain all obstacle objects used in this world
+        self.obstacle_objects = []
 
         # set sim step
         self.sim_step = sim_step

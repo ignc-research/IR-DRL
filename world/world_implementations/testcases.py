@@ -23,7 +23,7 @@ class TestcasesWorld(World):
         self.test3_phase = 0  # test3 has two phases
 
         # hardcoded end effector start positions, one per test case
-        self.robot_ee_start_positions = [np.array([0.15, 0.4, 0.3]), np.array([0.1, 0.3, 0.33]), np.array([0.25, 0.4, 0.3])]
+        self.robot_ee_start_positions = [np.array([0.15, 0.4, 0.3]), np.array([0.1, 0.4, 0.33]), np.array([0.25, 0.4, 0.3])]
         self.robot_ee_start_orientations = [np.array(pyb.getQuaternionFromEuler([np.pi, 0, np.pi])), np.array(pyb.getQuaternionFromEuler([np.pi, 0, np.pi])), np.array(pyb.getQuaternionFromEuler([np.pi, 0, np.pi]))]
 
         # hardcoded targets, per test case
@@ -69,11 +69,12 @@ class TestcasesWorld(World):
                 dist_threshold = self.robots_in_world[0].goal.distance_threshold  # warning: this will crash if the goal has no such thing as a distance threshold
                 ee_pos = self.robots_in_world[0].position_rotation_sensor.position
                 dist = np.linalg.norm(ee_pos - self.position_target_3_1)
-                if dist <= dist_threshold * 4:
+                if dist <= dist_threshold * 1.5:
                     # overwrite current with new target
                     self.position_targets = [self.position_target_3_2]
                     for robot in self.robots_in_world[1:]:
                         self.position_targets.append([])
+                    self.test3_phase = 1
     
     def _build_test_1(self):
         obst = Box(np.array([0.0,0.4,0.3]), [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
@@ -81,7 +82,7 @@ class TestcasesWorld(World):
         self.objects_ids.append(obst.build())
 
     def _build_test_2(self):
-        obst = Box([-0.3, 0.4, 0.3], [0, 0, 0, 1], [np.array([-0.3, 0.4, 0.3]), np.array([-0.3, 0.8, 0.3])], 0.015, [0.05,0.05,0.002])
+        obst = Box([-0.3, 0.4, 0.3], [0, 0, 0, 1], [np.array([-0.3, 0.4, 0.3]), np.array([-0.3, 0.8, 0.3])], 0.0015, [0.05,0.05,0.002])
         self.obstacle_objects.append(obst)
         self.objects_ids.append(obst.build())
 
