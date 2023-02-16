@@ -3,6 +3,7 @@ import numpy as np
 import pybullet as pyb
 from time import process_time
 import pandas as pd
+from util.recorder import Recorder
 
 # import abstracts
 from robot.robot import Robot
@@ -85,6 +86,10 @@ class ModularDRLEnv(gym.Env):
         pyb.setAdditionalSearchPath(self.assets_path)
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
+
+        # set up the PyBullet recorder, if wanted
+        if self.pybullet_recorder_settings["use"]:
+            self.pybullet_blender_recorder = Recorder()
 
         # init world from config
         world_type = env_config["world"]["type"]
@@ -291,9 +296,13 @@ class ModularDRLEnv(gym.Env):
                 sensor.delete_visual_aux()
                 sensor.build_visual_aux()
 
-        # set up the pybullet blender recorder if wanted
+        # reset the pybullet recorder and register objects
         if self.pybullet_recorder_settings["use"]:
-            pass  # REIMPLEMENT LATER
+            self.pybullet_blender_recorder.reset()
+            for robot in self.robots:
+                self.pybullet_blender_recorder.register_object(robot)
+            for object in self.world.obstacle_objects:
+                self.pybullet_blender_recorder.register_object(object)
 
         # turn rendering back on
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
@@ -394,7 +403,7 @@ class ModularDRLEnv(gym.Env):
 
         # handle pybullet blender recorder
         if self.pybullet_recorder_settings["use"]:
-            pass  # REIMPLEMENT LATER
+            self.pybullet_blender_recorder.save_frame()
 
         # visual help, if enabled
         if self.show_auxillary_geometry_sensors:
@@ -424,7 +433,7 @@ class ModularDRLEnv(gym.Env):
 
             # dump pybullet recorder for this episode
             if self.pybullet_recorder_settings["use"]:
-                pass  # REIMPLEMENT LATER
+                self.pybullet_blender_recorder.save_record("./models/env_logs/" + self.pybullet_recorder_settings["save_path"] + "_" +  str(self.episode) + ".pkl")
 
         # handle logging
         if self.logging == 0:

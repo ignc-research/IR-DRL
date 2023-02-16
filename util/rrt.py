@@ -193,8 +193,10 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias)
     collision = get_collision_fn(robot, obstacles_ids)
 
     # check goal and start
-    if collision(q_start) or collision(q_goal):
-        raise Exception("Goal or start configuration is in collision!")
+    if collision(q_start):
+        raise Exception("Start configuration is in collision!")
+    if collision(q_goal):
+        raise Exception("Goal configuration is in collision!")
 
     # get the connect function
     connect = get_connect_fn(collision, out, epsilon)
