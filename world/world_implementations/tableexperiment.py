@@ -79,8 +79,6 @@ class TableExperiment(World):
         # load targets
         if world_config["targets_path"] is not None:
             self.targets = np.loadtxt(world_config["targets_path"])
-        else:
-            self.targets = None
         
     def build(self):
         # ground plate
@@ -216,8 +214,8 @@ class TableExperiment(World):
         # use the preset targets if there are some
         if self.targets is not None:
             idx = np.random.randint(0, len(self.targets))
-            self.position_targets = [self.targets[idx, :]]
-            return [self.targets[idx, :]]
+            self.position_targets = [self.targets[idx]
+            return [self.targets[idx]]
         # otherwise generate randomly
         else:
             while True:
