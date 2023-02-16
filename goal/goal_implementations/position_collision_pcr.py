@@ -51,6 +51,11 @@ class PositionCollisionPCR(Goal):
         self.is_success = False
         self.done = False
 
+        # workspace bounderies
+        self.boundaries = goal_config["boundaries"]
+        self.boundaries_min = np.array([self.boundaries[0], self.boundaries[2], self.boundaries[4]])
+        self.boundaries_max = np.array([self.boundaries[1], self.boundaries[3], self.boundaries[5]])
+        self.boundaries_range = self.boundaries_max - self.boundaries_min
         # performance metric name
         self.metric_name = "distance_threshold"
 
@@ -63,21 +68,18 @@ class PositionCollisionPCR(Goal):
         # stuff for debugging
         self.debug = goal_config["debug"]
 
+        # we initialize the encoded obstacle with a made up obstacle that is far from the robots reach
+        self.obstacle_encoded = self.encode_cuboid_pcr(
+                np.array([-1.99, -2, -1.99, -2, 2.99, 3, 0.01, 0.01, 0.01, -1.995, -1.995, -2.995]))
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
-            ret["end_effector_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-                                         high=np.array([1, 1, 2], dtype=np.float32),
-                                         shape=(3,), dtype=np.float32)
-            ret["target_position"] = Box(low=np.array([-1, -1, 1], dtype=np.float32),
-                                         high=np.array([1, 1, 2], dtype=np.float32),
-                                         shape=(3,), dtype=np.float32)
-            ret["distance_to_target"] = Box(low=0, high=2, shape=(1,), dtype=np.float32)
-            ret["closest_projection"] = Box(low=np.array([-1, -1, 1]),
-                                            high=np.array([1, 1, 2]),
-                                            shape=(3,), dtype=np.float32)
-            ret["shortest_distance_to_obstacle"] = Box(low=0, high=2, shape=(1,), dtype=np.float32)
-            ret["closest_robot_skeleton_point"] = Box(low=np.array([-1, -1, 1]), high=np.array([1, 1, 2]), shape=(3,))
+            ret["target_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["end_effector_position"] = Box(low=-1, high=1, shape=(3,), dtype=np.float32)
+            ret["ee_target_delta"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["closest_robot_sklt_point"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["closest_projection"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            ret["sklt_projection_delta"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
             return ret
         else:
             return {}
@@ -86,6 +88,7 @@ class PositionCollisionPCR(Goal):
         t = time.time()
         self.timeout = False
         self.is_success = False
+        self.success = False
         self.collided = False
         self.done = False
         self.ep_reward = 0
@@ -110,70 +113,104 @@ class PositionCollisionPCR(Goal):
         self.cpu_epoch = time.time() - t
         return self.metric_name, self.distance_threshold, True, True
 
+    def normalize_coordinates(self, points):
+        points = np.clip(points, a_min=self.boundaries_min, a_max=self.boundaries_max)
+        points = 2 * (points - self.boundaries_min) / (self.boundaries_max - self.boundaries_min) - 1
+        return points
+
+
     def get_observation(self) -> dict:
-        # TODO: implement normalization
-        return {"end_effector_position": self.position,
-                "target_position": self.target,
-                "distance_to_target": self.distance,
-                "closest_projection": self.closest_projection,
-                "shortest_distance_to_obstacle": np.array([self.min_distance_to_obstacles]),
-                "closest_robot_skeleton_point": self.closest_robot_skeleton_point
-                }
+        if self.normalize_observations:
+            target_pos = self.normalize_coordinates(self.target)
+            end_effector_position = self.normalize_coordinates(self.position)
+            ee_target_delta = (target_pos - end_effector_position) / 2
+            closest_robot_sklt_point = self.normalize_coordinates(self.closest_robot_skeleton_point)
+            closest_projection = self.normalize_coordinates(self.closest_projection)
+            sklt_projection_delta = (closest_projection - closest_robot_sklt_point) / 2
+
+            return {"target_position": target_pos,
+                    "end_effector_position": end_effector_position,
+                    "ee_target_delta": ee_target_delta,
+                    "closest_robot_sklt_point": closest_robot_sklt_point,
+                    "closest_projection": closest_projection,
+                    "sklt_projection_delta": sklt_projection_delta
+                    }
+        else:
+            return {"target_position": self.target,
+                    "end_effector_position": self.position,
+                    "encoded_cuboid": self.obstacle_encoded}
 
     def _set_observation(self):
         # get the data
         self.position = self.robot.position_rotation_sensor.position
         self.target = self.robot.world.position_targets[self.robot.id].astype(np.float32)
         dif = self.target - self.position
+        self.ee_target_delta = self.position - self.target
         self.distance = np.array([np.linalg.norm(dif)])
-        self._set_min_distance_to_obstacle_and_closest_points()
+        self._set_min_distance_to_obstacle_and_closest_cuboid()
 
     def reward(self, step, action):
         t = time.time()
 
         reward = 0
-        self.step = step
+
         if not self.collided:
             self.collided = self.robot.world.collision
 
         # set parameters
-        lambda_1 = 1
-        lambda_2 = 15
-        lambda_3 = 0.06
+        lambda_1 = 1000
+        lambda_2 = 100
+        lambda_3 = 60
+        # reward_out = 0.01
+        dirac = 0.1
         k = 8
         d_ref = 0.33
 
         # set observations
         self._set_observation()
+        # set motion change
+        a = action  # note that the action is normalized
 
-        # reward for distance to target
-        R_E_T = -self.distance[0]
-        # reward for distance to obstacle
-        R_R_O = -(d_ref / (self.min_distance_to_obstacles + d_ref)) ** k
+        # calculating Huber loss for distance of end effector to target
+        if self.distance > 1.55: self.distance = np.array([1.55])
+        if self.distance < dirac:
+            R_E_T = 1 / 2 * (self.distance ** 2)
+        else:
+            R_E_T = dirac * (self.distance - 1 / 2 * dirac)
+        R_E_T = -R_E_T
 
-        # reward for motion change
-        R_A = - np.sum(np.square(action))
+        min_distance_to_obstacles = self.min_distance_to_obstacles
+        # calculating the distance between robot and obstacle
+        R_R_O = -(d_ref / (min_distance_to_obstacles + d_ref)) ** k
+
+        # calculate motion size
+        R_A = - np.sum(np.square(a))
 
         # success
         self.is_success = False
         if self.collided:
             self.done = True
-            reward += -500
+            reward += -100
         elif self.distance[0] < self.distance_threshold:
             self.done = True
             self.is_success = True
-            reward += 500
+            reward += 100
         elif step > self.max_steps:
             self.done = True
             self.timeout = True
-            reward += -100
+            reward += -50
         else:
-            # calculate reward
-            reward += lambda_1 * R_E_T + lambda_2 * R_R_O + lambda_3 * R_A
+            if self.normalize_rewards:
+                reward = (lambda_1 * (R_E_T / 0.15) + lambda_2 * (R_R_O) + lambda_3 * (R_A / 6)) / lambda_1
+                #print("Distance reward:", self.distance, (R_E_T / 0.15))
+                #print("Distance to obstacle reward:", self.min_distance_to_obstacles, lambda_2 * (R_R_O) / lambda_1)
+                #print("Motion size reward:", a, lambda_3 * (R_A / 6) / lambda_1)
+            else:
+                # calculate reward
+                reward = lambda_1 * R_E_T + lambda_2 * R_R_O + lambda_3 * R_A
 
-        self.ep_reward += reward
         self.reward_value = reward
-
+        self.ep_reward += reward
         self.cpu_epoch = time.time() - t
         return self.reward_value, self.is_success, self.done, self.timeout, False
 
@@ -196,7 +233,7 @@ class PositionCollisionPCR(Goal):
         logging_dict["goal_cpu_time"] = self.cpu_epoch
         return logging_dict
 
-    def _set_min_distance_to_obstacle_and_closest_points(self):
+    def _set_min_distance_to_obstacle_and_closest_cuboid(self):
         """
         Set the closest obstacle cuboid and the shortest distance between robot skeleton and obstacle cuboids.
         """
@@ -262,9 +299,16 @@ class PositionCollisionPCR(Goal):
 
         # closest cuboid for debugging
         self.closest_obstacle_cuboid = obstacle_cuboids[min_idx_cuboid, :].astype(np.float32)
-
         # set the shortest distance to obstacles
         self.min_distance_to_obstacles = distances_proj_origin.min()
+
+        # if len(obstacle_cuboids) != 1:
+        #     # encode obstacle cuboid
+        #     self.obstacle_encoded = self.encode_cuboid_pcr(cuboid=obstacle_cuboids[1])
+
+        # colors = np.repeat(np.array([0, 0, 255])[na, :], len(self.obstacle_encoded), axis=0)
+        # pyb.addUserDebugPoints(np.asarray(self.obstacle_encoded), colors, pointSize=2)
+        # time.sleep(352343)
 
         # display closest obstacle cuboid
         if self.debug["closest_obstacle_cuboid"]:
@@ -300,3 +344,44 @@ class PositionCollisionPCR(Goal):
             # draw additional line starting from center point
             draw_line(self.closest_obstacle_cuboid[-3:],
                       self.closest_obstacle_cuboid[-3:] + np.array([0, 0, 0.3]))
+
+    @staticmethod
+    def encode_cuboid_pcr(cuboid, points_per_plane=16):
+        # has to have an even square root
+        assert np.sqrt(points_per_plane).is_integer()
+
+        x_max, x_min, y_max, y_min, z_max, z_min, length, depth, height, x_center, y_center, z_center = cuboid
+        length = x_max - x_min
+        depth = y_max - y_min
+        height = z_max - z_min
+
+        def create_plane(min1, max1, axis1, min2, max2, axis2, const_val, axis_const, n_points=points_per_plane):
+            n = np.sqrt(points_per_plane).astype(int)
+            plane_points = np.empty((n_points, 3))
+            A, B = np.mgrid[
+                   min1:max1:n * 1j,
+                   min2:max2:n * 1j
+                   ]
+            A = A.reshape((n_points, ))
+            B = B.reshape((n_points, ))
+
+            plane_points[:, axis1] = A
+            plane_points[:, axis2] = B
+            plane_points[:, axis_const] = const_val
+
+            return plane_points
+
+        front_plane = create_plane(x_min, x_max, 0, z_min, z_max, 2, y_min, 1)
+        back_plane = front_plane + np.array([0, depth, 0])
+
+        right_plane = create_plane(y_min, y_max, 1, z_min, z_max, 2, x_max, 0)
+        left_plane = right_plane - np.array([length, 0, 0])
+
+        top_plane = create_plane(x_min, x_max, 0, y_min, y_max, 1, z_max, 2)
+        bottom_plane = top_plane - np.array([0, 0, height])
+
+        planes = [front_plane, back_plane, right_plane, left_plane, top_plane, bottom_plane]
+        cuboid_pcr = np.concatenate(planes, axis=0)
+
+        return cuboid_pcr
+

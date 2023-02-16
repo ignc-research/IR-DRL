@@ -1,0 +1,109 @@
+# implements improved version of "Robot obstacle avoidance system using deep
+# reinforcement learning" for table experiment
+run:
+  load_model: True
+  model_path: "models/weights/PCR_Goal_TD3_4080000_steps_best.zip"
+  reset_num_timesteps: True
+  train:
+    algorithm: "TD3"
+    num_envs : 12
+    timesteps: 15000000
+    save_freq : 5000
+    ppo_steps: 1024
+    batch_size: 256
+    save_folder: "./models/weights"
+    save_name: "PCR_Goal_TD3"
+    gamma: 0.99
+    tau: 0.001
+    learning_rate: 0.001
+    tensorboard_folder: "./models/tensorboard_logs"
+    custom_policy:
+      use: False
+  eval:
+    max_episodes: -1
+    logging: 1
+
+env:
+  max_steps_per_episode: 800
+  use_physics_sim: True  # strictly speaking the original code had this at False
+  sim_step: 0.00416666666  
+  stat_buffer_size: 25  
+  normalize_observations: True
+  normalize_rewards: False
+  robots:
+    robot1:
+      type: "UR5" 
+      config:
+        name: "ur5_1"
+        base_position: [0, 0, 1.1]
+        base_orientation: [0, 0, 0]
+        resting_angles: [-180, -45, -90, -135, 90, 0]
+        control_mode: 2
+        xyz_delta: 0.005
+        rpy_delta: 0.005
+      sensors:
+        sensor2:
+          type: "StaticPointCloudCamera"
+          config:
+            n_points_encoded_obstacle_pcr: 50
+            use_gpu: True
+            add_to_logging: True
+            position: [0, 0, 2.2]
+            target: [0, 0, 0]
+            orientation: None
+            objects_to_remove: [-1, 0, 1, 4]  # remove background, floor, robot and target point
+            camera_args: {type: "ds", fov: 100, width: 126, height: 126, up_vector: [0, 1, 0], near_val: 0.05, far_val: 1.2}
+            debug: None
+            name: "PCR_camera"
+            normalize: False
+            pcr_encoding: None
+            add_to_observation_space: False
+            update_steps: 1
+        sensor3:
+          type: "RobotSkeletonSensor"
+          config:
+            debug: {"skeleton": False}
+            normalize: False
+            add_to_observation_space: False
+            add_to_logging: False
+            update_steps: 2
+        sensor4:
+          type: VelocitySensor
+          config:
+            normalize: True
+            add_to_observation_space: True
+            add_to_logging: False
+            update_steps: 1
+      goal:
+        type: "PositionCollisionPCR"
+        config:
+          boundaries: [-2, 2, -2, 2, 1.09, 3]
+          debug: {"closest_obstacle_cuboid": False}
+          normalize_rewards: True
+          normalize_observations: True
+          add_to_observation_space: True
+          add_to_logging: True
+          continue_after_success: False
+          dist_threshold_start: 0.07
+          dist_threshold_end : 0.01
+          dist_threshold_increment_start: 0.0001
+          dist_threshold_increment_end: 0.00001
+          dist_threshold_overwrite: "None"
+
+  world:
+    type: "TableExperiment"
+    config:
+      workspace_boundaries: [-2, 2, -2, 2, 0, 5]
+      num_obstacles: 1
+      obstacle_velocities: []
+      num_humans: 0
+      human_positions: [[1.6, 0, 1.4], [1.6, 0, 1.4]]
+      human_rotations: [[0, 0, 0], [0, 0, 90]]
+      human_trajectories: [[[-2, 2, 1.4], [2, 2, 1.5]], []]
+      human_reactive: [False, True]
+      ee_starts: []
+      targets: []
+      obstacle_positions: []
+      obstacle_trajectories: []
+      obstacle_training_schedule: False
+      targets_path: "targets.txt"

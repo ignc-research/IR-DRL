@@ -1,3 +1,2 @@
 from .position_collision import PositionCollisionGoal
 from .position_collision_pcr import PositionCollisionPCR
-from .position_collision_pcr2 import PositionCollisionPCR2
