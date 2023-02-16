@@ -1,6 +1,6 @@
 # parse command line args
 from argparse import ArgumentParser
-from util.configparser import parse_config
+from ModEnvDRL.util.configparser import parse_config
 
 # parse the three arguments
 parser = ArgumentParser(prog = "Modular DRL Robot Gym Env",
@@ -17,12 +17,12 @@ args = parser.parse_args()
 run_config, env_config = parse_config(args.configfile, args.train)
 
 # we import the rest here because this takes quite some time and we want the arg parsing to be fast and responsive
-from gym_env.environment import ModularDRLEnv
+from ModEnvDRL.gym_env.environment import ModularDRLEnv
 from stable_baselines3 import PPO, TD3, SAC
 from sb3_contrib import RecurrentPPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
-from callbacks.callbacks import MoreLoggingCustomCallback
+from ModEnvDRL.callbacks.callbacks import MoreLoggingCustomCallback
 import torch
 from os.path import isdir
 import numpy as np
