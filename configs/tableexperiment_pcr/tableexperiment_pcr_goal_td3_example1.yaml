@@ -24,7 +24,7 @@ run:
     logging: 1
 
 env:
-  max_steps_per_episode: 800
+  max_steps_per_episode: 1500
   use_physics_sim: True  # strictly speaking the original code had this at False
   sim_step: 0.00416666666  
   stat_buffer_size: 25  
@@ -102,8 +102,9 @@ env:
       human_trajectories: [[[-2, 2, 1.4], [2, 2, 1.5]], []]
       human_reactive: [False, True]
       ee_starts: []
-      targets: []
+      targets: [[-0.2, -0.45, 1.2], [-0.1, -0.48, 1.15], [0, -0.43, 1.18], [0.1, -0.41, 1.17], [0.2, -0.5, 1.13]]
       obstacle_positions: []
       obstacle_trajectories: []
+      experiment_large_box: True
       obstacle_training_schedule: False
-      targets_path: "targets.txt"
+      targets_path: None

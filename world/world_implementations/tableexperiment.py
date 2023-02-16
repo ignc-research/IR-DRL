@@ -42,6 +42,9 @@ class TableExperiment(World):
         # also, we will always assume that the robot base is set up at 0,0,z
         # this will make generating obstacle easier
 
+        # if a experiment is given
+        self.experiment_large_box = world_config["experiment_large_box"]
+
         self.num_obstacles = world_config["num_obstacles"]
         self.num_humans = world_config["num_humans"]
         self.obstacle_velocities = world_config["obstacle_velocities"]
@@ -93,7 +96,19 @@ class TableExperiment(World):
             self.humans.append(human)
         # obstacles
         extra = 0
-        if np.random.random() < 0.3 and self.num_obstacles:  # generate a rather large brick moving about, this is a standard case that will appear in evaluation, useufl to have in training
+
+        if self.experiment_large_box:
+            extra = 1
+            idx = choice([0, 1])
+            pos = [np.array([0, -0.45, 1.15])]
+            mov = np.random.uniform(low=0.5, high=1, size=(1,)) * self.sim_step
+            traj = [[np.array([-0.6, -0.45, 1.15]), np.array([0.6, -0.45, 1.15])],
+                    [np.array([0.6, -0.45, 1.15]), np.array([-0.6, -0.45, 1.15])]]
+            obs = Box(pos[0], [0, 0, 0, 1], traj[idx], mov, [0.4, 0.1, 0.15], color=[0.75, 0, 0.25, 1])
+            self.objects_ids.append(obs.build())
+            self.obstacle_objects.append(obs)
+
+        elif np.random.random() < 0.3 and self.num_obstacles:  # generate a rather large brick moving about, this is a standard case that will appear in evaluation, useufl to have in training
             extra = 1
             idx = choice([0, 1])
             pos = [np.array([0, -0.45, 1.15]), np.array([0, 0.45, 1.15])]
@@ -113,6 +128,7 @@ class TableExperiment(World):
                     if np.linalg.norm(position - base_position) > 0.35 and np.linalg.norm(position - self.position_targets[0]) > 0.1:
                         break
             else:
+                base_position = self.robots_in_world[0].base_position
                 position = self.obstacle_positions[i]
             # if there are no given obstacle trajectories, randomly generate some
             if not self.obstacle_trajectories:
@@ -214,7 +230,7 @@ class TableExperiment(World):
         # use the preset targets if there are some
         if self.targets is not None:
             idx = np.random.randint(0, len(self.targets))
-            self.position_targets = [self.targets[idx]
+            self.position_targets = [self.targets[idx]]
             return [self.targets[idx]]
         # otherwise generate randomly
         else:

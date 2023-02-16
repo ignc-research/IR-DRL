@@ -102,8 +102,9 @@ env:
       human_trajectories: [[[-2, 2, 1.4], [2, 2, 1.5]], []]
       human_reactive: [False, True]
       ee_starts: []
-      targets: [[0, -0.45, 1.2]]
-      obstacle_positions: [ 0.   -0.45  1.15]
-      obstacle_trajectories: [] #[[[-0.6 , -0.45,  1.15], [ 0.6 , -0.45,  1.15]]]
+      targets: []
+      obstacle_positions: []
+      obstacle_trajectories: []
       obstacle_training_schedule: False
-      targets_path: None
+      experiment_large_box: False
+      targets_path: "targets.txt"
