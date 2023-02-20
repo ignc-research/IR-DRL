@@ -11,6 +11,9 @@ configs/*benno*
 configs/*kai*
 configs/*karim*
 
+# test py
+test.py
+
 # exclude the generated urdfs from maze and shelf class
 modular_drl_env/world/obstacles/shelf/*shelf*.urdf
 modular_drl_env/world/obstacles/maze/*maze*.urdf

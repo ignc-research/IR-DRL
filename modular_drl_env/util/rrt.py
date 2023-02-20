@@ -46,47 +46,43 @@ class Tree:
             print("---------------------")
             print(node.q)
 
-def get_collision_fn(robot, obstacles_ids):
+def get_collision_or_out_fn(robot, obstacles_ids):
     """
-    Creates a collision function for a Robot robot and
+    Creates a collision/oob function for a Robot robot and
     a list of obstacle ids obstacles_ids.
     """
 
-    def collision(q):
+    def collision_or_oob(q):
         robot.moveto_joints(q, False)
 
-        pyb.performCollisionDetection()
-
-        col = False
-        for obst in obstacles_ids:
-            if pyb.getContactPoints(robot.object_id, obst):
-                col = True
-                break
-
-        return col
-    return collision
-
-def get_out_fn(robot):
-    """
-    Creates a function that returns a bool for when the robot ee is out of bounds.
-    """
-    def out(q):
-        robot.moveto_joints(q, False)
+        # first check oob
         pos = np.array(pyb.getLinkState(robot.object_id, robot.end_effector_link_id)[4])
-        x, y, z = pos
-        if x > robot.world.x_max or x < robot.world.x_min:
+        out = robot.world.out_of_bounds(pos)
+        if out:
             return True
-        elif y > robot.world.y_max or y < robot.world.y_min:
-            return True
-        elif z > robot.world.z_max or z < robot.world.z_min:
-            return True
-        return False
-    return out
+        else:
+            # only check collision after oob because it's much more expensive computationally
+            pyb.performCollisionDetection()
 
-def get_sample_fn(robot, out):
+            col = False
+            for obst in obstacles_ids:
+                if pyb.getContactPoints(robot.object_id, obst):
+                    col = True
+                    break
+            return col
+
+    return collision_or_oob
+
+def get_sample_fn(robot):
     """
     Creates a function for sampling the configuration space of a robot.
     """
+    def out(q):
+        # we rewrite the out function here because checking every sample for both oob and collision would be bad for performance
+        robot.moveto_joints(q, False)
+        pos = np.array(pyb.getLinkState(robot.object_id, robot.end_effector_link_id)[4])
+        out = robot.world.out_of_bounds(pos)
+        return out
 
     def sample():
         sample = np.random.uniform(low=robot.joints_limits_lower, high=robot.joints_limits_upper, size=len(robot.joints_ids))
@@ -96,12 +92,12 @@ def get_sample_fn(robot, out):
         return sample
     return sample
 
-def get_connect_fn(collision, out, epsilon=1e-3):
+def get_connect_fn(collision_or_out, epsilon=1e-3):
     """
     Creates a connect function that can connect a configuration to a tree.
     """
     def connect(tree: Tree, q: np.ndarray, control):
-        # get neared node in tree
+        # get nearest node in tree
         node_near = tree.nearest_neighbor(q, control)
         q_cur = node_near.q
         q_old = q_cur
@@ -119,16 +115,15 @@ def get_connect_fn(collision, out, epsilon=1e-3):
             # if we reached the goal, add to tree and transmit 0 for total success
             if np.array_equal(q_cur, q):
                 return tree.add_node(q, node_near), 0
-            col = collision(q_cur)
-            out_v = out(q_cur)
+            col_or_out = collision_or_out(q_cur)
             # if we immediately collide within one epsilon, 
-            # return the old node and transmit 1 for failure
-            if (col or out_v) and np.array_equal(q_old, node_near.q):
-                return node_near, 1
+            # return the old node and transmit 2 for failure
+            if col_or_out and np.array_equal(q_old, node_near.q):
+                return node_near, 2
             # if we collided after at least one epsilon step
-            # add the last node before collision and transmit 2 for partial success
-            elif (col or out_v) and not np.array_equal(q_old, node_near.q):
-                return tree.add_node(q_old, node_near), 2
+            # add the last node before collision and transmit 1 for partial success
+            elif col_or_out and not np.array_equal(q_old, node_near.q):
+                return tree.add_node(q_old, node_near), 1
     return connect
 
 def bi_path(node1, node2, tree1, q_start):
@@ -160,7 +155,7 @@ def bi_path(node1, node2, tree1, q_start):
 
     return list(reversed(a_traj)) + b_traj
 
-def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias, visible=False):
+def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias, visible=False, force_swap=200):
     """
     Bi-RRT algorithm. Returns a valid, collision free trajectory of joint positions
     """
@@ -179,6 +174,11 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
     collisionA, triesA, ratioA = 0, 0, 1.
     collisionB, triesB, ratioB = 0, 0, 1.
 
+    # free run, number of times after a force swap of trees that the swap condition will be ignored
+    free_runs = 50
+    free_run = 0
+    force_swap_active = False
+
     # anchorpoint sampling init
     anchorpoint = np.zeros(len(q_start))
     scale = 1
@@ -187,23 +187,21 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
     if not visible:
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
 
-    # get oob function
-    out = get_out_fn(robot)
 
     # get collision function
-    collision = get_collision_fn(robot, obstacles_ids)
+    collision_or_out = get_collision_or_out_fn(robot, obstacles_ids)
 
     # check goal and start
-    if collision(q_start):
-        raise Exception("Start configuration is in collision!")
-    if collision(q_goal):
-        raise Exception("Goal configuration is in collision!")
+    if collision_or_out(q_start):
+        raise Exception("Start configuration is in collision or out of bounds!")
+    if collision_or_out(q_goal):
+        raise Exception("Goal configuration is in collision or out of bounds!")
 
     # get the connect function
-    connect = get_connect_fn(collision, out, epsilon)
+    connect = get_connect_fn(collision_or_out, epsilon)
 
     # get the sampling function
-    sample = get_sample_fn(robot, out)
+    sample = get_sample_fn(robot)
 
     # main algorithm
     for i in range(max_steps):
@@ -237,7 +235,7 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
             anchorpoint = np.zeros(len(q_start))
 
         # connect attempt results
-        if status == 1:   # instant collision
+        if status == 2:   # instant collision
             collisionA += 1
             # make sampling radius larger
             rA = rA + epsilon * 50
@@ -255,13 +253,21 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
                 sol = bi_path(reached_nodeA, reached_nodeB, treeA, q_start)#
                 pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
                 return sol
-            elif status == 1:
+            elif status == 2:
                 collisionB += 1
 
         # tree swap
         ratioA = collisionA / triesA
         ratioB = 1 if triesB == 0 else collisionB / triesB
-        if ratioB > ratioA:
+        # if the current tree was swapped not by ratio but by force, count up the free runs it gets before swapping is determined by ratio again
+        if force_swap_active:
+            free_run += 1
+            if free_run > free_runs:
+                free_run = 0
+                force_swap_active = False
+        if (ratioB > ratioA and not force_swap_active) or i%force_swap==0:
+            if i%force_swap==0:
+                force_swap_active = True
             treeA, treeB = treeB, treeA
             collisionA, collisionB = collisionB, collisionA
             triesA, triesB = triesB, triesA
@@ -281,7 +287,7 @@ def smooth_path(path, epsilon, robot, obstacles_ids):
     Greedy and thus pretty slow.
     """
 
-    collision = get_collision_fn(robot, obstacles_ids)
+    collision = get_collision_or_out_fn(robot, obstacles_ids)
 
     def free(q_start, q_end, epsilon):
         tmp = q_start
