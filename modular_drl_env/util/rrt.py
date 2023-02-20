@@ -274,3 +274,35 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
     pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
     
     return None
+
+def smooth_path(path, epsilon, robot, obstacles_ids):
+    """
+    Takes a working path and smoothes it by checking if intermediate steps can be skipped.
+    Greedy and thus pretty slow.
+    """
+
+    collision = get_collision_fn(robot, obstacles_ids)
+
+    def free(q_start, q_end, epsilon):
+        tmp = q_start
+        while True:
+            dist = np.linalg.norm(q_end - tmp)
+            if epsilon > dist:
+                return True
+            else:
+                tmp = tmp + (epsilon/dist) * (q_end - tmp)
+                if collision(tmp):
+                    return False       
+    
+    path_smooth = [path[0]]
+    cur = 0
+
+    while cur < len(path) - 1:
+        for idx, pose in reversed(list(enumerate(path[cur+1:]))):
+            if free(path[cur], pose, epsilon):
+                path_smooth.append(pose)
+                cur = idx+cur
+                break
+        cur += 1
+
+    return path_smooth
