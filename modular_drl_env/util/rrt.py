@@ -160,7 +160,7 @@ def bi_path(node1, node2, tree1, q_start):
 
     return list(reversed(a_traj)) + b_traj
 
-def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias):
+def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias, visible=False):
     """
     Bi-RRT algorithm. Returns a valid, collision free trajectory of joint positions
     """
@@ -184,7 +184,8 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias)
     scale = 1
 
     # stop pybullet rendering
-    pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+    if not visible:
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
 
     # get oob function
     out = get_out_fn(robot)
