@@ -1,6 +1,19 @@
-from setuptools import setup, find_packages
-packages=find_packages('modular_drl_env')
-print(packages)
+from setuptools import setup, find_packages, find_namespace_packages
+import os
+import pathlib
+
+def package_files(directory):
+    directory = str(pathlib.Path(__file__).parent.absolute()) + str(pathlib.Path(directory))
+    paths = []
+    for (path, directories, filenames) in os.walk(directory):
+        for filename in filenames:
+            paths.append(os.path.join('..', path, filename))
+    return paths
+
+extra_files = package_files('./modular_drl_env/assets')
+print(extra_files)
+
+"""
 setup(
     name="modular_drl_env",
     version="0.1.0",
@@ -24,4 +37,17 @@ setup(
     ],
 
     
+)
+"""
+setup(
+    name="modular_drl_env",
+    version="0.1.0",
+    author="Benno",
+    author_email="your.email@example.com",
+    description="A package for IRDRL project",
+    packages=find_namespace_packages(where="."),
+    package_dir={"": "."},
+    package_data={
+        "modular_drl_env.assets": ["*","*/*","*/*/*", "*/*/*/*", "*/*/*/*/*", "*/*/*/*/*/*", "*/*/*/*/*/*/*", "*/*/*/*/*/*/*/*/*"]
+    }
 )

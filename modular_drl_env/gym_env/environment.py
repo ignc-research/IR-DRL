@@ -4,6 +4,8 @@ import pybullet as pyb
 from time import process_time
 import pandas as pd
 from modular_drl_env.util.recorder import Recorder
+import os
+import platform
 
 # import abstracts
 from modular_drl_env.robot.robot import Robot
@@ -77,12 +79,19 @@ class ModularDRLEnv(gym.Env):
         disp = pyb.DIRECT if not self.display else pyb.GUI
         pyb.connect(disp)
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS,0)
-        #Get the absolute file_path of the repo using the __file__ command, then reedit the String
-        # to the assets folder
-        file_path = __file__
-        file_path = file_path.split("/")
-        file_path[-2] = "assets"
-        self.assets_path = "/".join(file_path[:-1])
+        # to access our assets, we need to direct the code towards the location within the python installation that we're in
+        # or if this was downloaded as a repo, simply the neighboring assets folder
+        # in both cases we use some os commands to get the correct folder path
+        is_windows = any(platform.win32_ver())  # check for windows
+        assets_path = os.path.normpath(__file__)  # path of this file
+        assets_path = assets_path.split(os.sep)  # split along os specific separator
+        assets_path[-2] = "assets"  # replace second to last entry, which should be gym_env, with assets
+        # stitch the path together again, leaving the last element, environment.py, out, such that this path is the correct asset path 
+        if is_windows:
+            self.assets_path = os.path.join(assets_path[0], os.sep, *assets_path[1:-1])  # windows drive letter needs babysitting
+        else:
+            self.assets_path = os.path.join(*assets_path[:-1])  
+        print(self.assets_path)
         pyb.setAdditionalSearchPath(self.assets_path)
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
