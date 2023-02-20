@@ -12,8 +12,8 @@ configs/*kai*
 configs/*karim*
 
 # exclude the generated urdfs from maze and shelf class
-ModEnvDRL/world/obstacles/shelf/*shelf*.urdf
-ModEnvDRL/world/obstacles/maze/*maze*.urdf
+modular_drl_env/world/obstacles/shelf/*shelf*.urdf
+modular_drl_env/world/obstacles/maze/*maze*.urdf
 
 ### Models ###
 models/
