@@ -127,7 +127,7 @@ class PositionCollisionGoal(Goal):
 
         reward = 0
 
-        self.out_of_bounds = self._out()
+        self.out_of_bounds = self.world.out_of_bounds(self.position)
         self.collided = self.robot.world.collision
 
         shaking = 0
@@ -209,18 +209,3 @@ class PositionCollisionGoal(Goal):
         logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
 
         return logging_dict
-
-    ###################
-    # utility methods #
-    ###################
-
-    def _out(self):
-        
-        x, y, z = self.position
-        if x > self.robot.world.x_max or x < self.robot.world.x_min:
-            return True
-        elif y > self.robot.world.y_max or y < self.robot.world.y_min:
-            return True
-        elif z > self.robot.world.z_max or z < self.robot.world.z_min:
-            return True
-        return False
