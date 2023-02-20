@@ -1,0 +1,2 @@
+recursive-include modular_drl_env/assets *
+
