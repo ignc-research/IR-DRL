@@ -43,7 +43,7 @@ class TableExperiment(World):
         # this will make generating obstacle easier
 
         # if a experiment is given
-        self.experiment_large_box = world_config["experiment_large_box"]
+        self.experiment = world_config["experiment"]
 
         self.num_obstacles = world_config["num_obstacles"]
         self.num_humans = world_config["num_humans"]
@@ -97,14 +97,14 @@ class TableExperiment(World):
         # obstacles
         extra = 0
 
-        if self.experiment_large_box:
+        if self.experiment == 1:
             extra = 1
             idx = choice([0, 1])
-            pos = [np.array([0, -0.45, 1.15])]
+            pos = [np.array([0, -0.45, 1.15]), np.array([-0.2, -0.45, 1.2])]
             mov = np.random.uniform(low=0.5, high=1, size=(1,)) * self.sim_step
             traj = [[np.array([-0.6, -0.45, 1.15]), np.array([0.6, -0.45, 1.15])],
                     [np.array([0.6, -0.45, 1.15]), np.array([-0.6, -0.45, 1.15])]]
-            obs = Box(pos[0], [0, 0, 0, 1], traj[idx], mov, [0.4, 0.1, 0.15], color=[0.75, 0, 0.25, 1])
+            obs = Box(pos[0], [0, 0, 0, 1], traj[idx], mov, [0.2, 0.1, 0.075], color=[0.75, 0, 0.25, 1])
             self.objects_ids.append(obs.build())
             self.obstacle_objects.append(obs)
 
