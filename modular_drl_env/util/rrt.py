@@ -212,6 +212,10 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
         if random > goal_bias:
             # get random sample
             q_rand = sample() * scale + anchorpoint
+            upper_limit_mask = q_rand > robot.joints_limits_upper
+            lower_limit_mask = q_rand < robot.joints_limits_lower
+            q_rand[upper_limit_mask] = robot.joints_limits_upper[upper_limit_mask]
+            q_rand[lower_limit_mask] = robot.joints_limits_lower[lower_limit_mask]
             if np.linalg.norm(q_rand - treeB.root.q) > rA:
                 # resample if it's not within sample bias radius
                 continue
