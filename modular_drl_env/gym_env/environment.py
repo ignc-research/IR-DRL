@@ -53,7 +53,12 @@ class ModularDRLEnv(gym.Env):
         self.pybullet_blender_recorder = None
         # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
         self.use_physics_sim = env_config["use_physics_sim"]  
-        # when using the physics#self.assets_path = "./modular_drl_env/assets/"e is frame rate in Hz
+        # when using the physics sim, this is the amount of steps that we let pass per env step
+        # the lower this value, the more often observations will be collected and a new action be calculated by the agent
+        self.physics_steps_per_env_step = env_config["physics_steps_per_env_step"]
+        # length of the stat arrays in terms of episodes over which the average will be drawn for logging
+        self.stat_buffer_size = env_config["stat_buffer_size"]  
+        # in seconds -> inverse is frame rate in Hz
         self.sim_step = env_config["sim_step"]  
         # the env id, this is used to recognize this env when running multiple in parallel, is used for some file related stuff
         self.env_id = env_config["env_id"]
