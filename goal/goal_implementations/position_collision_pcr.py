@@ -18,6 +18,12 @@ class PositionCollisionPCR(Goal):
         super().__init__(goal_config)
         self.robot = goal_config["robot"]
 
+        try:
+            # if the full skeleton should be added to the observation
+            self.add_full_skeleton_to_obs = goal_config["add_full_skeleton_to_obs"]
+        except KeyError:
+            self.add_full_skeleton_to_obs = False
+
         # set pcr and robot skeleton sensor to make retrieving data easier later on
         for sensor in self.robot.sensors:
             if str(type(
@@ -73,13 +79,21 @@ class PositionCollisionPCR(Goal):
                 np.array([-1.99, -2, -1.99, -2, 2.99, 3, 0.01, 0.01, 0.01, -1.995, -1.995, -2.995]))
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
-            ret = dict()
-            ret["target_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
-            ret["end_effector_position"] = Box(low=-1, high=1, shape=(3,), dtype=np.float32)
-            ret["ee_target_delta"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
-            ret["closest_robot_sklt_point"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
-            ret["closest_projection"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
-            ret["sklt_projection_delta"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            if not self.add_full_skeleton_to_obs:
+                ret = dict()
+                ret["target_position"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+                ret["end_effector_position"] = Box(low=-1, high=1, shape=(3,), dtype=np.float32)
+                ret["ee_target_delta"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+                ret["closest_robot_sklt_point"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+                ret["closest_projection"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+                ret["sklt_projection_delta"] = Box(low=-1, high=1, shape=(3, ), dtype=np.float32)
+            else:
+                ret = dict()
+                ret["target_position"] = Box(low=-1, high=1, shape=(3,), dtype=np.float32)
+                ret["ee_target_delta"] = Box(low=-1, high=1, shape=(3,), dtype=np.float32)
+                ret["robot_sklt"] = Box(low=-1, high=1, shape=(16, 3), dtype=np.float32)
+                ret["robot_sklt_projections"] = Box(low=-1, high=1, shape=(16, 3), dtype=np.float32)
+                ret["sklt_projection_delta"] = Box(low=-1, high=1, shape=(16, 3), dtype=np.float32)
             return ret
         else:
             return {}
@@ -121,24 +135,35 @@ class PositionCollisionPCR(Goal):
 
     def get_observation(self) -> dict:
         if self.normalize_observations:
-            target_pos = self.normalize_coordinates(self.target)
-            end_effector_position = self.normalize_coordinates(self.position)
-            ee_target_delta = (target_pos - end_effector_position) / 2
-            closest_robot_sklt_point = self.normalize_coordinates(self.closest_robot_skeleton_point)
-            closest_projection = self.normalize_coordinates(self.closest_projection)
-            sklt_projection_delta = (closest_projection - closest_robot_sklt_point) / 2
+            if not self.add_full_skeleton_to_obs:
+                target_pos = self.normalize_coordinates(self.target)
+                end_effector_position = self.normalize_coordinates(self.position)
+                ee_target_delta = (target_pos - end_effector_position) / 2
+                closest_robot_sklt_point = self.normalize_coordinates(self.closest_robot_skeleton_point)
+                closest_projection = self.normalize_coordinates(self.closest_projection)
+                sklt_projection_delta = (closest_projection - closest_robot_sklt_point) / 2
 
-            return {"target_position": target_pos,
-                    "end_effector_position": end_effector_position,
-                    "ee_target_delta": ee_target_delta,
-                    "closest_robot_sklt_point": closest_robot_sklt_point,
-                    "closest_projection": closest_projection,
-                    "sklt_projection_delta": sklt_projection_delta
-                    }
-        else:
-            return {"target_position": self.target,
-                    "end_effector_position": self.position,
-                    "encoded_cuboid": self.obstacle_encoded}
+                return {"target_position": target_pos,
+                        "end_effector_position": end_effector_position,
+                        "ee_target_delta": ee_target_delta,
+                        "closest_robot_sklt_point": closest_robot_sklt_point,
+                        "closest_projection": closest_projection,
+                        "sklt_projection_delta": sklt_projection_delta
+                        }
+
+            else:
+                target_pos = self.normalize_coordinates(self.target)
+                end_effector_position = self.normalize_coordinates(self.position)
+                ee_target_delta = (target_pos - end_effector_position) / 2
+                robot_sklt = self.normalize_coordinates(self.robot_skeleton_sensor.robot_skeleton)
+                robot_sklt_projections = self.normalize_coordinates(self.closest_projections)
+                sklt_projection_delta = (robot_sklt_projections - robot_sklt) / 2
+                return {"target_position": target_pos,
+                        "ee_target_delta": ee_target_delta,
+                        "robot_sklt": robot_sklt,
+                        "robot_sklt_projections": robot_sklt_projections,
+                        "sklt_projection_delta": sklt_projection_delta
+                        }
 
     def _set_observation(self):
         # get the data
@@ -293,6 +318,7 @@ class PositionCollisionPCR(Goal):
 
         # get closest projection
         self.closest_projection = robot_sklt_projections[min_idx_cuboid, min_idk_sklt, :]
+        self.closest_projections = robot_sklt_projections[min_idx_cuboid, :, :]
 
         # closest robot skeleton point
         self.closest_robot_skeleton_point = robot_sklt[min_idk_sklt, :]
