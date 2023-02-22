@@ -1,6 +1,9 @@
 import numpy as np
 import pybullet as pyb
 
+class CollisionException(Exception):
+    pass
+
 class Node:
     """
     Helper class, node containing a robot configuration q.
@@ -193,9 +196,9 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
 
     # check goal and start
     if collision_or_out(q_start):
-        raise Exception("Start configuration is in collision or out of bounds!")
+        raise CollisionException("Start configuration is in collision or out of bounds!")
     if collision_or_out(q_goal):
-        raise Exception("Goal configuration is in collision or out of bounds!")
+        raise CollisionException("Goal configuration is in collision or out of bounds!")
 
     # get the connect function
     connect = get_connect_fn(collision_or_out, epsilon)
