@@ -90,8 +90,7 @@ class ModularDRLEnv(gym.Env):
         if is_windows:
             self.assets_path = os.path.join(assets_path[0], os.sep, *assets_path[1:-1])  # windows drive letter needs babysitting
         else:
-            self.assets_path = os.path.join(*assets_path[:-1])  
-        print(self.assets_path)
+            self.assets_path = os.path.join(os.sep, *assets_path[:-1])  
         pyb.setAdditionalSearchPath(self.assets_path)
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
