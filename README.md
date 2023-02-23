@@ -29,6 +29,7 @@ Implemented:
     - movement via Inverse Kinematics, Joint Angles and Joint Velocities
     - UR5
     - Kuka KR16
+    - Kuka LBR iiwa
 - Sensors:
     - Position & Rotation
     - Joints
