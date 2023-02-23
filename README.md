@@ -1,6 +1,6 @@
 # Modular DLR Gym Env for Robots with PyBullet
 
-This repo implements a modular Gym env in which all relevant components, i.e. robots, obstacles, sensors and training goals, can be changed by editing a configuration file much or any change in the code.
+This repo implements a modular Gym env in which all relevant components, i.e. robots, obstacles, sensors and training goals, can be changed by editing a configuration file without much or any change in the code.
 
 ## Dependencies
 
