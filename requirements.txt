@@ -1,4 +1,4 @@
-numpy==1.24.1
+numpy==1.22.1
 pandas==1.5.3
 gym==0.21.0
 stable-baselines3==1.7.0
@@ -8,7 +8,3 @@ pybullet==3.2.5
 tensorboard==2.11.2
 zennit==0.5.0
 mazelib==0.9.13
-PySimpleGUI==4.60.4
-urdfpy==0.0.22
-transforms3d==0.4.1
-networkx==3.0

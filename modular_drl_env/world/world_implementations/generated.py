@@ -72,7 +72,7 @@ class GeneratedWorld(World):
         elif obstacle_name == "shelf":
             self.obstacle_objects.append(ShelfObstacle(position, rotation, trajectory, vel * self.sim_step, self.env_id, obstacle["params"], scale))
         elif obstacle_name == "box":
-            self.obstacle_objects.append(Box(position, rotation, trajectory, self.sim_step * vel, obstacle["params"]["halfExtents"], obstacle["params"]["color"]))
+            self.obstacle_objects.append(Box(position, rotation, trajectory, self.sim_step * vel, **obstacle["params"]))
         else:
             urdfs = findUrdfs(obstacle_name)
             if len(urdfs) > 0:

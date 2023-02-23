@@ -156,7 +156,7 @@ def bi_path(node1, node2, tree1, q_start):
         tmp = tmp.parent
         b_traj.append(tmp.q)
 
-    return list(reversed(a_traj)) + b_traj
+    return list(reversed(a_traj)) + b_traj[1:]  # entry zero of b is the same as the last one of a
 
 def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias, visible=False, force_swap=200):
     """
