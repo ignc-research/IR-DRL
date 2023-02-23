@@ -99,6 +99,8 @@ class ModularDRLEnv(gym.Env):
         pyb.setAdditionalSearchPath(self.assets_path)
         if self.use_physics_sim:
             pyb.setTimeStep(self.sim_step)
+        # set gravity
+        pyb.setGravity(*env_config["gravity"])
 
         # set up the PyBullet recorder, if wanted
         if self.pybullet_recorder_settings["use"]:
@@ -255,29 +257,8 @@ class ModularDRLEnv(gym.Env):
             for robot in self.robots:
                 robot.build()
 
-            # get a set of starting positions for the end effectors
-            ee_starting_points = self.world.create_ee_starting_points()
-            
-            # get position and rotation goals
-            position_targets = self.world.create_position_target()
-            rotation_targets = self.world.create_rotation_target()
-
-            # spawn world objects
+            # spawn world objects, create starting points and targets for robots, move them to starting position
             self.world.build()
-
-            # set the robots into the starting positions
-            for idx, robot in enumerate(self.robots):
-                if ee_starting_points[idx][0] is None:
-                    continue  # nothing to do here
-                elif len(ee_starting_points[idx]) == 1:
-                    # joints
-                    self.robots[idx].moveto_joints(ee_starting_points[idx][0], False)
-                elif ee_starting_points[idx][1] is None:
-                    # only position
-                    self.robots[idx].moveto_xyz(ee_starting_points[idx][0], False)
-                else:
-                    # both position and rotation
-                    self.robots[idx].moveto_xyzquat(ee_starting_points[idx][0], ee_starting_points[idx][1], False)
             
             # check collision
             self.world.perform_collision_check()

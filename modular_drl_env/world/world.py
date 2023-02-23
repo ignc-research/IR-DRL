@@ -30,8 +30,9 @@ class World(ABC):
         # fill these in the build method
         self.position_targets = []
         self.rotation_targets = []
+        self.joints_targets = []
 
-        # contains tuples of ee position, rotation for all robots at episode start
+        # can be used to create starting points for robots (see method below), but is not accessed by anything else outside of this class
         self.ee_starting_points = []
 
         # list of robots, gets filled by register method down below
@@ -47,9 +48,8 @@ class World(ABC):
 
     def register_robots(self, robots):
         """
-        This method receives a list of robot objects from the outside and sorts the robots therein into several lists that are important for
-        other methods.
-        Also gives each robot an id int that can be used to identify it.
+        This method receives a list of robot objects from the outside and sorts the robots therein into a list that is important for other methods.
+        Also gives each robot an id int that can be used to identify it and corresponds with its position in the list.
         """
         id_counter = 0
         for robot in robots:
@@ -182,8 +182,8 @@ class World(ABC):
                 joints.append(random_joints)
                 robot.moveto_joints(random_joints, False)
                 # check if robot is out of bounds directly
-                robot.position_collision_sensor.reset()  # refresh position data for oob calculation below
-                if self.out_of_bounds(robot.position_collision_sensor.position):
+                robot.position_rotation_sensor.reset()  # refresh position data for oob calculation below
+                if self.out_of_bounds(robot.position_rotation_sensor.position):
                     oob = True
                     break
             # if out of bounds, start over
@@ -235,12 +235,13 @@ class World(ABC):
                 random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
                 robot.moveto_joints(random_joints, False)
                 # check if robot is out of bounds directly
-                robot.position_collision_sensor.reset()  # refresh position data for oob calculation below
-                if self.out_of_bounds(robot.position_collision_sensor.position):
+                robot.position_rotation_sensor.reset()  # refresh position data for oob calculation below
+                robot.joints_sensor.reset()  # refresh joints data for calculation further down
+                if self.out_of_bounds(robot.position_rotation_sensor.position):
                     oob_or_too_close = True
                     break
                 # check if position is too close to starting position
-                if np.linalg.norm(robot.position_collision_sensor.position - self.ee_starting_points[robot.id][0]) < min_dist:
+                if np.linalg.norm(robot.position_rotation_sensor.position - self.ee_starting_points[robot.id][0]) < min_dist:
                     oob_or_too_close = True
                     break
             # if out of bounds or too close, start over
@@ -258,6 +259,7 @@ class World(ABC):
                 if robot in robots:  # robot is to be considered
                     pos = robot.position_rotation_sensor.position
                     rot = robot.position_rotation_sensor.rotation
+                    joints = robot.joints_sensor.joints_angles
                     if robot.goal.needs_a_position:
                         self.position_targets.append(pos)
                     else:
@@ -266,12 +268,16 @@ class World(ABC):
                         self.rotation_targets.append(rot)
                     else:
                         self.rotation_targets.append(None)
-                    
+                    if robot.goal.needs_a_joints_position:
+                        self.joints_targets.append(joints)
+                    else:
+                        self.joints_targets.append(None)
                     # reset robot back to starting position
                     robot.moveto_joints(self.ee_starting_points[idx][2], False)
                 else:  # other robots (e.g. camera arm robot)
                     self.position_targets.append(None)
                     self.rotation_targets.append(None)   
+                    self.joints_targets.append(None)
             return
         else:  # counter too high
             raise Exception("Tried 10000 times to create valid targets for the robot(s) without success, maybe check your obstacle generation code.") 

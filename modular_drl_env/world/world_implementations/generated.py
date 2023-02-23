@@ -48,13 +48,15 @@ class GeneratedWorld(World):
     def __init__(self, workspace_boundaries: list,
                        sim_step: float,
                        env_id: int,
-                       obstacles: dict):
+                       obstacles: dict,
+                       start_override: dict={}):
         """
         :param workspace_boundaries: List of 6 floats containing the bounds of the workspace in the following order: xmin, xmax, ymin, ymax, zmin, zmax
         :param sim_step: float for the time per sim step
         """
         super().__init__(workspace_boundaries, sim_step, env_id)
         self.config = obstacles 
+        self.start_override = start_override
 
 
     def load_obstacle(self, obstacle):
@@ -73,6 +75,8 @@ class GeneratedWorld(World):
             self.obstacle_objects.append(ShelfObstacle(position, rotation, trajectory, vel * self.sim_step, self.env_id, obstacle["params"], scale))
         elif obstacle_name == "box":
             self.obstacle_objects.append(Box(position, rotation, trajectory, self.sim_step * vel, **obstacle["params"]))
+        elif obstacle_name == "sphere":
+            self.obstacle_objects.append(Sphere(position, rotation, trajectory, vel * self.sim_step, **obstacle_name["params"]))
         else:
             urdfs = findUrdfs(obstacle_name)
             if len(urdfs) > 0:
@@ -84,12 +88,35 @@ class GeneratedWorld(World):
 
 
     def build(self):
+        # load obstacle configs
         for obstacle in self.config:
             self.load_obstacle(obstacle)
 
+        # build obstacles into world
         for obstacle in self.obstacle_objects:
             obstacle.build()
             self.objects_ids.append(obstacle.object_id)
+
+        # generate targets and starting positions
+        robots_with_starting_points = [robot for robot in self.robots_in_world if robot.goal is not None]
+        if self.start_override:
+            for idx in range(len(self.start_override["position"])):
+                pos = self.start_override["position"][idx]
+                rot = self.start_override["rotation"][idx]
+                self.robots_in_world[idx].moveto_xyzquat(pos, rot, False)
+        elif self.start_override is None:
+            for robot in self.robots_in_world:
+                robot.moveto_joints(robot.resting_angles, False)
+        else:
+            self._create_ee_starting_points(robots_with_starting_points)
+        self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=0.01)
+
+        # move robots to starting position
+        for idx, robot in enumerate(self.robots_in_world):
+            if self.ee_starting_points[idx][0] is None:
+                continue
+            else:
+                robot.moveto_joints(self.ee_starting_points[idx][2], False)
 
 
     def reset(self, success_rate):

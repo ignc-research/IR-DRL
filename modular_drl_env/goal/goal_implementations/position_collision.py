@@ -35,9 +35,8 @@ class PositionCollisionGoal(Goal):
         # set output name for observation space
         self.output_name = "PositionGoal_" + self.robot.name
 
-        # set the flags
+        # overwrite necessary flag
         self.needs_a_position = True
-        self.needs_a_rotation = False
 
         # set the reward that's given if the ee reaches the goal position and for collision
         self.reward_success = reward_success

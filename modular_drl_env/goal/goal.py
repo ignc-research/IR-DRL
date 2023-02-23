@@ -44,6 +44,7 @@ class Goal(ABC):
         # set these yourself if they apply in a subclass
         self.needs_a_position = False  # goal needs a target position in the worldspace
         self.needs_a_rotation = False  # goal needs a target rotation in the worldspace
+        self.needs_a_joints_position = False  # goal needs a target joint position in configuration space
 
     @abstractmethod
     def get_observation_space_element(self) -> dict:

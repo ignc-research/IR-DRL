@@ -11,9 +11,10 @@ __all__ = [
 class RandomObstacleWorld(World):
     """
     This class generates a world with random box and sphere shaped obstacles.
-    The obstacles will be placed between the p
-    Depending on the configuration, some of these can be moving in various directions at various speeds
+    The obstacles will be placed such that they generally end up between the goal and the starting position of then end effector.
+    Depending on the configuration, some of them can be moving in various directions at various speeds.
     """
+
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
                        env_id: int,
@@ -23,7 +24,8 @@ class RandomObstacleWorld(World):
                        sphere_measurements: list=[0.005, 0.02],
                        moving_obstacles_vels: list=[0.5, 2],
                        moving_obstacles_directions: list=[],
-                       moving_obstacles_trajectory_length: list=[0.05, 0.75]
+                       moving_obstacles_trajectory_length: list=[0.05, 0.75],
+                       randomize_number_of_obstacles: bool=True
                        ):
         """
         The world config contains the following parameters:
@@ -36,6 +38,7 @@ class RandomObstacleWorld(World):
         :param moving_obstacles_vels: List of 2 floats that gives the minimum and maximum velocity dynamic obstacles can move with
         :param moving_obstacles_directions: List of numpy arrays that contain directions in 3D space among which obstacles can move. If none are given directions are generated in random fashion.
         :param moving_obstacles_trajectory_length: List of 2 floats that contains the minimum and maximum trajectory length of dynamic obstacles.
+        :param randomize_number_of_obstacles: Bool that determines if the given number of obstacles is always spawned or just an upper limit for a random choice.
         """
         # TODO: add random rotations for the plates
 
@@ -55,6 +58,8 @@ class RandomObstacleWorld(World):
 
         self.obstacle_objects = []  # list to access the obstacle python objects
 
+        self.randomize_number_of_obstacles = randomize_number_of_obstacles
+
 
     def build(self):
 
@@ -62,17 +67,19 @@ class RandomObstacleWorld(World):
         ground_plate = pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01])
         self.objects_ids.append(ground_plate)
 
-        if self.num_moving_obstacles + self.num_static_obstacles > 0:
-            rand_number = choice(range(self.num_moving_obstacles + self.num_static_obstacles)) + 1
+        # determine random number of obstacles, if needed
+        if self.randomize_number_of_obstacles:
+            if self.num_moving_obstacles + self.num_static_obstacles > 0:
+                rand_number = choice(range(self.num_moving_obstacles + self.num_static_obstacles)) + 1
+            else:
+                rand_number = 0
         else:
-            rand_number = 0
+            rand_number = self.num_moving_obstacles + self.num_static_obstacles
 
-        # add the moving obstacles
+        # add the obstacles
         for i in range(rand_number):
-            # pick a one of the robots' starting positions randomly to...
-            idx = choice(range(len(self.ee_starting_points)))
-            # ... generate a random position between halfway between it and its target
-            position = 0.5*(self.ee_starting_points[idx][0] + self.position_targets[idx] + 0.15*np.random.uniform(low=-1, high=1, size=(3,)))
+            # generate a random position in the workspace
+            position = np.random.uniform(low=np.array([self.x_min, self.y_min, self.z_min]), high=np.array([self.x_max, self.y_max, self.z_max]), size=(3,))
             
             # moving obstacles
             if i < self.num_moving_obstacles:
@@ -115,6 +122,19 @@ class RandomObstacleWorld(World):
                 self.obstacle_objects.append(sphere)
                 self.objects_ids.append(sphere.build())
 
+        # generate starting points and targets
+        robots_with_starting_points = [robot for robot in self.robots_in_world if robot.goal is not None]
+        self._create_ee_starting_points(robots_with_starting_points)
+        min_dist = min((self.x_max - self.x_min) / 2, (self.y_max - self.y_min) / 2, (self.z_max - self.z_min) / 2)
+        self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=min_dist)
+
+        # move robots to starting position
+        for idx, robot in enumerate(self.robots_in_world):
+            if self.ee_starting_points[idx][0] is None:
+                continue
+            else:
+                robot.moveto_joints(self.ee_starting_points[idx][2], False)
+
     def reset(self, success_rate):
         self.objects_ids = []
         self.position_targets = []
@@ -129,37 +149,3 @@ class RandomObstacleWorld(World):
 
         for obstacle in self.obstacle_objects:
             obstacle.move()
-        
-    def create_ee_starting_points(self):
-        for robot in self.robots_in_world:
-            if robot.goal.needs_a_position:
-                rando = np.random.rand(3)
-                x = (self.x_min + self.x_max) / 2 + 0.5 * (rando[0] - 0.5) * (self.x_max - self.x_min)
-                y = (self.y_min + self.y_max) / 2 + 0.5 * (rando[1] - 0.5) * (self.y_max - self.y_min)
-                z = (self.z_min + self.z_max) / 2 + 0.5 * (rando[2] - 0.5) * (self.z_max - self.z_min)
-                standard_rot = np.array([np.pi, 0, np.pi])
-                random_rot = np.random.uniform(low=-np.pi, high=np.pi, size=(3,))
-                standard_rot += random_rot * 0.1
-                self.ee_starting_points.append((np.array([x, y, z]), np.array(pyb.getQuaternionFromEuler(standard_rot.tolist()))))
-            else:
-                self.ee_starting_points.append((None, None))
-        return self.ee_starting_points
-
-    def create_position_target(self):
-        for idx, robot in enumerate(self.robots_in_world):
-            if robot.goal.needs_a_position:
-                while True:
-                    rando = np.random.rand(3)
-                    x = self.x_min + rando[0] * (self.x_max - self.x_min)
-                    y = self.y_min + rando[1] * (self.y_max - self.y_min)
-                    z = self.z_min + rando[2] * (self.z_max - self.z_min)
-                    target = np.array([x, y, z])
-                    if np.linalg.norm(target - self.ee_starting_points[idx][0]) > 0.4:
-                        self.position_targets.append(target)
-                        break
-            else:
-                self.position_targets.append([])
-        return self.position_targets
-
-    def create_rotation_target(self) -> list:
-        return None  # TODO for later, just adding this so that the world starts

@@ -90,6 +90,8 @@ env:
   max_steps_per_episode: 1024  
   # bool, whether to use PyBullet acurate physics sim for movement or not
   use_physics_sim: True
+  # list of floats, determines gravity force in xyz world directions when using the physics sim
+  gravity: [0, 0, -9.8]
   # int, the amount of physics steps we run per env step, only is used when use_physics_sim is True
   # note: the lower this value, the worse the performance, but the higher the accuracy
   physics_steps_per_env_step: 1
@@ -262,8 +264,8 @@ env:
           # float, overwrite for the start of the distance threshold, works for both train and eval, useful for resuming training, does nothing if "None"
           dist_threshold_overwrite: "None"
 
-      - type: "Custom" 
-        name: "generated_1"
+      - type: "KR16" 
+        name: "kr16_1"
         config:
           base_position: [0, 0, 0]
           base_orientation: [0, 0, 90]
@@ -271,17 +273,6 @@ env:
           control_mode: 2
           xyz_delta: 0.005
           rpy_delta: 0.005
-          generated:
-            # attributes for custom robot generation
-            # BIG TODO
-            # How many Links do you want to create?
-            link_count: "2"
-            #please copy this part depending on the number of links you want to create
-            link_id: "1"
-            link_name: "link1"
-            link_id: "2"
-            link_name: "link2"
-            #end of link part
 
         #   sensor definition
         # for this robot we show all examples of robot-bound sensors that need another robot

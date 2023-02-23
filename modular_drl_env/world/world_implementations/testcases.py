@@ -47,6 +47,8 @@ class TestcasesWorld(World):
             self._build_test_2()
         elif self.current_test_mode == 3:
             self._build_test_3()
+
+        self.robots_in_world[0].moveto_xyzquat(self.robot_ee_start_positions[self.current_test_mode - 1], self.robot_ee_start_orientations[self.current_test_mode - 1], False)
             
     def reset(self, success_rate):
         if self.test_mode == 0:
@@ -80,11 +82,13 @@ class TestcasesWorld(World):
         obst = Box(np.array([0.0,0.4,0.3]), [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
         self.obstacle_objects.append(obst)
         self.objects_ids.append(obst.build())
+        self.position_targets = [self.position_target_1]
 
     def _build_test_2(self):
         obst = Box([-0.3, 0.4, 0.3], [0, 0, 0, 1], [np.array([-0.3, 0.4, 0.3]), np.array([-0.3, 0.8, 0.3])], 0.0015, [0.05,0.05,0.002])
         self.obstacle_objects.append(obst)
         self.objects_ids.append(obst.build())
+        self.position_targets = [self.position_target_2]
 
     def _build_test_3(self):
         obst1 = Box([-0.1,0.4,0.26], [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
@@ -93,27 +97,7 @@ class TestcasesWorld(World):
         self.obstacle_objects.append(obst2)
         self.objects_ids.append(obst1.build())
         self.objects_ids.append(obst2.build())
-
-    def create_ee_starting_points(self) -> list:
-        if self.current_test_mode != 3:
-            self.ee_starting_points.append((self.robot_ee_start_positions[self.current_test_mode - 1], self.robot_ee_start_orientations[self.current_test_mode - 1]))
-        else:
-            self.ee_starting_points.append((np.array([-2.19674683,  1.14504719, -1.81837821, -0.92372966, -1.57090127, -0.62589908]),))
-        for robot in self.robots_in_world[1:]:
-            self.ee_starting_points.append((None, None))
-        return self.ee_starting_points
-
-    def create_position_target(self):
-        self.position_targets = []
-        if self.current_test_mode == 1:
-            self.position_targets.append(self.position_target_1)
-        elif self.current_test_mode == 2:
-            self.position_targets.append(self.position_target_2)
-        elif self.current_test_mode == 3:
-            self.position_targets.append(self.position_target_3_1)
-        for robot in self.robots_in_world:
-            self.position_targets.append([])
-        return self.position_targets
+        self.position_targets = [self.position_target_3_1]
 
     def create_rotation_target(self) -> list:
         return None  # not needed here for now

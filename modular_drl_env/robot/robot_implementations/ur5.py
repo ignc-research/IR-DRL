@@ -79,16 +79,20 @@ class UR5_RRT(UR5):
 
 
     def get_action_space_dims(self):
-        return (1, 1)
+        return (6, 6)  # doesn't matter for this robot
 
     def process_action(self, action: np.ndarray):
         cpu_epoch = process_time()
         # if we are calling this for the first time this episode we need to plan the trajectory
         if not self.planned_trajectory:
             q_start = self.joints_sensor.joints_angles
-            goal_xyz = self.world.position_targets[self.id]
-            goal_quat = self.world.rotation_targets[self.id] if self.world.rotation_targets else None
-            q_goal = self._solve_ik(goal_xyz, goal_quat)
+            # check if joints are available for the target
+            if len(self.world.joints_targets) >= (self.id + 1) and self.world.joints_targets[self.id] is not None:
+                q_goal = self.world.joints_targets[self.id]
+            else:  # generate the joints from inverse kinematics
+                goal_xyz = self.world.position_targets[self.id]
+                goal_quat = self.world.rotation_targets[self.id] if self.world.rotation_targets else None
+                q_goal = self._solve_ik(goal_xyz, goal_quat)
 
             self.planned_trajectory = bi_rrt(q_start=q_start,
                                              q_goal=q_goal,
