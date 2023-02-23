@@ -23,16 +23,10 @@ class KukaShelfExperiment(World):
                        shuffle_humans: int,
                        humans: dict,
                        obstacles: dict,
-                       target_pos_override: list=[],
-                       target_rot_override: list=[],
-                       start_override: list=[],
                        shelf_params: dict={}):
         super().__init__(workspace_boundaries, sim_step, env_id)
 
         # overrides for the target positions, useful for eval, a random one will be chosen
-        self.target_pos_override = [np.array(position) for position in target_pos_override]
-        self.target_rot_override = [np.array(rotation) for rotation in target_rot_override]
-        self.start_override = [np.array(position) for position in start_override]
 
         # get the obstacle setup
         self.shelf_list = shelves
@@ -106,6 +100,33 @@ class KukaShelfExperiment(World):
                 self.obstacle_objects.append(box)
                 self.objects_ids.append(box.build())
 
+        # starting points
+        for robot in self.robots_in_world:
+            robot.moveto_joints(robot.resting_pose_angles, False)
+        # create targets
+        targets = []
+        taken_shelf_pos = []
+        for robot in self.robots_in_world:
+            shelf = choice(self.shelf_list)
+            shelf_pos = shelf["position"]
+            shelf_rot = shelf["rotation"]
+            # get random shelf drawer
+            val = False
+            while not val:
+                col = choice(list(range(self.shelf_params["cols"])))
+                row = choice(list(range(self.shelf_params["rows"])))
+                if (col, row) not in taken_shelf_pos:
+                    val = True
+            taken_shelf_pos.append((col, row))
+            # calculate local x y z coordinate
+            z = self.shelf_params["shelf_depth"] / 2  # in the middle of the free space
+            x = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + col * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
+            y = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + row * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
+            local_target = np.array([x, y, z])
+            target = rotate_vector(local_target, shelf_rot) + shelf_pos
+            targets.append(target)
+        self.position_targets = targets
+
     def reset(self, success_rate):
         self.objects_ids = []
         self.position_targets = []
@@ -124,50 +145,3 @@ class KukaShelfExperiment(World):
             obstacle.move()
         for human in self.humans:
             human.move()
-
-    def create_ee_starting_points(self) -> list:
-        if self.start_override:
-            random_start = choice(self.start_override)
-            return [(random_start, None)]
-        else:
-            return [(None, None) for robot in self.robots_in_world]
-
-    def create_position_target(self) -> list:
-        if self.target_pos_override:
-            random_target = choice(self.target_pos_override)
-            self.position_targets = [random_target]
-            return [random_target]
-        else:
-            # pick a random shelf from the ones in the sim
-            targets = []
-            taken_shelf_pos = []
-            for robot in self.robots_in_world:
-                shelf = choice(self.shelf_list)
-                shelf_pos = shelf["position"]
-                shelf_rot = shelf["rotation"]
-                # get random shelf drawer
-                val = False
-                while not val:
-                    col = choice(list(range(self.shelf_params["cols"])))
-                    row = choice(list(range(self.shelf_params["rows"])))
-                    if (col, row) not in taken_shelf_pos:
-                        val = True
-                taken_shelf_pos.append((col, row))
-                # calculate local x y z coordinate
-                z = self.shelf_params["shelf_depth"] / 2  # in the middle of the free space
-                x = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + col * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
-                y = self.shelf_params["wall_thickness"] + self.shelf_params["element_size"] / 2 + row * (self.shelf_params["wall_thickness"] + self.shelf_params["element_size"])
-                local_target = np.array([x, y, z])
-                target = rotate_vector(local_target, shelf_rot) + shelf_pos
-                targets.append(target)
-            self.position_targets = targets
-
-            return targets
-
-    def create_rotation_target(self) -> list:
-        if self.target_rot_override:
-            random_rot = choice(self.target_rot_override)
-            self.rotation_targets = [random_rot]
-            return [random_rot]
-        else:
-            pass  # TODO later

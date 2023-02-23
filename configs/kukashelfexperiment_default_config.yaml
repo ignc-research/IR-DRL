@@ -72,13 +72,12 @@ env:
             ray_start: 0.01
             ray_end: 0.65
             ray_setup:
-              ee_forward: [1, 1]
+              #ee_forward: [1, 1]
               ee_cone: [2, 5]
-              ee_side_circle: [5, 5]
-              ee_back_cone: [2, 5]
-              upper_arm: [8, 2]
+              ee_side_circle: [7, 3]
+              #ee_back_cone: [2, 5]
+              upper_arm: [8, 4]
             indicator: True
-            activated_links: [0, 1, 2, 3, 4]
       goal:
         type: "PositionCollision"
         config:
@@ -97,31 +96,42 @@ env:
     type: "KukaShelfExperiment"
     config:
       workspace_boundaries: [-3, 3, -3, 3, 0.0, 3]
-      shelves_positions: 
-        - [-0.725, -1.25, 0.51]
-        - [-0.725, 1.75, 0.51]
-      shelves_rotations: 
-        - [90, 0, 0]
-        - [90, 0, 0]  # rpy in degrees
-      humans_positions: 
-        - [5, 5, 5]  # just to spawn them far away
-        - [5, 5, 5]
-        - [5, 5, 5]
-        - [5, 5, 5]
-      humans_rotations: 
-        - [0, 0, -90]
-        - [0, 0, 90]
-        - [0, 0, 90]
-        - [0, 0, 90]
-      humans_trajectories: 
-        - [[-0.55, 0.85, 1.0], [0.55, 0.85, 1.0]]
-        - [[-0.75, 0.85, 1.0], [0.75, 0.85, 1.0]]
-        - [[0.55, -0.85, 1.0], [-0.55, -0.85, 1.0]]
-        - [[0.75, -0.85, 1.0], [-0.75, -0.85, 1.0]]
-      humans_shuffle: True  # False: spawns one human for each pair of position, rotation, trajectory, True: spawns one human with a random pair from all positions, rotations, trajectories
-      target_pos_override: []
-      target_rot_override: []
-      start_override: []
+      shelves:
+        - position: [-0.725, -1.15, 0.51]
+          rotation: [90, 0, 0]
+        - position: [-0.725, 1.65, 0.51]
+          rotation: [90, 0, 0]
+      shuffle_humans: 0
+      humans:
+        - position: [5, 5, 5]
+          rotation: [0, 0, -90]
+          trajectory:
+          - [-0.55, 0.85, 1.0]
+          - [0.55, 0.85, 1.0]
+        - position: [5, 5, 5]
+          rotation: [0, 0, -90]
+          trajectory:
+          - [-0.75, 0.85, 1.0]
+          - [0.75, 0.85, 1.0]
+        - position: [5, 5, 5]
+          rotation: [0, 0, 90]
+          trajectory:
+          - [0.55, -0.85, 1.0]
+          - [-0.55, -0.85, 1.0]
+        - position: [5, 5, 5]
+          rotation: [0, 0, 90]
+          trajectory:
+          - [0.75, -0.85, 1.0]
+          - [-0.75, -0.85, 1.0]
+      obstacles:
+        - zone: [-0.55, 0.55, 0.85, 0.85, 0.25, 1.75]
+          velocity: [0.05, 0.15]
+          extents: [0.08, 0.35, 0.08, 0.13, 0.08, 0.13]
+          num: 1
+        - zone: [-0.55, 0.55, -0.85, -0.85, 0.25, 1.75]
+          velocity: [0.05, 0.15]
+          extents: [0.08, 0.35, 0.08, 0.13, 0.08, 0.13]
+          num: 1
       shelf_params:
         rows: 3
         cols: 4

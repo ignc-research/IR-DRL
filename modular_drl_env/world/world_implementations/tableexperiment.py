@@ -33,7 +33,7 @@ class TableExperiment(World):
         super().__init__(workspace_boundaries, sim_step, env_id)
         # INFO: if multiple robot base positions are given, we will assume that the first one is the main one for the experiment
         # also, we will always assume that the robot base is set up at 0,0,z
-        # this will make generating obstacle easier
+        # this will make generating obstacles easier
 
         self.num_obstacles = num_obstacles
         self.num_humans = num_humans
@@ -95,10 +95,10 @@ class TableExperiment(World):
             if not self.obstacle_positions:
                 # first get the base position of the main robot, whcih we'll assume to be the first one
                 base_position = self.robots_in_world[0].base_position
-                # now we generate a position for the obstacle at random but while making sure that it doesn't spawn in a certain perimeter around the base and also the target
+                # now we generate a position for the obstacle at random but while making sure that it doesn't spawn in a certain perimeter around the base
                 while True:
                     position = np.random.uniform(low=self.table_bounds_low, high=self.table_bounds_high, size=(3,))
-                    if np.linalg.norm(position - base_position) > 0.35 and np.linalg.norm(position - self.position_targets[0]) > 0.1:
+                    if np.linalg.norm(position - base_position) > 0.35:
                         break
             else:
                 position = self.obstacle_positions[i]
@@ -137,6 +137,18 @@ class TableExperiment(World):
             obs = Box(position, [0, 0, 0, 1], trajectory, move_step, halfExtents, color=[1, 0, 0, 1])      
             self.objects_ids.append(obs.build())
             self.obstacle_objects.append(obs)    
+
+        # generate starting points and targets
+        self._create_ee_starting_points(self.robots_in_world[0:1])
+        min_dist = min((self.x_max - self.x_min) / 6, (self.y_max - self.y_min) / 6, (self.z_max - self.z_min) / 6)
+        self._create_position_and_rotation_targets(self.robots_in_world[0:1], min_dist=min_dist)
+
+        # move robots to starting position
+        for idx, robot in enumerate(self.robots_in_world):
+            if self.ee_starting_points[idx][0] is None:
+                continue
+            else:
+                robot.moveto_joints(self.ee_starting_points[idx][2], False)
 
     def reset(self, success_rate):
         self.objects_ids = []
