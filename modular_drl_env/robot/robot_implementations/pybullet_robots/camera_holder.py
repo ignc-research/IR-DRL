@@ -3,7 +3,7 @@ import numpy as np
 import pybullet as pyb
 from modular_drl_env.robot.robot import Robot
 
-class CameraHolderUR5(Robot):
+class CameraHolderUR5_Pybullet(Robot):
 
     def __init__(self, name: str, world, **kwargs):
         super().__init__(name, world, **kwargs)

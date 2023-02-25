@@ -6,11 +6,11 @@ from modular_drl_env.util.rrt import bi_rrt
 from time import process_time
 
 __all__ = [
-    'UR5',
-    'UR5_RRT'
+    'UR5_Pybullet',
+    'UR5_RRT_Pybullet'
 ]
 
-class UR5(Robot):
+class UR5_Pybullet(Robot):
 
     def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float, rpy_delta: float):
         super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta)
@@ -65,7 +65,7 @@ class UR5(Robot):
         joints = (joints + np.pi) % (2 * np.pi) - np.pi
         return joints
 
-class UR5_RRT(UR5):
+class UR5_RRT_Pybullet(UR5_Pybullet):
 
     def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], trajectory_tolerance: float, rrt_config: dict):
         super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, 1, 0, 0)

@@ -1,5 +1,5 @@
 from modular_drl_env.robot.robot import Robot
-from ..camera import CameraBase, CameraArgs
+from ..camera import CameraBase_Pybullet, CameraArgs
 from ..camera_utils import directionalVectorsFromQuaternion
 
 from typing import Union, List, Dict
@@ -7,9 +7,9 @@ from typing import Union, List, Dict
 import numpy as np
 import pybullet as pyb
 
-__all__ = ['BuddyRobotCamera']
+__all__ = ['BuddyRobotCamera_Pybullet']
 
-class BuddyRobotCamera(CameraBase):
+class BuddyRobotCamera_Pybullet(CameraBase_Pybullet):
 
     def __init__(self, robot_camera : Robot, target : Union[List, Robot], **kwargs):
         self.robot_camera = robot_camera

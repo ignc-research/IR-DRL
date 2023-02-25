@@ -6,10 +6,10 @@ from modular_drl_env.robot.robot import Robot
 from time import time
 
 __all__ = [
-        'PositionRotationSensor'
+        'PositionRotationSensor_Pybullet'
     ]
 
-class PositionRotationSensor(Sensor):
+class PositionRotationSensor_Pybullet(Sensor):
 
     def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, link_id: int, quaternion: bool=True):
 

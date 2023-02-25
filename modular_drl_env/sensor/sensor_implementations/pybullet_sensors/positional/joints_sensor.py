@@ -6,10 +6,10 @@ from modular_drl_env.robot.robot import Robot
 from time import process_time
 
 __all__ = [
-        'JointsSensor'
+        'JointsSensor_Pybullet'
     ]
 
-class JointsSensor(Sensor):
+class JointsSensor_Pybullet(Sensor):
 
     def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, add_joint_velocities: bool=False):
 

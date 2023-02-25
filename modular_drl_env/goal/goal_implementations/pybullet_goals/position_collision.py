@@ -5,10 +5,10 @@ from gym.spaces import Box
 import pybullet as pyb
 
 __all__ = [
-    'PositionCollisionGoal'
+    'PositionCollisionGoal_Pybullet'
 ]
 
-class PositionCollisionGoal(Goal):
+class PositionCollisionGoal_Pybullet(Goal):
     """
     This class implements a goal of reaching a certain position while avoiding collisions.
     The reward function follows Yifan's code.

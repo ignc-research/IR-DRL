@@ -110,7 +110,7 @@ class ModularDRLEnv(gym.Env):
         world_config["env_id"] = self.env_id
         world_config["sim_step"] = self.sim_step
         
-        self.world:World = WorldRegistry.get(world_type)(**world_config)
+        self.world:World = WorldRegistry.get(world_type, engine_type)(**world_config)
 
         # init robots and their associated sensors and goals from config
         self.robots:list[Robot] = []
@@ -126,7 +126,7 @@ class ModularDRLEnv(gym.Env):
             robo_config["world"] = self.world
             robo_config["sim_step"] = self.sim_step
             id_counter += 1
-            robot:Robot = RobotRegistry.get(robo_type)(**robo_config)
+            robot:Robot = RobotRegistry.get(robo_type, engine_type)(**robo_config)
             self.robots.append(robot)
 
             # create the two mandatory sensors
@@ -139,8 +139,8 @@ class ModularDRLEnv(gym.Env):
             posrot_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
                                  "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot,
                                  "link_id": robot.end_effector_link_id, "quaternion": True}
-            new_rob_joints_sensor = SensorRegistry.get("Joints")(**joint_sens_config)
-            new_rob_posrot_sensor = SensorRegistry.get("PositionRotation")(**posrot_sens_config)
+            new_rob_joints_sensor = SensorRegistry.get("Joints", engine_type)(**joint_sens_config)
+            new_rob_posrot_sensor = SensorRegistry.get("PositionRotation", engine_type)(**posrot_sens_config)
             robot.set_joint_sensor(new_rob_joints_sensor)
             robot.set_position_rotation_sensor(new_rob_posrot_sensor)
             self.sensors.append(new_rob_posrot_sensor)
@@ -162,7 +162,7 @@ class ModularDRLEnv(gym.Env):
                             if other_robot.name == sensor_config["target_robot"]:
                                 sensor_config["target_robot"] = other_robot
                                 break
-                    new_sensor:Sensor = SensorRegistry.get(sensor_type)(**sensor_config)
+                    new_sensor:Sensor = SensorRegistry.get(sensor_type, engine_type)(**sensor_config)
                     self.sensors.append(new_sensor)
             
             if "goal" in robo_entry:
@@ -174,7 +174,7 @@ class ModularDRLEnv(gym.Env):
                 goal_config["normalize_rewards"] = self.normalize_rewards
                 goal_config["normalize_observations"] = self.normalize_observations
                 goal_config["max_steps"] = self.max_steps_per_episode
-                new_goal:Goal = GoalRegistry.get(goal_type)(**goal_config)
+                new_goal:Goal = GoalRegistry.get(goal_type, engine_type)(**goal_config)
                 self.goals.append(new_goal)
                 robot.set_goal(new_goal)
 
@@ -185,7 +185,7 @@ class ModularDRLEnv(gym.Env):
                 sensor_config = sensor_entry["config"]
                 sensor_config["sim_step"] = self.sim_step
                 sensor_config["normalize"] = self.normalize_observations
-                new_sensor:Sensor = SensorRegistry.get(sensor_type)(**sensor_config)
+                new_sensor:Sensor = SensorRegistry.get(sensor_type, engine_type)(**sensor_config)
                 self.sensors.append(new_sensor)
 
         # register robots with the world

@@ -1,20 +1,20 @@
 import pybullet as pyb
 from typing import Union, List, Dict, TypedDict
-from modular_drl_env.robot.robot_implementations.ur5 import UR5
+from modular_drl_env.robot.robot_implementations.pybullet_robots.ur5 import UR5_Pybullet
 from ..camera_utils import *
-from ..camera import CameraBase, CameraArgs # to prevent circular imports the things within the package have to be imported using the relative path
+from ..camera import CameraBase_Pybullet, CameraArgs # to prevent circular imports the things within the package have to be imported using the relative path
 
 __all__ = [
-    'StaticFloatingCameraFollowEffector',
-    'StaticFloatingCamera',
+    'StaticFloatingCameraFollowEffector_Pybullet',
+    'StaticFloatingCamera_Pybullet',
 ]
 
-class StaticFloatingCameraFollowEffector(CameraBase):
+class StaticFloatingCameraFollowEffector_Pybullet(CameraBase_Pybullet):
     """
     floating camera at position, if target is None, the camera will follow the robot's effector.
     """
 
-    def __init__(self, robot : UR5, position: List, target: List = None, camera_args : CameraArgs = None, name : str = 'default_floating', **kwargs):
+    def __init__(self, robot : UR5_Pybullet, position: List, target: List = None, camera_args : CameraArgs = None, name : str = 'default_floating', **kwargs):
         super().__init__(target= target, camera_args= camera_args, name= name, **kwargs)
         self.robot = robot
         self.pos = position
@@ -32,7 +32,7 @@ class StaticFloatingCameraFollowEffector(CameraBase):
         return dic
 
 
-class StaticFloatingCamera(CameraBase):
+class StaticFloatingCamera_Pybullet(CameraBase_Pybullet):
     """
     floating camera at position, if target is None, the camera will follow the robot's effector.
     """

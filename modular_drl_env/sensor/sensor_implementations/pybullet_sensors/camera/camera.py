@@ -19,7 +19,7 @@ class CameraArgs(TypedDict, total= False):
     far_val : float
 
 
-class CameraBase(Sensor):
+class CameraBase_Pybullet(Sensor):
     """
     This class implements a camera that can be used as any combination of [R,G,B,D] including grayscale.
 
