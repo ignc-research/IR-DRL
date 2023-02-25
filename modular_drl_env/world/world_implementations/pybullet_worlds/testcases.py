@@ -23,8 +23,9 @@ class TestcasesWorld(World):
         self.test3_phase = 0  # test3 has two phases
 
         # hardcoded end effector start positions, one per test case
-        self.robot_ee_start_positions = [np.array([0.15, 0.4, 0.3]), np.array([0.1, 0.4, 0.33]), np.array([0.25, 0.4, 0.3])]
-        self.robot_ee_start_orientations = [np.array(pyb.getQuaternionFromEuler([np.pi, 0, np.pi])), np.array(pyb.getQuaternionFromEuler([np.pi, 0, np.pi])), np.array(pyb.getQuaternionFromEuler([np.pi, 0, np.pi]))]
+        self.robot_start_joint_angles = [np.array([-2.05547714,  1.25192761, -1.95051253, -0.90225911, -1.56962013, -0.48620892]),
+                                         np.array([-1.9669801,   1.22445893, -2.00302124, -0.82290244, -1.56965578, -0.3975389 ]),
+                                         np.array([-2.15547714,  1.15192761, -1.85051253, -0.90225911, -1.56962013, -0.48620892])]
 
         # hardcoded targets, per test case
         self.position_target_1 = np.array([-0.15, 0.4, 0.3])
@@ -48,7 +49,7 @@ class TestcasesWorld(World):
         elif self.current_test_mode == 3:
             self._build_test_3()
 
-        self.robots_in_world[0].moveto_xyzquat(self.robot_ee_start_positions[self.current_test_mode - 1], self.robot_ee_start_orientations[self.current_test_mode - 1], False)
+        self.robots_in_world[0].moveto_joints(self.robot_start_joint_angles[self.current_test_mode - 1], False)
             
     def reset(self, success_rate):
         if self.test_mode == 0:
