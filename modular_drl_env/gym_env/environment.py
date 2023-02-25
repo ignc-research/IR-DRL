@@ -83,7 +83,7 @@ class ModularDRLEnv(gym.Env):
         # set up the PyBullet client
         disp = pyb.DIRECT if not self.display else pyb.GUI
         pyb.connect(disp)
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS,0)
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS, 1)
         # to access our assets, we need to direct the code towards the location within the python installation that we're in
         # or if this was downloaded as a repo, simply the neighboring assets folder
         # in both cases we use some os commands to get the correct folder path
