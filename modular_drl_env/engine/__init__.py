@@ -21,3 +21,5 @@ class EngineRegistry:
 
 # Pybullet
 EngineRegistry.register('Pybullet')(PybulletEngine)
+# Isaac
+EngineRegistry.register('Isaac')(IsaacEngine)
