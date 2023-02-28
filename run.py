@@ -42,8 +42,6 @@ from modular_drl_env.isaac_bridge.bridge import setup_engine
 if env_config['engine']['type'] == 'Isaac': 
     setup_engine()
 
-print('Setup engine!')
-exit(0)
 
 def find_in_features(seq):
     for sub in seq:
