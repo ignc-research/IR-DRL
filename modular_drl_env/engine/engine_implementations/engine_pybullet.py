@@ -1,6 +1,7 @@
 import pybullet as pyb
 from ..engine import Engine
 
+
 class PybulletEngine(Engine):
 
     def __init__(self, use_physics_sim: bool) -> None:

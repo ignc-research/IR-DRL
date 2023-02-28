@@ -2,13 +2,14 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pybullet as pyb
 
+
 class World(ABC):
     """
     Abstract Base Class for a simulation world. Methods signed with abstractmethod need to be implemented by subclasses.
     See the random obstacles world for examples.
     """
 
-    def __init__(self, workspace_boundaries:list, sim_step: float, env_id: int):
+    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int):
 
         # list that will contain all PyBullet object ids with collision managed by this world simulation
         self.objects_ids = []
