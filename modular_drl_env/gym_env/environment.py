@@ -277,7 +277,7 @@ class ModularDRLEnv(gym.Env):
         # call the goals' update routine and get their metrics, if they exist
         self.goal_metrics = []
         for goal in self.goals:
-            self.goal_metrics.append(goal.on_env_reset(np.average(self.success_stat)))
+            self.goal_metrics += goal.on_env_reset(np.average(self.success_stat))
 
         # render non-essential visual stuff
         if self.show_auxillary_geometry_world:
@@ -567,7 +567,8 @@ class ModularDRLEnv(gym.Env):
         """
         # find all goals that have a metric with name
         for goal in self.goals:
-            if goal.metric_name == name:
-                setattr(goal, name, value)  # very bad for performance, but we'll never use so many goals that this will become relevant
+            for metric in goal.metric_names:
+                if metric == name:
+                    setattr(goal, name, value)  # very bad for performance, but we'll never use so many goals that this will become relevant
 
     

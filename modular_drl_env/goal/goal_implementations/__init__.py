@@ -1,1 +1,1 @@
-from .position_collision import PositionCollisionGoal
+from .position_collision import *
