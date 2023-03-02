@@ -1,4 +1,5 @@
 from modular_drl_env.world.world import World
+from modular_drl_env.world.world_implementations.pybullet_world import PybulletWorld
 import numpy as np
 import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
@@ -11,7 +12,7 @@ __all__ = [
     'KukaShelfExperiment'
 ]
 
-class KukaShelfExperiment(World):
+class KukaShelfExperiment(PybulletWorld):
     """
     Implements the experiment world designed for the Kuka KR16 with two shelves and humans walking.
     """

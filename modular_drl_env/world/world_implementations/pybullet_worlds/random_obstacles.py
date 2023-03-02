@@ -1,5 +1,6 @@
 from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.pybullet_shapes import Box, Sphere
+from modular_drl_env.world.world_implementations.pybullet_world import PybulletWorld
 import numpy as np
 import pybullet as pyb
 from random import choice, shuffle
@@ -8,7 +9,7 @@ __all__ = [
     'RandomObstacleWorld'
 ]
 
-class RandomObstacleWorld(World):
+class RandomObstacleWorld(PybulletWorld):
     """
     This class generates a world with random box and sphere shaped obstacles.
     The obstacles will be placed such that they generally end up between the goal and the starting position of then end effector.

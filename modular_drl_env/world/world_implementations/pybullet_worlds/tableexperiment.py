@@ -1,4 +1,5 @@
 from modular_drl_env.world.world import World
+from modular_drl_env.world.world_implementations.pybullet_world import PybulletWorld
 import numpy as np
 import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
@@ -10,7 +11,7 @@ __all__ = [
     'TableExperiment'
 ]
 
-class TableExperiment(World):
+class TableExperiment(PybulletWorld):
     """
     Implements the table experiment with humans and moving obstacles by Kolja and Kai.
     """

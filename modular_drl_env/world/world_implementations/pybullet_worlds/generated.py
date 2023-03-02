@@ -1,6 +1,7 @@
 from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.pybullet_shapes import Box, Sphere
 from modular_drl_env.world.obstacles.human import Human
+from modular_drl_env.world.world_implementations.pybullet_world import PybulletWorld
 import numpy as np
 import pybullet as pyb
 import yaml
@@ -38,7 +39,7 @@ def getScale(obj):
         scale = 1
     return scale
 
-class GeneratedWorld(World):
+class GeneratedWorld(PybulletWorld):
     """
     This class generates a world with random box and sphere shaped obstacles.
     The obstacles will be placed between the p
