@@ -24,6 +24,10 @@ class PybulletWorld(World):
                     break  # same as above
         self.collision = col
 
+    def generate_gound_plane(self):
+        ground_plate = pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01])
+        self.objects_ids.append(ground_plate)
+
     def build_visual_aux(self):
         a = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
                                 lineToXYZ=[self.x_min, self.y_min, self.z_max])

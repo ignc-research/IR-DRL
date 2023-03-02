@@ -238,6 +238,12 @@ class World(ABC):
         else:  # counter too high
             raise Exception("Tried 10000 times to create valid targets for the robot(s) without success, maybe check your obstacle generation code.") 
 
+    @abstractmethod
+    def generate_gound_plane(self):
+        """
+        Adds a ground plane to the current simulation.
+        """
+        pass
 
     def out_of_bounds(self, position: np.ndarray) -> bool:
         """
