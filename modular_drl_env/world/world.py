@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import numpy as np
-import pybullet as pyb
 
 
 class World(ABC):
@@ -58,6 +57,7 @@ class World(ABC):
             robot.id = id_counter
             id_counter += 1
 
+    @abstractmethod
     def perform_collision_check(self):
         """
         Performs a collision check 
@@ -66,26 +66,7 @@ class World(ABC):
         
         Stores the result in a class variable.
         """
-        pyb.performCollisionDetection()
-        col = False
-        # check for each robot with every obstacle
-        for robot in self.robots_in_world:
-            for obj in self.objects_ids:
-                if len(pyb.getContactPoints(robot.object_id, obj)) > 0:
-                    col = True 
-                    break
-            if col:
-                break  # this is to immediately break out of the outer loop too once a collision has been found
-        # check for each robot with every other one
-        if not col:  # skip if another collision was already detected
-            for idx, robot in enumerate(self.robots_in_world[:-1]):
-                for other_robot in self.robots_in_world[idx+1:]:
-                    if len(pyb.getContactPoints(robot.object_id, other_robot.object_id)) > 0:
-                        col = True
-                        break
-                if col:
-                    break  # same as above
-        self.collision = col
+        pass
 
     @abstractmethod
     def build(self):
@@ -110,6 +91,7 @@ class World(ABC):
         """
         pass
 
+    @abstractmethod
     def build_visual_aux(self):
         """
         This method should add objects that are not necessary to the purpose of the world and useful only for visual quality.
@@ -119,34 +101,7 @@ class World(ABC):
         e.g. a target sphere vs. a target cube)
         Objects built here should NOT be added to self.object_ids but to self.aux_object_ids. Dont forget to reset self.aux_object_ids in your reset methods.
         """
-        a = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
-                                lineToXYZ=[self.x_min, self.y_min, self.z_max])
-        b = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
-                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
-        c = pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
-        d = pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_max, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
-
-        e = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
-                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
-        f = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_max],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
-        g = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
-                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
-        h = pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_max],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
-        
-        i = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_min, self.z_min])
-        j = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
-        k = pyb.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
-                            lineToXYZ=[self.x_min, self.y_max, self.z_min])
-        l = pyb.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
-
-        self.aux_object_ids += [a, b, c, d, e, f, g, h, i, j, k , l]
+        pass
     
     @abstractmethod
     def update(self):

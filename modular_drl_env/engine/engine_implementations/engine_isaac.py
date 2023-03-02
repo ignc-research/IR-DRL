@@ -15,6 +15,7 @@ class IsaacEngine(Engine):
         atexit.register(self.simulation.close)
 
         # todo: include sim_step, gravity, asset_path?
+        print(assets_path)
 
     def step(self):
         # simulate physics step if pyhsics is enabled
@@ -22,4 +23,5 @@ class IsaacEngine(Engine):
             self.simulation.update()
 
     def reset(self):
+        # todo: reset simulation
         pass
