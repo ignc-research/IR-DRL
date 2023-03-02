@@ -49,7 +49,7 @@ env:
   normalize_observations: False
   normalize_rewards: False
   engine:
-    type: "Isaac"
+    type: "Pybullet"
     use_physics_sim: True
     gravity: [0, 0, -9.8]
     sim_step: 0.00416666666 

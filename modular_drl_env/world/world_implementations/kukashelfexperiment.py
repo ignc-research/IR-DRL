@@ -1,5 +1,4 @@
 from modular_drl_env.world.world import World
-from modular_drl_env.world.world_implementations.pybullet_world import PybulletWorld
 import numpy as np
 import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
@@ -12,7 +11,7 @@ __all__ = [
     'KukaShelfExperiment'
 ]
 
-class KukaShelfExperiment(PybulletWorld):
+class KukaShelfExperiment(World):
     """
     Implements the experiment world designed for the Kuka KR16 with two shelves and humans walking.
     """
@@ -24,8 +23,9 @@ class KukaShelfExperiment(PybulletWorld):
                        shuffle_humans: int,
                        humans: dict,
                        obstacles: dict,
+                       engine,
                        shelf_params: dict={}):
-        super().__init__(workspace_boundaries, sim_step, env_id)
+        super().__init__(workspace_boundaries, sim_step, env_id, engine)
 
         # overrides for the target positions, useful for eval, a random one will be chosen
 

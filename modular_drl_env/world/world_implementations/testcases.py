@@ -1,5 +1,4 @@
 from modular_drl_env.world.world import World
-from modular_drl_env.world.world_implementations.pybullet_world import PybulletWorld
 import numpy as np
 import pybullet as pyb
 from random import choice
@@ -9,15 +8,15 @@ __all__ = [
     'TestcasesWorld'
 ]
 
-class TestcasesWorld(PybulletWorld):
+class TestcasesWorld(World):
     """
     Implements the testcases as created by Yifan.
     Note: this class assumes that the first robot mentioned in the config is the one doing the experiment!
     """
 
-    def __init__(self, sim_step:float, env_id:int, test_mode: int):
+    def __init__(self, sim_step:float, env_id:int, test_mode: int, engine):
         #super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.4], sim_step, env_id)
-        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, env_id)
+        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, env_id, engine)
 
         self.test_mode = test_mode # 0: random, 1: one plate, 2: moving obstacle, 3: two plates
         self.current_test_mode = 0  # for random

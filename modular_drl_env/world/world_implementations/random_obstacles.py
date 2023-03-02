@@ -1,6 +1,5 @@
 from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.pybullet_shapes import Box, Sphere
-from modular_drl_env.world.world_implementations.pybullet_world import PybulletWorld
 import numpy as np
 from random import choice, shuffle
 
@@ -8,7 +7,7 @@ __all__ = [
     'RandomObstacleWorld'
 ]
 
-class RandomObstacleWorld(PybulletWorld):
+class RandomObstacleWorld(World):
     """
     This class generates a world with random box and sphere shaped obstacles.
     The obstacles will be placed such that they generally end up between the goal and the starting position of then end effector.
@@ -18,6 +17,7 @@ class RandomObstacleWorld(PybulletWorld):
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
                        env_id: int,
+                       engine,
                        num_static_obstacles: int=3, 
                        num_moving_obstacles: int=1,
                        box_measurements: list=[0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125],
@@ -42,7 +42,7 @@ class RandomObstacleWorld(PybulletWorld):
         """
         # TODO: add random rotations for the plates
 
-        super().__init__(workspace_boundaries, sim_step, env_id)
+        super().__init__(workspace_boundaries, sim_step, env_id, engine)
 
         self.num_static_obstacles = num_static_obstacles
         self.num_moving_obstacles = num_moving_obstacles

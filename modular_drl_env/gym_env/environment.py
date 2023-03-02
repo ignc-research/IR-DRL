@@ -7,11 +7,11 @@ import os
 import platform
 
 # import abstracts
+from modular_drl_env.engine.engine import Engine
 from modular_drl_env.robot.robot import Robot
 from modular_drl_env.sensor.sensor import Sensor
 from modular_drl_env.goal.goal import Goal
 from modular_drl_env.world.world import World
-from modular_drl_env.engine.engine import Engine
 
 # import implementations, new ones hav to be added to the registries to work
 #   worlds
@@ -103,14 +103,14 @@ class ModularDRLEnv(gym.Env):
         # start engine
         self.engine.initialize(self.display, self.sim_step, env_config["engine"]["gravity"], self.assets_path)
 
-
         # init world from config
         world_type = env_config["world"]["type"]
         world_config = env_config["world"]["config"]
         world_config["env_id"] = self.env_id
         world_config["sim_step"] = self.sim_step
+        world_config["engine"] = self.engine
         
-        self.world:World = WorldRegistry.get(world_type, engine_type)(**world_config)
+        self.world:World = WorldRegistry.get(world_type)(**world_config)
 
         # init robots and their associated sensors and goals from config
         self.robots:list[Robot] = []

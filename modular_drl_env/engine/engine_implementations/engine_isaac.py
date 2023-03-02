@@ -23,5 +23,7 @@ class IsaacEngine(Engine):
             self.simulation.update()
 
     def reset(self):
-        # todo: reset simulation
-        pass
+        raise "NotImplemented!"
+
+    def add_ground_plane(self):
+        raise "NotImplemented!"

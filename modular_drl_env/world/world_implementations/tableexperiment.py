@@ -1,5 +1,4 @@
 from modular_drl_env.world.world import World
-from modular_drl_env.world.world_implementations.pybullet_world import PybulletWorld
 import numpy as np
 import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
@@ -11,7 +10,7 @@ __all__ = [
     'TableExperiment'
 ]
 
-class TableExperiment(PybulletWorld):
+class TableExperiment(World):
     """
     Implements the table experiment with humans and moving obstacles by Kolja and Kai.
     """
@@ -26,12 +25,13 @@ class TableExperiment(PybulletWorld):
                        human_rotations: list,
                        human_trajectories: list,
                        human_reactive: list,
+                       engine,
                        ee_starts: list=[],
                        targets: list=[],
                        obstacle_positions: list=[],
                        obstacle_trajectories: list=[],
                        obstacle_training_schedule: bool=False):
-        super().__init__(workspace_boundaries, sim_step, env_id)
+        super().__init__(workspace_boundaries, sim_step, env_id, engine)
         # INFO: if multiple robot base positions are given, we will assume that the first one is the main one for the experiment
         # also, we will always assume that the robot base is set up at 0,0,z
         # this will make generating obstacles easier

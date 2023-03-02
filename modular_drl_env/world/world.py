@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from modular_drl_env.engine import Engine
 import numpy as np
 
 
@@ -8,11 +9,11 @@ class World(ABC):
     See the random obstacles world for examples.
     """
 
-    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int):
+    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int, engine: Engine):
 
-        # list that will contain all PyBullet object ids with collision managed by this world simulation
+        # list that will contain all self.engineullet object ids with collision managed by this world simulation
         self.objects_ids = []
-        # list that will contain all purely visual PyBullet object ids (e.g. explicatory lines, workspace boundaries etc.)
+        # list that will contain all purely visual self.engineullet object ids (e.g. explicatory lines, workspace boundaries etc.)
         self.aux_object_ids = []
         # list that will contain all obstacle objects used in this world
         self.obstacle_objects = []
@@ -46,6 +47,9 @@ class World(ABC):
         self.gives_a_position = False
         self.gives_a_rotation = False
 
+        # save engine to allow accessing it
+        self.engine: Engine = engine
+
     def register_robots(self, robots):
         """
         This method receives a list of robot objects from the outside and sorts the robots therein into a list that is important for other methods.
@@ -57,7 +61,6 @@ class World(ABC):
             robot.id = id_counter
             id_counter += 1
 
-    @abstractmethod
     def perform_collision_check(self):
         """
         Performs a collision check 
@@ -66,17 +69,17 @@ class World(ABC):
         
         Stores the result in a class variable.
         """
-        pass
+        self.collision = self.engine.perform_collision_check(self.robots_in_world, self.objects_ids)
 
     @abstractmethod
     def build(self):
         """
         This method should build all the components that make up the world simulation aside from the robot.
-        This includes URDF files as well as objects created by PyBullet code.
+        This includes URDF files as well as objects created by self.engineullet code.
         This method should also generate valid targets for all robots that need them, valid starting points and it should also move them there to start the episode.
 
         All object ids loaded in by this method must be added to the self.object_ids list! Otherwise they will be ignored in collision detection.
-        If you use our Obstacle objects, add them (the objects themselves, not just their pybullet ids) to self.obstacle_objects. You will want to have in them in a list anyway and doing it via this variable ensures compatability with our pybullet recorder.
+        If you use our Obstacle objects, add them (the objects themselves, not just their self.engineullet ids) to self.obstacle_objects. You will want to have in them in a list anyway and doing it via this variable ensures compatability with our self.engineullet recorder.
         """
         pass
 
@@ -85,13 +88,12 @@ class World(ABC):
         """
         This method should reset all lists, arrays, variables etc. that handle the world to such a state that a new episode can be run.
         Meaning that after this method is done, build() can be called again.
-        Don't reset the PyBullet simulation itself, that will be handled by the gym env.
+        Don't reset the self.engineullet simulation itself, that will be handled by the gym env.
         Additionally, this method receives the success rate of the gym env as a value between 0 and 1. You could use this to
         set certain parameters, e.g. to the make world become more complex as the agent's success rate increases.
         """
         pass
 
-    @abstractmethod
     def build_visual_aux(self):
         """
         This method should add objects that are not necessary to the purpose of the world and useful only for visual quality.
@@ -101,7 +103,34 @@ class World(ABC):
         e.g. a target sphere vs. a target cube)
         Objects built here should NOT be added to self.object_ids but to self.aux_object_ids. Dont forget to reset self.aux_object_ids in your reset methods.
         """
-        pass
+        a = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min], 
+                                         lineToXYZ=[self.x_min, self.y_min, self.z_max])
+        b = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
+        c = self.engine.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
+        d = self.engine.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+
+        e = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
+        f = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+        g = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
+        h = self.engine.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_max],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+        
+        i = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_min, self.z_min])
+        j = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
+        k = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_min, self.y_max, self.z_min])
+        l = self.engine.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
+                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
+
+        self.aux_object_ids += [a, b, c, d, e, f, g, h, i, j, k , l]
     
     @abstractmethod
     def update(self):
@@ -238,12 +267,11 @@ class World(ABC):
         else:  # counter too high
             raise Exception("Tried 10000 times to create valid targets for the robot(s) without success, maybe check your obstacle generation code.") 
 
-    @abstractmethod
     def generate_gound_plane(self):
         """
         Adds a ground plane to the current simulation.
         """
-        pass
+        self.objects_ids.append(self.engine.add_ground_plane())
 
     def out_of_bounds(self, position: np.ndarray) -> bool:
         """
