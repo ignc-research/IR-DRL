@@ -1,1 +1,1 @@
-from .pybullet_goals import *
+from .position_collision import PositionCollisionGoal

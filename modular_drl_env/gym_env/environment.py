@@ -176,7 +176,7 @@ class ModularDRLEnv(gym.Env):
                 goal_config["normalize_rewards"] = self.normalize_rewards
                 goal_config["normalize_observations"] = self.normalize_observations
                 goal_config["max_steps"] = self.max_steps_per_episode
-                new_goal:Goal = GoalRegistry.get(goal_type, engine_type)(**goal_config)
+                new_goal:Goal = GoalRegistry.get(goal_type)(**goal_config)
                 self.goals.append(new_goal)
                 robot.set_goal(new_goal)
 

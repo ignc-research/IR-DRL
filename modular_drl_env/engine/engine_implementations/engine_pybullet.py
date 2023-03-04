@@ -68,35 +68,35 @@ class PybulletEngine(Engine):
         """
         return pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=True, globalScaling=scale)
     
-    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: list, color: list[float]) -> int:
+    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: list, color: list[float], collision: bool=True) -> int:
         """
         Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
         Must return a unique int identifying the newly spawned object within the engine.
         """
         return pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents, rgbaColor=color),
-                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents) if collision else -1,
                                     basePosition=position.tolist(),
                                     baseOrientation=orientation.tolist())
 
-    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: list[float]) -> int:
+    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: list[float], collision: bool=True) -> int:
         """
         Spawns a sphere.
         Must return a unique int identifying the newly spawned object within the engine.
         """
         return pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=radius, rgbaColor=color),
-                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_SPHERE, radius=radius),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_SPHERE, radius=radius) if collision else -1,
                                     basePosition=position.tolist())
 
-    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: list[float]) -> int:
+    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: list[float], collision: bool=True) -> int:
         """
         Spawns a cylinder.
         Must return a unique int identifying the newly spawned object within the engine.
         """
         return pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height, rgbaColor=color),
-                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height) if collision else -1,
                                     basePosition=position.tolist(),
                                     baseOrientation=orientation.tolist())
 
