@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from modular_drl_env.engine import Engine
+from modular_drl_env.engine.engine import get_instance
 import numpy as np
 
 
@@ -9,7 +9,7 @@ class World(ABC):
     See the random obstacles world for examples.
     """
 
-    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int, engine: Engine):
+    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int):
 
         # list that will contain all self.engineullet object ids with collision managed by this world simulation
         self.objects_ids = []
@@ -48,7 +48,7 @@ class World(ABC):
         self.gives_a_rotation = False
 
         # save engine to allow accessing it
-        self.engine: Engine = engine
+        self.engine = get_instance()
 
     def register_robots(self, robots):
         """
@@ -266,12 +266,6 @@ class World(ABC):
             return
         else:  # counter too high
             raise Exception("Tried 10000 times to create valid targets for the robot(s) without success, maybe check your obstacle generation code.") 
-
-    def generate_gound_plane(self):
-        """
-        Adds a ground plane to the current simulation.
-        """
-        self.objects_ids.append(self.engine.add_ground_plane())
 
     def out_of_bounds(self, position: np.ndarray) -> bool:
         """

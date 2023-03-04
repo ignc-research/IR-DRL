@@ -27,3 +27,37 @@ def rotate_vector(vector, quat):
     rotated_vector = quaternion_multiply(quaternion_multiply(quat, help_vector), quat_inv)
 
     return rotated_vector[:3]
+
+def quaternion_to_rpy(quat):
+    x, y, z, w = quat
+
+    srcp = 2 * (w * x + y * z)
+    crcp = 1 - 2 * (x * x + y * y)
+    r = np.arctan2(srcp, crcp)
+
+    sp = np.sqrt(1 + 2 * (w * y - x * z))
+    cp = np.sqrt(1 - 2 * (w * y - x * z))
+    p = 2 * np.arctan2(sp, cp) - np.pi / 2
+
+    sycp = 2 * (w * z + x * y)
+    cycp = 1 - 2 * (y * y + z * z)
+    y = np.arctan2(sycp, cycp)
+
+    return np.array([r, p, y])
+
+def rpy_to_quaternion(rpy):
+    r, p, y = rpy
+    
+    cr = np.cos(r * 0.5)
+    sr = np.sin(r * 0.5)
+    cp = np.cos(p * 0.5)
+    sp = np.sin(p * 0.5)
+    cy = np.cos(y * 0.5)
+    sy = np.sin(y * 0.5)
+
+    x = sr * cp * cy - cr * sp * sy
+    y = cr * sp * cy + sr * cp * sy
+    z = cr * cp * sy - sr * sp * cy
+    w = cr * cp * cy + sr * sp * sy
+
+    return np.array([x, y, z, w])

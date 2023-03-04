@@ -1,16 +1,16 @@
 import pybullet as pyb
 from typing import List
-from modular_drl_env.robot.robot_implementations.pybullet_robots.ur5 import UR5_Pybullet
+from modular_drl_env.robot.robot_implementations.ur5 import UR5
 from ..camera_utils import *
-from ..camera import CameraBase_Pybullet
+from ..camera import CameraBase
 
 __all__ = [
-    'OnBodyCameraUR5_Pybullet',
+    'OnBodyCameraUR5',
 ]
 
-class OnBodyCameraUR5_Pybullet(CameraBase_Pybullet):
+class OnBodyCameraUR5(CameraBase):
 
-    def __init__(self, robot : UR5_Pybullet, position_relative_to_effector: List = None, camera_args: dict = None, name : str = 'default_body_ur5', **kwargs):
+    def __init__(self, robot : UR5, position_relative_to_effector: List = None, camera_args: dict = None, name : str = 'default_body_ur5', **kwargs):
         self.robot = robot
         self.relative_pos = position_relative_to_effector
         super().__init__(camera_args= camera_args, name= name, **kwargs)

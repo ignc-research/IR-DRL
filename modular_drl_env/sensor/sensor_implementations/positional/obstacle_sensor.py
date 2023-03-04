@@ -6,10 +6,10 @@ from modular_drl_env.robot.robot import Robot
 from time import process_time
 
 __all__ = [
-    "ObstacleSensor_Pybullet"
+    "ObstacleSensor"
 ]
 
-class ObstacleSensor_Pybullet(Sensor):
+class ObstacleSensor(Sensor):
 
     def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, num_obstacles: int, max_distance: float, reference_link_id: int):
         

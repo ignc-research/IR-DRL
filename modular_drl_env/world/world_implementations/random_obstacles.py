@@ -17,7 +17,6 @@ class RandomObstacleWorld(World):
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
                        env_id: int,
-                       engine,
                        num_static_obstacles: int=3, 
                        num_moving_obstacles: int=1,
                        box_measurements: list=[0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125],
@@ -42,7 +41,7 @@ class RandomObstacleWorld(World):
         """
         # TODO: add random rotations for the plates
 
-        super().__init__(workspace_boundaries, sim_step, env_id, engine)
+        super().__init__(workspace_boundaries, sim_step, env_id)
 
         self.num_static_obstacles = num_static_obstacles
         self.num_moving_obstacles = num_moving_obstacles
@@ -63,7 +62,7 @@ class RandomObstacleWorld(World):
 
     def build(self):
         # add ground plate
-        self.generate_gound_plane()
+        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
 
         # determine random number of obstacles, if needed
         if self.randomize_number_of_obstacles:

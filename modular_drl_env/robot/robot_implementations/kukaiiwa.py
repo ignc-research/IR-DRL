@@ -4,11 +4,11 @@ import pybullet as pyb
 from modular_drl_env.robot.robot import Robot
 
 __all__ = [
-    'Kukaiiwa_Pybullet'
+    'Kukaiiwa'
 ]
 
 
-class Kukaiiwa_Pybullet(Robot):
+class Kukaiiwa(Robot):
 
     def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool,
                  base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray],

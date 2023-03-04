@@ -3,7 +3,7 @@ from modular_drl_env.robot.robot import Robot
 from time import time
 from abc import abstractmethod
 
-class LidarSensor_Pybullet(Sensor):
+class LidarSensor(Sensor):
     """
     Base class for a lidar sensor.
     Must be subclassed for each robot because the setup of the rays changes.

@@ -4,15 +4,15 @@ import pybullet as pyb
 from gym.spaces import Box
 from time import time
 from abc import abstractmethod
-from ..lidar import LidarSensor_Pybullet
+from ..lidar import LidarSensor
 
 
 __all__ = [
-    'LidarSensorUR5_Pybullet',
-    'LidarSensorUR5_Explainable_Pybullet'
+    'LidarSensorUR5',
+    'LidarSensorUR5_Explainable'
 ]
 
-class LidarSensorUR5_Pybullet(LidarSensor_Pybullet):
+class LidarSensorUR5(LidarSensor):
     """
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """
@@ -170,7 +170,7 @@ class LidarSensorUR5_Pybullet(LidarSensor_Pybullet):
                 self.aux_visual_pyb_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], hitRayColor))
 
 
-class LidarSensorUR5_Explainable_Pybullet(LidarSensor_Pybullet):
+class LidarSensorUR5_Explainable(LidarSensor):
     """
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """

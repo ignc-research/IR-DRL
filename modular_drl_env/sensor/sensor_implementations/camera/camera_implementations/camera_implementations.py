@@ -2,14 +2,14 @@ import pybullet as pyb
 from typing import List
 from modular_drl_env.robot.robot_implementations.ur5 import UR5
 from ..camera_utils import *
-from ..camera import CameraBase_Pybullet
+from ..camera import CameraBase
 
 __all__ = [
-    'StaticBodyCameraUR5_Pybullet',
-    'StaticFloatingCamera_Pybullet'
+    'StaticBodyCameraUR5',
+    'StaticFloatingCamera'
 ]
 
-class StaticBodyCameraUR5_Pybullet(CameraBase_Pybullet):
+class StaticBodyCameraUR5(CameraBase):
 
     def __init__(self, robot : UR5, position_relative_to_effector: List = None, camera_args: dict = None, name : str = 'default_body_ur5', **kwargs):
         self.robot = robot
@@ -43,7 +43,7 @@ class StaticBodyCameraUR5_Pybullet(CameraBase_Pybullet):
         dic[self.output_name + '_pos'] = self.pos
         return dic
 
-class StaticFloatingCameraFollowEffector_Pybullet(CameraBase_Pybullet):
+class StaticFloatingCameraFollowEffector(CameraBase):
     """
     floating camera at position, if target is None, the camera will follow the robot's effector.
     """
@@ -66,7 +66,7 @@ class StaticFloatingCameraFollowEffector_Pybullet(CameraBase_Pybullet):
         return dic
 
 
-class StaticFloatingCamera_Pybullet(CameraBase_Pybullet):
+class StaticFloatingCamera(CameraBase):
     """
     floating camera at position, if target is None, the camera will follow the robot's effector.
     """

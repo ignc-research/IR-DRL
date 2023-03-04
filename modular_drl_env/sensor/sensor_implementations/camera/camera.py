@@ -9,7 +9,7 @@ from abc import abstractmethod
 from .camera_utils import *
 
 
-class CameraBase_Pybullet(Sensor):
+class CameraBase(Sensor):
     """
     This class implements a camera that can be used as any combination of [R,G,B,D] including grayscale.
 

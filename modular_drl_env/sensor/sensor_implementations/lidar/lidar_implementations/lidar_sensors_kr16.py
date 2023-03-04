@@ -2,13 +2,13 @@ from modular_drl_env.robot.robot import Robot
 import numpy as np
 import pybullet as pyb
 from gym.spaces import Box
-from ..lidar import LidarSensor_Pybullet
+from ..lidar import LidarSensor
 
 __all__ = [
-    'LidarSensorKR16_Pybullet'
+    'LidarSensorKR16'
 ]
 
-class LidarSensorKR16_Pybullet(LidarSensor_Pybullet):
+class LidarSensorKR16(LidarSensor):
 
     def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, ray_setup: dict, indicator: bool = True):
         super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, indicator)
