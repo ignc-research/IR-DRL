@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class PybulletEngine(Engine):
 
     def __init__(self, use_physics_sim: bool, display_mode: bool, sim_step: float, gravity: list, assets_path: str) -> None:
-        super().__init__(use_physics_sim, display_mode, sim_step, gravity, assets_path)
+        super().__init__("Pybullet", use_physics_sim, display_mode, sim_step, gravity, assets_path)
         disp = pyb.DIRECT if not display_mode else pyb.GUI
         pyb.connect(disp)
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS, 1)
@@ -61,12 +61,50 @@ class PybulletEngine(Engine):
     def add_ground_plane(self, position: np.ndarray):
         return pyb.loadURDF("workspace/plane.urdf", position.tolist())
     
-    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray) -> int:
+    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> int:
         """
         Loads in a URDF file into the world at position and orientation.
         Must return a unique int identifying the newly spawned object within the engine.
         """
-        return pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=True)
+        return pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=True, globalScaling=scale)
+    
+    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: list, color: list[float]) -> int:
+        """
+        Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
+        Must return a unique int identifying the newly spawned object within the engine.
+        """
+        return pyb.createMultiBody(baseMass=mass,
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents, rgbaColor=color),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents),
+                                    basePosition=position.tolist(),
+                                    baseOrientation=orientation.tolist())
+
+    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: list[float]) -> int:
+        """
+        Spawns a sphere.
+        Must return a unique int identifying the newly spawned object within the engine.
+        """
+        return pyb.createMultiBody(baseMass=mass,
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=radius, rgbaColor=color),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_SPHERE, radius=radius),
+                                    basePosition=position.tolist())
+
+    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: list[float]) -> int:
+        """
+        Spawns a cylinder.
+        Must return a unique int identifying the newly spawned object within the engine.
+        """
+        return pyb.createMultiBody(baseMass=mass,
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height, rgbaColor=color),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height),
+                                    basePosition=position.tolist(),
+                                    baseOrientation=orientation.tolist())
+
+    def move_base(self, object_id: int, position: np.ndarray, orientation: np.ndarray):
+        """
+        Moves the base of the robot towards the desired position and orientation instantaneously, without physcis calucations.
+        """
+        pyb.resetBasePositionAndOrientation(object_id, position.tolist(), orientation.tolist())
     
     ######################################################
     # helper methods (e.g. lines or debug visualization) #
@@ -109,12 +147,6 @@ class PybulletEngine(Engine):
                 maxNumIterations=max_iterations,
                 residualThreshold=threshold)
         return joints
-    
-    def move_base(self, robot_id, position: np.ndarray, orientation: np.ndarray):
-        """
-        Moves the base of the robot towards the desired position and orientation instantaneously, without physcis calucations.
-        """
-        pyb.resetBasePositionAndOrientation(robot_id, position.tolist(), orientation.tolist())
 
     def get_joints_ids_actuators(self, robot_id) -> list[int]:
         """

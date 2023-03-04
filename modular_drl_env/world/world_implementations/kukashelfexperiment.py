@@ -2,7 +2,7 @@ from modular_drl_env.world.world import World
 import numpy as np
 import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
-from modular_drl_env.world.obstacles.pybullet_shapes import Box
+from modular_drl_env.world.obstacles.shapes import Box
 from modular_drl_env.world.obstacles.shelf.shelf import ShelfObstacle
 from random import choice, sample
 from modular_drl_env.util.quaternion_util import rotate_vector

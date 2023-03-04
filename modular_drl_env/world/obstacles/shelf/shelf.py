@@ -1,4 +1,3 @@
-import pybullet as p
 import numpy as np
 import os
 from modular_drl_env.world.obstacles.urdf_object import URDFObjectGenerated

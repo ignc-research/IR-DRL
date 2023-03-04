@@ -1,4 +1,3 @@
-import pybullet as p
 import numpy as np
 import random
 import os

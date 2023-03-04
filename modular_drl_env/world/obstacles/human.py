@@ -15,6 +15,10 @@ class Human(Obstacle):
         self.human = None
         self.scale = scale
 
+        # guard against using this class with engines other than Pybullet
+        if self.engine.engine_type != "Pybullet":
+            raise Exception("Human obstacles cannot be used with engines other than Pybullet!")
+
         self.sim_step = sim_step
         self.trajectory_idx = 0
 
@@ -27,7 +31,7 @@ class Human(Obstacle):
     def build(self) -> int:
         self.human = Man(0, partitioned=False, timestep=self.sim_step, scaling=self.scale, static=(len(self.trajectory)==0))
         #self.human.resetGlobalTransformation(self.position_orig, pyb.getEulerFromQuaternion(self.rotation_orig.tolist()))
-        self.human.advance(self.position_orig, self.rotation_orig.tolist())
+        self.human.advance(self.position_orig, self.orientation_orig.tolist())
         self.object_id = self.human.body_id
         return self.human.body_id
 

@@ -17,7 +17,7 @@ class Engine(ABC):
     This does not include specific e.g. sensor or robot implementations, these are handled by their own subclasses.
     """
 
-    def __init__(self, use_physics_sim: bool, display_mode: bool, sim_step: float, gravity: list, assets_path: str) -> None:
+    def __init__(self, engine_type: str, use_physics_sim: bool, display_mode: bool, sim_step: float, gravity: list, assets_path: str) -> None:
         """
         This method starts the engine in the python code.
         It should also set several attributes using the parameters:
@@ -28,6 +28,7 @@ class Engine(ABC):
         - assets_path: a string containing the absolute path of the assets folder from where the engine will load in meshes
         """
         super().__init__()
+        self.engine_type = engine_type  # we use this to check for cases when a feature is not supported by some engine types
         self.use_physics_sim = use_physics_sim  # determines how objects are moved within the engine, either by brute setting their position or correct physics simulation
 
     ###################
@@ -73,26 +74,41 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray) -> int:
+    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> int:
         """
         Loads in a URDF file into the world at position and orientation.
         Must return a unique int identifying the newly spawned object within the engine.
         """
         pass
 
-    #@abstractmethod
-    def create_box(self, position: np.ndarray, orientation: np.ndarray, halfExtents: np.ndarray, color: np.ndarray) -> int:
+    @abstractmethod
+    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: list, color: list[float]) -> int:
         """
         Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
         Must return a unique int identifying the newly spawned object within the engine.
         """
         pass
 
-    #@abstractmethod
-    def create_sphere(self, position: np.ndarray, radius: float, color: np.ndarray) -> int:
+    @abstractmethod
+    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: list[float]) -> int:
         """
         Spawns a sphere.
         Must return a unique int identifying the newly spawned object within the engine.
+        """
+        pass
+
+    @abstractmethod
+    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: list[float]) -> int:
+        """
+        Spawns a cylinder.
+        Must return a unique int identifying the newly spawned object within the engine.
+        """
+        pass
+
+    @abstractmethod
+    def move_base(self, object_id: int, position: np.ndarray, orientation: np.ndarray):
+        """
+        Moves the base of an object or robot towards the desired position and orientation instantaneously, without physcis calucations.
         """
         pass
 
@@ -144,13 +160,6 @@ class Engine(ABC):
         """
         Solves the inverse kinematics problem for the given robot. Returns a vector of joint values.
         If target_orientation is None perform inverse kinematics for position only.
-        """
-        pass
-
-    @abstractmethod
-    def move_base(self, robot_id, position: np.ndarray, orientation: np.ndarray):
-        """
-        Moves the base of the robot towards the desired position and orientation instantaneously, without physcis calucations.
         """
         pass
 

@@ -1,5 +1,4 @@
 from modular_drl_env.world.obstacles.obstacle import Obstacle
-import pybullet as pyb
 import numpy as np
 from typing import Union
 from abc import abstractmethod
@@ -16,7 +15,7 @@ class URDFObject(Obstacle):
         self.scale = scale
 
     def build(self) -> int:
-        self.object_id = pyb.loadURDF(self.urdf_path, self.position, self.rotation, useFixedBase=True, globalScaling=self.scale)
+        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.position, orientation=self.orientation, scale=self.scale)
         return self.object_id
 
 class URDFObjectGenerated(URDFObject):
