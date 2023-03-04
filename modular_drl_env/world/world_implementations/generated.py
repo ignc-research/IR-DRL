@@ -2,7 +2,6 @@ from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.shapes import Box, Sphere
 from modular_drl_env.world.obstacles.human import Human
 import numpy as np
-import pybullet as pyb
 import yaml
 import os
 import math

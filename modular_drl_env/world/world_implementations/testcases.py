@@ -1,6 +1,5 @@
 from modular_drl_env.world.world import World
 import numpy as np
-import pybullet as pyb
 from random import choice
 from modular_drl_env.world.obstacles.shapes import Box
 
@@ -14,9 +13,9 @@ class TestcasesWorld(World):
     Note: this class assumes that the first robot mentioned in the config is the one doing the experiment!
     """
 
-    def __init__(self, sim_step:float, env_id:int, test_mode: int, engine):
+    def __init__(self, sim_step:float, env_id:int, test_mode: int):
         #super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.4], sim_step, env_id)
-        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, env_id, engine)
+        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, env_id)
 
         self.test_mode = test_mode # 0: random, 1: one plate, 2: moving obstacle, 3: two plates
         self.current_test_mode = 0  # for random
@@ -40,7 +39,7 @@ class TestcasesWorld(World):
 
     def build(self):
         # add ground plate
-        ground_plate = pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01])
+        ground_plate = self.engine.add_ground_plane(np.array([0, 0, -0.01]))
         self.objects_ids.append(ground_plate)
         if self.current_test_mode == 1:
             self._build_test_1()

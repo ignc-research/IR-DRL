@@ -1,6 +1,5 @@
 from modular_drl_env.world.world import World
 import numpy as np
-import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
 from modular_drl_env.world.obstacles.shapes import Box
 from modular_drl_env.world.obstacles.shelf.shelf import ShelfObstacle
@@ -23,9 +22,8 @@ class KukaShelfExperiment(World):
                        shuffle_humans: int,
                        humans: dict,
                        obstacles: dict,
-                       engine,
                        shelf_params: dict={}):
-        super().__init__(workspace_boundaries, sim_step, env_id, engine)
+        super().__init__(workspace_boundaries, sim_step, env_id)
 
         # overrides for the target positions, useful for eval, a random one will be chosen
 
@@ -63,7 +61,7 @@ class KukaShelfExperiment(World):
 
     def build(self):
         # ground plate
-        self.objects_ids.append(pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01]))
+        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
 
         # build shelves
         for shelf in self.shelves:

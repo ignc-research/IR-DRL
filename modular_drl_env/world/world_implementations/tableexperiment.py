@@ -25,16 +25,19 @@ class TableExperiment(World):
                        human_rotations: list,
                        human_trajectories: list,
                        human_reactive: list,
-                       engine,
                        ee_starts: list=[],
                        targets: list=[],
                        obstacle_positions: list=[],
                        obstacle_trajectories: list=[],
                        obstacle_training_schedule: bool=False):
-        super().__init__(workspace_boundaries, sim_step, env_id, engine)
+        super().__init__(workspace_boundaries, sim_step, env_id)
         # INFO: if multiple robot base positions are given, we will assume that the first one is the main one for the experiment
         # also, we will always assume that the robot base is set up at 0,0,z
         # this will make generating obstacles easier
+
+        # guard against usage with engines other than pybullet
+        if self.engine.engine_type != "Pybullet":
+            raise Exception("The table experiment cannot be used with engines other than Pybullet!")
 
         self.num_obstacles = num_obstacles
         self.num_humans = num_humans
