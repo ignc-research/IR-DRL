@@ -1,6 +1,6 @@
 import pybullet as pyb
 from ..engine import Engine
-from typing import List, TYPE_CHECKING, Union
+from typing import List, TYPE_CHECKING, Union, Tuple
 import numpy as np
 
 # Use type checking to enable tyhe hints and prevent circular imports
@@ -110,8 +110,11 @@ class PybulletEngine(Engine):
     # helper methods (e.g. lines or debug visualization) #
     ######################################################
 
-    def addUserDebugLine(self, lineFromXYZ: List[float], lineToXYZ: List[float]):
+    def add_aux_line(self, lineFromXYZ: List[float], lineToXYZ: List[float]):
         return pyb.addUserDebugLine(lineFromXYZ, lineToXYZ)
+    
+    def remove_aux_object(self, aux_object_id):
+        pyb.removeUserDebugItem(aux_object_id)
     
     ##################
     # robot movement #
@@ -134,6 +137,19 @@ class PybulletEngine(Engine):
         Sets the a specific joint to a specific value ignoring phycis, i.e. resulting in instant movement.
         """
         pyb.resetJointState(robot_id, joint_id, joint_value)
+
+    def get_joint_value(self, robot_id: int, joint_id: int) -> float:
+        """
+        Returns the value a single joint is at.
+        """
+        return pyb.getJointState(robot_id, joint_id)[0]
+    
+    def get_link_state(self, robot_id: int, link_id: int) -> Tuple(np.ndarray, np.ndarray):
+        """
+        Returns a tuple with position and orientation, both in world frame, of the link in question.
+        """
+        link_state = pyb.getLinkState(robot_id, link_id, computeForwardKinematics=True)
+        return np.array(link_state[4]), np.array(link_state[5])
 
     def solve_inverse_kinematics(self, robot_id: int, end_effector_link_id: int, target_position: np.ndarray, target_orientation: Union[np.ndarray, None], max_iterations: int=100, threshold: float=1e-2) -> np.ndarray:
         """

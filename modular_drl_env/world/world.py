@@ -103,31 +103,31 @@ class World(ABC):
         e.g. a target sphere vs. a target cube)
         Objects built here should NOT be added to self.object_ids but to self.aux_object_ids. Dont forget to reset self.aux_object_ids in your reset methods.
         """
-        a = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min], 
+        a = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_min], 
                                          lineToXYZ=[self.x_min, self.y_min, self.z_max])
-        b = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
+        b = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
                             lineToXYZ=[self.x_min, self.y_max, self.z_max])
-        c = self.engine.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
+        c = self.engine.add_aux_line(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
                             lineToXYZ=[self.x_max, self.y_min, self.z_max])
-        d = self.engine.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_max, self.z_min],
+        d = self.engine.add_aux_line(lineFromXYZ=[self.x_max, self.y_max, self.z_min],
                             lineToXYZ=[self.x_max, self.y_max, self.z_max])
 
-        e = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
+        e = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
                             lineToXYZ=[self.x_max, self.y_min, self.z_max])
-        f = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_max],
+        f = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_max, self.z_max],
                             lineToXYZ=[self.x_max, self.y_max, self.z_max])
-        g = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
+        g = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
                             lineToXYZ=[self.x_min, self.y_max, self.z_max])
-        h = self.engine.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_max],
+        h = self.engine.add_aux_line(lineFromXYZ=[self.x_max, self.y_min, self.z_max],
                             lineToXYZ=[self.x_max, self.y_max, self.z_max])
         
-        i = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+        i = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
                             lineToXYZ=[self.x_max, self.y_min, self.z_min])
-        j = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
+        j = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
                             lineToXYZ=[self.x_max, self.y_max, self.z_min])
-        k = self.engine.addUserDebugLine(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
+        k = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
                             lineToXYZ=[self.x_min, self.y_max, self.z_min])
-        l = self.engine.addUserDebugLine(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
+        l = self.engine.add_aux_line(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
                             lineToXYZ=[self.x_max, self.y_max, self.z_min])
 
         self.aux_object_ids += [a, b, c, d, e, f, g, h, i, j, k , l]

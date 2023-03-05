@@ -165,9 +165,9 @@ class LidarSensorUR5(LidarSensor):
 
         for index, result in enumerate(self.results):
             if result[0] == -1:
-                self.aux_visual_pyb_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], missRayColor))
+                self.aux_visual_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], missRayColor))
             else:
-                self.aux_visual_pyb_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], hitRayColor))
+                self.aux_visual_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], hitRayColor))
 
 
 class LidarSensorUR5_Explainable(LidarSensor):

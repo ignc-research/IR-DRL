@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, TYPE_CHECKING, Union
+from typing import List, TYPE_CHECKING, Union, Tuple
 import numpy as np
 
 # Use type checking to enable type hints and prevent circular imports
@@ -117,9 +117,16 @@ class Engine(ABC):
     ######################################################
 
     @abstractmethod
-    def addUserDebugLine(self, lineFromXYZ: List[float], lineToXYZ: List[float]):
+    def add_aux_line(self, lineFromXYZ: List[float], lineToXYZ: List[float]) -> int:
         """
         Adds a simple line
+        """
+        pass
+
+    @abstractmethod
+    def remove_aux_object(self, aux_object_id):
+        """
+        Removes an auxillary object via its int id.
         """
         pass
 
@@ -154,6 +161,29 @@ class Engine(ABC):
         """
         for idx, joint_id in enumerate(joints_ids):
             self.set_joint_value(robot_id, joint_id, joints_values[idx])
+
+    @abstractmethod
+    def get_joint_value(self, robot_id: int, joint_id: int) -> float:
+        """
+        Returns the value a single joint is at.
+        """
+        pass
+
+    def get_joints_values(self, robot_id: int, joints_ids: list[int]) -> np.ndarray[float]:
+        """
+        Same as get_joint_values, but for multiple joints at once.
+        """
+        values = []
+        for joint_id in joints_ids:
+            values.append(self.get_joint_value(robot_id, joint_id))
+        return np.array(values)
+    
+    @abstractmethod
+    def get_link_state(self, robot_id: int, link_id: int) -> Tuple(np.ndarray, np.ndarray):
+        """
+        Returns a tuple with position and orientation, both in world frame, of the link in question.
+        """
+        pass
 
     @abstractmethod
     def solve_inverse_kinematics(self, robot_id: int, end_effector_link_id: int, target_position: np.ndarray, target_orientation: Union[np.ndarray, None], max_iterations: int=100, threshold: float=1e-2) -> np.ndarray:
