@@ -69,7 +69,7 @@ class PybulletEngine(Engine):
         """
         return pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=True, globalScaling=scale)
     
-    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: list, color: list[float], collision: bool=True) -> int:
+    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: list, color: List[float], collision: bool=True) -> int:
         """
         Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
         Must return a unique int identifying the newly spawned object within the engine.
@@ -80,7 +80,7 @@ class PybulletEngine(Engine):
                                     basePosition=position.tolist(),
                                     baseOrientation=orientation.tolist())
 
-    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: list[float], collision: bool=True) -> int:
+    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> int:
         """
         Spawns a sphere.
         Must return a unique int identifying the newly spawned object within the engine.
@@ -90,7 +90,7 @@ class PybulletEngine(Engine):
                                     baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_SPHERE, radius=radius) if collision else -1,
                                     basePosition=position.tolist())
 
-    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: list[float], collision: bool=True) -> int:
+    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> int:
         """
         Spawns a cylinder.
         Must return a unique int identifying the newly spawned object within the engine.
@@ -121,13 +121,13 @@ class PybulletEngine(Engine):
     # robot movement #
     ##################
 
-    def joints_torque_control_velocities(self, robot_id: int, joints_ids: list[int], target_velocities: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
+    def joints_torque_control_velocities(self, robot_id: int, joints_ids: List[int], target_velocities: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
         """
         Sets the velocities of the desired joints for the desired robots to the target values. Forces contains the maximum forces that can be used for this.
         """
         pyb.setJointMotorControlArray(robot_id, joints_ids, controlMode=pyb.VELOCITY_CONTROL, targetVelocities=target_velocities.tolist(), forces=forces.tolist())
 
-    def joints_torque_control_angles(self, robot_id: int, joints_ids: list[int], target_angles: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
+    def joints_torque_control_angles(self, robot_id: int, joints_ids: List[int], target_angles: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
         """
         Sets the angles of the desired joints for the desired robot to the target values using the robot's actuators. Forces contains the maximum forces that can be used for this.
         """
@@ -165,7 +165,7 @@ class PybulletEngine(Engine):
                 residualThreshold=threshold)
         return joints
 
-    def get_joints_ids_actuators(self, robot_id) -> list[int]:
+    def get_joints_ids_actuators(self, robot_id) -> List[int]:
         """
         This should return a list uniquely identifying (per robot) ints for every joint that is an actuator, e.g. revolute joints but not fixed joints.
         """

@@ -18,7 +18,7 @@ class Engine(ABC):
     This does not include specific e.g. sensor or robot implementations, these are handled by their own subclasses.
     """
 
-    def __init__(self, engine_type: str, use_physics_sim: bool, display_mode: bool, sim_step: float, gravity: list, assets_path: str) -> None:
+    def __init__(self, engine_type: str, use_physics_sim: bool, display_mode: bool, sim_step: float, gravity: List, assets_path: str) -> None:
         """
         This method starts the engine in the python code.
         It should also set several attributes using the parameters:
@@ -83,7 +83,7 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: list, color: list[float], collision: bool=True) -> int:
+    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> int:
         """
         Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
         Must return a unique int identifying the newly spawned object within the engine.
@@ -91,7 +91,7 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: list[float], collision: bool=True) -> int:
+    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> int:
         """
         Spawns a sphere.
         Must return a unique int identifying the newly spawned object within the engine.
@@ -99,7 +99,7 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: list[float], collision: bool=True) -> int:
+    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> int:
         """
         Spawns a cylinder.
         Must return a unique int identifying the newly spawned object within the engine.
@@ -136,14 +136,14 @@ class Engine(ABC):
     #################
 
     @abstractmethod
-    def joints_torque_control_velocities(self, robot_id: int, joints_ids: list[int], target_velocities: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
+    def joints_torque_control_velocities(self, robot_id: int, joints_ids: List[int], target_velocities: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
         """
         Sets the velocities of the desired joints for the desired robot to the target values using the robot's actuators. Forces contains the maximum forces that can be used for this.
         """
         pass
 
     @abstractmethod
-    def joints_torque_control_angles(self, robot_id: int, joints_ids: list[int], target_angles: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
+    def joints_torque_control_angles(self, robot_id: int, joints_ids: List[int], target_angles: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
         """
         Sets the angles of the desired joints for the desired robot to the target values using the robot's actuators. Forces contains the maximum forces that can be used for this.
         """
@@ -156,7 +156,7 @@ class Engine(ABC):
         """
         pass
 
-    def set_joints_values(self, robot_id: int, joints_ids: list[int], joints_values: npt.NDArray[np.float32]):
+    def set_joints_values(self, robot_id: int, joints_ids: List[int], joints_values: npt.NDArray[np.float32]):
         """
         Same as set_joint_value, but for multiple joints at once.
         """
@@ -170,7 +170,7 @@ class Engine(ABC):
         """
         pass
 
-    def get_joints_values(self, robot_id: int, joints_ids: list[int]) -> npt.NDArray[np.float32]:
+    def get_joints_values(self, robot_id: int, joints_ids: List[int]) -> npt.NDArray[np.float32]:
         """
         Same as get_joint_values, but for multiple joints at once.
         """
@@ -195,9 +195,9 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def get_joints_ids_actuators(self, robot_id) -> list[int]:
+    def get_joints_ids_actuators(self, robot_id) -> List[int]:
         """
-        This should return a list uniquely identifying (per robot) ints for every joint that is an actuator, e.g. revolute joints but not fixed joints.
+        This should return a List uniquely identifying (per robot) ints for every joint that is an actuator, e.g. revolute joints but not fixed joints.
         """
         pass
 
@@ -205,15 +205,12 @@ class Engine(ABC):
     
 
 
-
-
-
 # import subclasses, has to be done here because only now Engine is defined
-from modular_drl_env.engine.engine_implementations import *
+from modular_drl_env.engine.engine_implementations import PybulletEngine, IsaacEngine
 
 class_dict = {
             "Pybullet": PybulletEngine,
-            #"Isaac": IsaacEngine
+            "Isaac": IsaacEngine
         }
 
 _instance = None

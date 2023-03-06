@@ -1,6 +1,11 @@
 from ..engine import Engine
-from omni.isaac.kit import SimulationApp
 import atexit
+
+# Try importing all Issac modules in a try/except to allow compilation without it
+try:
+    from omni.isaac.kit import SimulationApp
+except ImportError:
+    pass
 
 
 class IsaacEngine(Engine):
