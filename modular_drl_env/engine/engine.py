@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, TYPE_CHECKING, Union, Tuple
 import numpy as np
+import numpy.typing as npt
 
 # Use type checking to enable type hints and prevent circular imports
 if TYPE_CHECKING:
@@ -135,14 +136,14 @@ class Engine(ABC):
     #################
 
     @abstractmethod
-    def joints_torque_control_velocities(self, robot_id: int, joints_ids: list[int], target_velocities: np.ndarray[float], forces: np.ndarray[float]):
+    def joints_torque_control_velocities(self, robot_id: int, joints_ids: list[int], target_velocities: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
         """
         Sets the velocities of the desired joints for the desired robot to the target values using the robot's actuators. Forces contains the maximum forces that can be used for this.
         """
         pass
 
     @abstractmethod
-    def joints_torque_control_angles(self, robot_id: int, joints_ids: list[int], target_angles: np.ndarray[float], forces: np.ndarray[float]):
+    def joints_torque_control_angles(self, robot_id: int, joints_ids: list[int], target_angles: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
         """
         Sets the angles of the desired joints for the desired robot to the target values using the robot's actuators. Forces contains the maximum forces that can be used for this.
         """
@@ -155,7 +156,7 @@ class Engine(ABC):
         """
         pass
 
-    def set_joints_values(self, robot_id: int, joints_ids: list[int], joints_values: np.ndarray[float]):
+    def set_joints_values(self, robot_id: int, joints_ids: list[int], joints_values: npt.NDArray[np.float32]):
         """
         Same as set_joint_value, but for multiple joints at once.
         """
@@ -169,7 +170,7 @@ class Engine(ABC):
         """
         pass
 
-    def get_joints_values(self, robot_id: int, joints_ids: list[int]) -> np.ndarray[float]:
+    def get_joints_values(self, robot_id: int, joints_ids: list[int]) -> npt.NDArray[np.float32]:
         """
         Same as get_joint_values, but for multiple joints at once.
         """
@@ -179,7 +180,7 @@ class Engine(ABC):
         return np.array(values)
     
     @abstractmethod
-    def get_link_state(self, robot_id: int, link_id: int) -> Tuple(np.ndarray, np.ndarray):
+    def get_link_state(self, robot_id: int, link_id: int) -> Tuple[np.ndarray, np.ndarray]:
         """
         Returns a tuple with position and orientation, both in world frame, of the link in question.
         """
