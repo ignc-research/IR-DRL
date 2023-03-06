@@ -3,6 +3,7 @@ import atexit
 from typing import List, TYPE_CHECKING, Union, Tuple
 import numpy as np
 import numpy.typing as npt
+from modular_drl_env.isaac_bridge.bridge import is_isaac_running
 
 # Use type checking to enable tyhe hints and prevent circular imports
 if TYPE_CHECKING:
@@ -12,7 +13,13 @@ if TYPE_CHECKING:
 # Try importing all Issac modules in a try/except to allow compilation without it
 try:
     from omni.isaac.kit import SimulationApp
+    from omni.isaac.urdf import _urdf
+    from omni.kit.commands import execute
 except ImportError:
+    # raise error only if Isaac is running
+    if is_isaac_running():
+        raise
+    # Isaac is not enabled, ignore exception
     pass
 
 
@@ -24,6 +31,29 @@ class IsaacEngine(Engine):
 
         # terminate simulation once program exits
         atexit.register(self.simulation.close)
+
+        # save asset path
+        self.assets_path = assets_path
+
+        # configure URDF importer # todo: why is this necessary?
+        urdf_interface = _urdf.acquire_urdf_interface()
+        # Set the settings in the import config
+        import_config = _urdf.ImportConfig()
+        import_config.merge_fixed_joints = False
+        import_config.convex_decomp = False
+        import_config.import_inertia_tensor = True
+        import_config.fix_base = True
+        import_config.make_default_prim = True
+        import_config.self_collision = False
+        import_config.create_physics_scene = True
+        import_config.import_inertia_tensor = False
+        import_config.default_drive_strength = 1047.19751
+        import_config.default_position_drive_damping = 52.35988
+        import_config.default_drive_type = _urdf.UrdfJointTargetType.JOINT_DRIVE_POSITION
+        import_config.distance_scale = 1
+        import_config.density = 0.0
+
+        self.import_config = import_config
 
     ###################
     # general methods #
@@ -38,7 +68,8 @@ class IsaacEngine(Engine):
         """
         This method should reset the entire simulation, meaning that all objects should be deleted and everything be reset.
         """
-        raise "Not implemented!"
+        # todo: track objects when adding them, remove them here
+        pass
 
     def perform_collision_check(self, robots: List["Robot"], obstacles: List[int]) -> bool:
         """
@@ -67,6 +98,14 @@ class IsaacEngine(Engine):
         Loads in a URDF file into the world at position and orientation.
         Must return a unique int identifying the newly spawned object within the engine.
         """
+        # get absolute path to urdf file
+        path = self.get_absolute_asset_path(urdf_path)
+
+        # import urdf
+        result, prim_path = execute("URDFParseAndImportFile", urdf_path=path, import_config=self.import_config,)
+
+        print(result, prim_path)
+
         raise "Not implemented!"
 
     def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> int:
@@ -158,3 +197,6 @@ class IsaacEngine(Engine):
         This should return a List uniquely identifying (per robot) ints for every joint that is an actuator, e.g. revolute joints but not fixed joints.
         """
         raise "Not implemented!"
+    
+    def get_absolute_asset_path(self, path:str) -> str:
+        return self.assets_path + path
