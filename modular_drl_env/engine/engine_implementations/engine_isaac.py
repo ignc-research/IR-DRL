@@ -15,14 +15,13 @@ if TYPE_CHECKING:
 try:
     # isaac imports may only be used after SimulationApp is started (ISAAC uses runtime plugin system)
     from omni.isaac.kit import SimulationApp
-    simulation = SimulationApp({"headless": True})
-
-    # step a single frame to allow internal setup
-    simulation.update()
+    simulation = SimulationApp({"headless": False})
 
     from omni.kit.commands import execute
     from omni.isaac.core import World
+    from omni.isaac.core.articulations import Articulation
     from omni.usd._usd import UsdContext
+    from pxr.Usd import Prim
 except ImportError:
     # raise error only if Isaac is running
     if is_isaac_running():
@@ -33,6 +32,8 @@ except ImportError:
 class IsaacEngine(Engine):
     def __init__(self, use_physics_sim: bool, display_mode: bool, sim_step: float, gravity: list, assets_path: str) -> None:
         super().__init__("Isaac", use_physics_sim, display_mode, sim_step, gravity, assets_path)
+        # todo: start simulation here & input display_mode
+        # todo: configure gravity
 
         # make sure the simulation was started
         assert simulation != None, "Issac Sim failed to start!"
@@ -42,8 +43,14 @@ class IsaacEngine(Engine):
         self.context: UsdContext = simulation.context
         self.app = simulation.app
 
-        self.world: World = World.instance()
+        # create a world, allowing to spawn objects
+        self.world = World(physics_dt=sim_step)
+        self.scene = self.world.scene
+        self.stage = self.world.stage
+
         assert self.world != None, "Isaac world failed to load!"
+        assert self.scene != None, "Isaac scene failed to load!"
+        assert self.stage != None, "Isaac stage failed to load!"
 
         # terminate simulation once program exits
         atexit.register(self.simulation.close)
@@ -54,13 +61,13 @@ class IsaacEngine(Engine):
         # configure URDF importer
         result, self._config = execute("URDFCreateImportConfig")
         if not result:
-            raise "Failed to create IRDF import config"
+            raise "Failed to create URDF import config"
 
         # Set defaults in import config
-        self._config .merge_fixed_joints = False
-        self._config .convex_decomp = False
-        self._config .import_inertia_tensor = True
-        self._config .fix_base = False
+        self._config.merge_fixed_joints = False
+        self._config.convex_decomp = False
+        self._config.import_inertia_tensor = True
+        self._config.fix_base = False
 
         # Track which id (int) corresponds to which prim (str)
         self.id_dict = {}
@@ -81,8 +88,8 @@ class IsaacEngine(Engine):
         """
         This method should reset the entire simulation, meaning that all objects should be deleted and everything be reset.
         """
-        # todo: track objects when adding them, remove them here
-        pass
+        # todo: this calles reset function on objects. Enough?
+        self.world.reset()
 
     def perform_collision_check(self, robots: List["Robot"], obstacles: List[int]) -> bool:
         """
@@ -120,17 +127,20 @@ class IsaacEngine(Engine):
 
         # import URDF
         from omni.kit.commands import execute
-        success, prim = execute("URDFParseAndImportFile", urdf_path=urdf_path, import_config=self._config, )
-
+        success, prim_path = execute("URDFParseAndImportFile", urdf_path=urdf_path, import_config=self._config, )
+        
         # make sure import succeeded
         assert success, "Failed urdf import of: " + urdf_path
 
-        # set position, orientation, scale of prim
-        loaded_obj = self.world.scene.get_object(prim)
-        loaded_obj.set_world_pose(position, orientation)
-        loaded_obj.set_local_scale(scale)
+        # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
+        self.world.reset()
 
-        return self.track_object(prim)
+        # set position, orientation, scale of loaded obj
+        loaded_obj = Articulation(prim_path)
+        loaded_obj.set_world_pose(position, orientation)
+        loaded_obj.set_local_scale([scale, scale, scale])
+
+        return self.track_object(prim_path)
 
     def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> int:
         """
