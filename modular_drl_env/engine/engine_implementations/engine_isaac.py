@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 try:
     from omni.isaac.kit import SimulationApp
     from omni.kit.commands import execute
-    # from omni.isaac.urdf import _urdf
+    import omni.kit.app
 except ImportError:
     # raise error only if Isaac is running
     if is_isaac_running():
@@ -48,19 +48,10 @@ class IsaacEngine(Engine):
             raise "Failed to create IRDF import config"
 
         # Set defaults in import config
-        self._config.set_merge_fixed_joints(False)
-        self._config.set_convex_decomp(False)
-        self._config.set_fix_base(True)
-        self._config.set_import_inertia_tensor(False)
-        self._config.set_distance_scale(1.0)
-        self._config.set_density(0.0)
-        self._config.set_default_drive_type(1)
-        self._config.set_default_drive_strength(1e7)
-        self._config.set_default_position_drive_damping(1e5)
-        self._config.set_self_collision(False)
-        self._config.set_up_vector(0, 0, 1)
-        self._config.set_make_default_prim(True)
-        self._config.set_create_physics_scene(True)
+        self._config .merge_fixed_joints = False
+        self._config .convex_decomp = False
+        self._config .import_inertia_tensor = True
+        self._config .fix_base = False
 
     ###################
     # general methods #
@@ -105,14 +96,30 @@ class IsaacEngine(Engine):
         Loads in a URDF file into the world at position and orientation.
         Must return a unique int identifying the newly spawned object within the engine.
         """
+        # ISAAC import example
+        # ext_manager = omni.kit.app.get_app().get_extension_manager()
+        # ext_id = ext_manager.get_enabled_extension_id("omni.isaac.urdf")
+        # extension_path = ext_manager.get_extension_path(ext_id)
+        # urdf_path = extension_path + "/data/urdf/robots/carter/urdf/carter.urdf"
+
+        # get absolute path to urdf
+        urdf_path = self.get_absolute_asset_path(urdf_path)
+        
+        print("Importing urdf from:", urdf_path)
+
+        # import URDF
+        success, prim = execute("URDFParseAndImportFile", urdf_path=urdf_path, import_config=self._config, )
+
+        print(success, prim)
+
         # get absolute path to urdf file
-        path = self.get_absolute_asset_path(urdf_path)
+        # path = self.get_absolute_asset_path(urdf_path)
 
         # import urdf
-        result, prim_path = execute("URDFParseAndImportFile", urdf_path=path, import_config=self._config,)
+        # result, prim_path = execute("URDFParseAndImportFile", urdf_path=path, import_config=self._config,)
 
-        if len(prim_path) == 0:
-            raise "Failed to load urdf: " + path
+        # if len(prim_path) == 0:
+        #    raise "Failed to load urdf: " + path
 
         raise "Not implemented!"
 
