@@ -77,32 +77,31 @@ run:
     show_world_aux: True
     show_goal_aux: True
     show_sensor_aux: False
-    # attributes for the pybullet blender recorder
-    pybullet_recorder:
-      use: False  # wether the recorder is turned on or off
-      save_path: "demo"  # name of the pkl file that will be generated each episode in the models/env_logs folder, pkl and episode number will be appended automatically
-      scale: 1   # scale for the meshes used in PyBullet
 
 # env attributes
 env:
   #   general attributes
   # int, maximum steps an episode can go on in this env
   max_steps_per_episode: 1024  
-  # bool, whether to use PyBullet acurate physics sim for movement or not
-  use_physics_sim: True
-  # list of floats, determines gravity force in xyz world directions when using the physics sim
-  gravity: [0, 0, -9.8]
-  # int, the amount of physics steps we run per env step, only is used when use_physics_sim is True
-  # note: the lower this value, the worse the performance, but the higher the accuracy
-  physics_steps_per_env_step: 1
-  # float, time step of virtual simulated time in seconds for each env step, inverse is frame rate
-  sim_step: 0.00416666666  # 1/240 s <-> 240 Hz
   # int, number of past episodes that are used to calculate running average stats for env performance
   stat_buffer_size: 25
   # bool, whether to normalize observations or not
   normalize_observations: False
   # bool, whether to normalize rewards or not
   normalize_rewards: False
+  # engine config, governs which phycis sim will power the environment
+  engine:
+    # str, engine name, can be either Pybullet or Isaac
+    type: "Pybullet"
+    # bool, whether to use acurate physics sim for movement or not
+    use_physics_sim: True
+    # list of floats, determines gravity force in xyz world directions when using the physics sim
+    gravity: [0, 0, -9.8]
+    # float, time step of virtual simulated time in seconds for each env step, inverse is frame rate
+    sim_step: 0.00416666666  # 1/240 s <-> 240 Hz
+    # int, the amount of physics steps we run per env step, only is used when use_physics_sim is True
+    # note: the lower this value, the worse the performance, but the higher the accuracy
+    sim_steps_per_env_step: 1  
   
   #   robots definition
   robots:

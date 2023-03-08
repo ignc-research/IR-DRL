@@ -1,8 +1,8 @@
 import pybullet as pyb
-from typing import Union, List, Dict, TypedDict
+from typing import List
 from modular_drl_env.robot.robot_implementations.ur5 import UR5
 from ..camera_utils import *
-from ..camera import CameraBase, CameraArgs
+from ..camera import CameraBase
 
 __all__ = [
     'OnBodyCameraUR5',
@@ -10,7 +10,7 @@ __all__ = [
 
 class OnBodyCameraUR5(CameraBase):
 
-    def __init__(self, robot : UR5, position_relative_to_effector: List = None, camera_args: CameraArgs = None, name : str = 'default_body_ur5', **kwargs):
+    def __init__(self, robot : UR5, position_relative_to_effector: List = None, camera_args: dict = None, name : str = 'default_body_ur5', **kwargs):
         self.robot = robot
         self.relative_pos = position_relative_to_effector
         super().__init__(camera_args= camera_args, name= name, **kwargs)

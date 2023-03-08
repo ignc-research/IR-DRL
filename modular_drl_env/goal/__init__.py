@@ -10,7 +10,7 @@ class GoalRegistry:
         try:
             return cls._goal_classes[goal_type]
         except KeyError:
-            raise ValueError(f"unknown goal type : {goal_type}")
+            raise ValueError(f"unknown goal type: {goal_type}")
 
     @classmethod
     def register(cls, goal_type:str):

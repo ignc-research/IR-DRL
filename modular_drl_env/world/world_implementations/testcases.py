@@ -1,8 +1,7 @@
 from modular_drl_env.world.world import World
 import numpy as np
-import pybullet as pyb
 from random import choice
-from modular_drl_env.world.obstacles.pybullet_shapes import Box
+from modular_drl_env.world.obstacles.shapes import Box
 
 __all__ = [
     'TestcasesWorld'
@@ -40,7 +39,7 @@ class TestcasesWorld(World):
 
     def build(self):
         # add ground plate
-        ground_plate = pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01])
+        ground_plate = self.engine.add_ground_plane(np.array([0, 0, -0.01]))
         self.objects_ids.append(ground_plate)
         if self.current_test_mode == 1:
             self._build_test_1()

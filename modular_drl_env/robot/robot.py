@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Union
 import numpy as np
-import pybullet as pyb
 from modular_drl_env.world.world import World
+from modular_drl_env.engine.engine import get_instance
+from modular_drl_env.util.quaternion_util import quaternion_to_rpy, rpy_to_quaternion
 from time import process_time
 
 class Robot(ABC):
@@ -24,6 +25,9 @@ class Robot(ABC):
                        xyz_delta: float,
                        rpy_delta: float):
         super().__init__()
+
+        # set engine
+        self.engine = get_instance()
 
         # set name
         self.name = name
@@ -138,7 +142,7 @@ class Robot(ABC):
             rpy_delta = action[3:] * self.rpy_delta
 
             new_pos = self.position_rotation_sensor.position + pos_delta
-            new_rpy = pyb.getEulerFromQuaternion(self.position_rotation_sensor.rotation.tolist()) + rpy_delta
+            new_rpy = quaternion_to_rpy(self.position_rotation_sensor.rotation) + rpy_delta
 
             self.moveto_xyzrpy(new_pos, new_rpy, self.use_physics_sim)
         elif self.control_mode == 1:  
@@ -172,7 +176,7 @@ class Robot(ABC):
         elif self.control_mode == 2:  
             # control via joint velocities
             # actions are joint velocities
-            # if we use the physics sim, PyBullet can deal with those on its own
+            # if we use the physics sim, the engine can deal with those on its own
             # if we don't, we run simple algebra to get the new joint angles for this step and then apply them
 
             # transform action (-1 to 1) to joint velocities
@@ -186,7 +190,7 @@ class Robot(ABC):
                 self.moveto_joints(new_joints, False)
 
             else:
-                # use PyBullet to apply these velocities to robot
+                # use engine to apply these velocities to robot
                 self.moveto_joints_vels(new_joint_vels)
         
         # returns execution time, gets used in gym env to log the times here
@@ -194,11 +198,11 @@ class Robot(ABC):
 
     def moveto_joints_vels(self, desired_joints_velocities: np.ndarray):
         """
-        Uses the actual physics simulation to set the joint velocities to desired targets.
+        Uses the actual physics simulation to set the torques in the robot's actuator such that they result in the desired joint velocities.
 
         :param desired_joints_velocities: Vector containing the new joint velocities.
         """
-        pyb.setJointMotorControlArray(self.object_id, self.joints_ids.tolist(), controlMode=pyb.VELOCITY_CONTROL, targetVelocities=desired_joints_velocities.tolist(), forces=self.joints_max_forces.tolist())
+        self.engine.joints_torque_control_velocities(robot_id=self.object_id, joints_ids=self.joints_ids, target_velocities=desired_joints_velocities, forces=self.joints_max_forces)
 
     def moveto_joints(self, desired_joints_angles: np.ndarray, use_physics_sim: bool):
         """
@@ -216,10 +220,9 @@ class Robot(ABC):
 
         # apply movement
         if use_physics_sim:
-            pyb.setJointMotorControlArray(self.object_id, self.joints_ids.tolist(), controlMode=pyb.POSITION_CONTROL, targetPositions=desired_joints_angles.tolist(), forces=self.joints_max_forces.tolist())
+            self.engine.joints_torque_control_angles(robot_id=self.object_id, joints_ids=self.joints_ids, target_angles=desired_joints_angles, forces=self.joints_max_forces)
         else:
-            for i in range(len(self.joints_ids)):
-                pyb.resetJointState(self.object_id, self.joints_ids[i], desired_joints_angles[i])
+            self.engine.set_joints_values(robot_id=self.object_id, joints_ids=self.joints_ids, joints_values=desired_joints_angles)
 
     def moveto_xyzrpy(self, desired_xyz: np.ndarray, desired_rpy: np.ndarray, use_physics_sim: bool):
         """
@@ -228,7 +231,7 @@ class Robot(ABC):
         :param desired_xyz: Vector containing the desired new xyz position of the end effector.
         :param desired_rpy: Vector containing the desired new rpy orientation of the end effector.
         """
-        desired_quat = np.array(pyb.getQuaternionFromEuler(desired_rpy.tolist()))
+        desired_quat = rpy_to_quaternion(desired_rpy)
         joints = self._solve_ik(desired_xyz, desired_quat)
         self.moveto_joints(joints, use_physics_sim)
 
@@ -261,16 +264,10 @@ class Robot(ABC):
         :param quat: Vector containing the desired rotation of the end effector.
         :return: Vector containing the joint angles required to reach the pose.
         """
-        joints = pyb.calculateInverseKinematics(
-            bodyUniqueId=self.object_id,
-            endEffectorLinkIndex=self.end_effector_link_id,
-            targetPosition=xyz.tolist(),
-            targetOrientation=quat.tolist() if quat is not None else None,
-            lowerLimits=self.joints_limits_lower.tolist(),
-            upperLimits=self.joints_limits_upper.tolist(),
-            jointRanges=self.joints_range.tolist(),
-            maxNumIterations=100,
-            residualThreshold=.01)
+        joints = self.engine.solve_inverse_kinematics(robot_id=self.object_id,
+                                                      end_effector_link_id=self.end_effector_link_id,
+                                                      target_position=xyz,
+                                                      target_orientation=quat)
         return np.float32(joints)
 
     def move_base(self, desired_base_position: np.ndarray, desired_base_orientation: np.ndarray):
@@ -283,4 +280,4 @@ class Robot(ABC):
 
         self.base_position = desired_base_position
         self.base_orientation = desired_base_orientation
-        pyb.resetBasePositionAndOrientation(self.object_id, desired_base_position.tolist(), desired_base_orientation.tolist())
+        self.engine.move_base(self.object_id, desired_base_position.tolist(), desired_base_orientation.tolist())

@@ -1,6 +1,5 @@
 from typing import Union
 import numpy as np
-import pybullet as pyb
 from modular_drl_env.robot.robot import Robot
 from modular_drl_env.util.rrt import bi_rrt
 from time import process_time
@@ -33,9 +32,8 @@ class UR5(Robot):
 
     def build(self):
 
-        self.object_id = pyb.loadURDF(self.urdf_path, basePosition=self.base_position.tolist(), baseOrientation=self.base_orientation.tolist(), useFixedBase=True)
-        joints_info = [pyb.getJointInfo(self.object_id, i) for i in range(pyb.getNumJoints(self.object_id))]
-        self.joints_ids = np.array([j[0] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
+        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation)
+        self.joints_ids = self.engine.get_joints_ids_actuators(self.object_id)
 
         self.moveto_joints(self.resting_pose_angles, False)     
 
@@ -52,16 +50,10 @@ class UR5(Robot):
         :param quat: Vector containing the desired rotation of the end effector.
         :return: Vector containing the joint angles required to reach the pose.
         """
-        joints = pyb.calculateInverseKinematics(
-            bodyUniqueId=self.object_id,
-            endEffectorLinkIndex=self.end_effector_link_id,
-            targetPosition=xyz.tolist(),
-            targetOrientation=quat.tolist() if quat is not None else None,
-            lowerLimits=self.joints_limits_lower.tolist(),
-            upperLimits=self.joints_limits_upper.tolist(),
-            jointRanges=self.joints_range.tolist(),
-            maxNumIterations=100,
-            residualThreshold=.01)
+        joints = self.engine.solve_inverse_kinematics(robot_id=self.object_id,
+                                                      end_effector_link_id=self.end_effector_link_id,
+                                                      target_position=xyz,
+                                                      target_orientation=quat)
         joints = np.float32(joints)
         #joints = (joints + self.joints_limits_upper) % (self.joints_range) - self.joints_limits_upper  # projects out of bounds angles back to angles within the allowed joint range
         joints = (joints + np.pi) % (2 * np.pi) - np.pi

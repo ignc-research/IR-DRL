@@ -1,7 +1,5 @@
-from .positional import *
-from .lidar import *
-from .camera import *
 from .sensor import Sensor
+from .sensor_implementations import *
 
 class SensorRegistry:
     _sensor_classes = {}
@@ -20,12 +18,12 @@ class SensorRegistry:
             return wrapped_class
         return inner_wrapper
 
+# Pybullet sensors
 SensorRegistry.register('PositionRotation')(PositionRotationSensor)
 SensorRegistry.register('Joints')(JointsSensor)
 SensorRegistry.register('Obstacle')(ObstacleSensor)
 SensorRegistry.register('LidarSensorUR5')(LidarSensorUR5)
 SensorRegistry.register('LidarSensorUR5Explainable')(LidarSensorUR5_Explainable)
-SensorRegistry.register('LidarSensorUR5Real')(LidarSensorUR5Real)
 SensorRegistry.register('LidarSensorKR16')(LidarSensorKR16)
 SensorRegistry.register('OnBodyUR5')(OnBodyCameraUR5)
 SensorRegistry.register('Floating')(StaticFloatingCamera)

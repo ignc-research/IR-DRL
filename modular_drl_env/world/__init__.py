@@ -1,7 +1,6 @@
 from .world_implementations import *
 from .world import World
 
-
 class WorldRegistry:
     _world_classes = {}
 
@@ -10,7 +9,7 @@ class WorldRegistry:
         try:
             return cls._world_classes[world_type]
         except KeyError:
-            raise ValueError(f"unknown world type : {world_type}")
+            raise ValueError(f"unknown world type for: {world_type}")
 
     @classmethod
     def register(cls, world_type:str):
@@ -19,7 +18,7 @@ class WorldRegistry:
             return wrapped_class
         return inner_wrapper
 
-
+# Pybullet worlds
 WorldRegistry.register('RandomObstacle')(RandomObstacleWorld)
 WorldRegistry.register('Testcases')(TestcasesWorld)
 WorldRegistry.register('TableExperiment')(TableExperiment)

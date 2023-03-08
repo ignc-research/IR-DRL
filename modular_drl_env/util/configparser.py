@@ -113,7 +113,6 @@ def parse_config(filepath, train):
     env_config["show_sensor_aux"] = config_raw["run"]["eval"]["show_sensor_aux"]
     env_config["max_episodes"] = config_raw["run"]["eval"]["max_episodes"]
     env_config["logging"] = config_raw["run"]["eval"]["logging"]
-    env_config["pybullet_recorder"] = config_raw["run"]["eval"]["pybullet_recorder"]
     if train:
         env_config["max_episodes"] = -1
         env_config["logging"] = 1
@@ -121,7 +120,6 @@ def parse_config(filepath, train):
         env_config["show_world_aux"] = False
         env_config["show_goal_aux"] = False
         env_config["show_sensor_aux"] = False
-        env_config["pybullet_recorder"]["use"] = False
 
     del config_raw["run"]["eval"]
 

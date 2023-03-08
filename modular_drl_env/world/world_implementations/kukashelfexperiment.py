@@ -1,8 +1,7 @@
 from modular_drl_env.world.world import World
 import numpy as np
-import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
-from modular_drl_env.world.obstacles.pybullet_shapes import Box
+from modular_drl_env.world.obstacles.shapes import Box
 from modular_drl_env.world.obstacles.shelf.shelf import ShelfObstacle
 from random import choice, sample
 from modular_drl_env.util.quaternion_util import rotate_vector
@@ -62,7 +61,7 @@ class KukaShelfExperiment(World):
 
     def build(self):
         # ground plate
-        self.objects_ids.append(pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01]))
+        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
 
         # build shelves
         for shelf in self.shelves:

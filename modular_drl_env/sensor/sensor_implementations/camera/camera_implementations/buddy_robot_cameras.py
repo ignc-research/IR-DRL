@@ -1,5 +1,5 @@
 from modular_drl_env.robot.robot import Robot
-from ..camera import CameraBase, CameraArgs
+from ..camera import CameraBase
 from ..camera_utils import directionalVectorsFromQuaternion
 
 from typing import Union, List, Dict

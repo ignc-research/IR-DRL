@@ -35,12 +35,13 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.preprocessing import preprocess_obs, is_image_space
 from zennit.rules import Epsilon, Gamma
 from time import sleep
+from modular_drl_env.isaac_bridge.bridge import setup_engine
 
 
-#pos goal : 4, joints : 6 , pos and rot : 4, lidar : 25, camera : 256
+# try starting simulation with local isaac installation, if necessary
+if env_config['engine']['type'] == 'Isaac': 
+    setup_engine()
 
-        
-        
 
 def find_in_features(seq):
     for sub in seq:

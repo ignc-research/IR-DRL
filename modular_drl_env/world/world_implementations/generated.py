@@ -1,8 +1,7 @@
 from modular_drl_env.world.world import World
-from modular_drl_env.world.obstacles.pybullet_shapes import Box, Sphere
+from modular_drl_env.world.obstacles.shapes import Box, Sphere
 from modular_drl_env.world.obstacles.human import Human
 import numpy as np
-import pybullet as pyb
 import yaml
 import os
 import math
@@ -49,7 +48,8 @@ class GeneratedWorld(World):
                        sim_step: float,
                        env_id: int,
                        obstacles: dict,
-                       start_override: dict={}):
+                       start_override: dict={},
+                       ):
         """
         :param workspace_boundaries: List of 6 floats containing the bounds of the workspace in the following order: xmin, xmax, ymin, ymax, zmin, zmax
         :param sim_step: float for the time per sim step

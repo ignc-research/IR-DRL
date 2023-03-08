@@ -1,8 +1,8 @@
-import pybullet as pyb
 from gym.spaces import Box
 import numpy as np
 from modular_drl_env.sensor.sensor import Sensor
 from modular_drl_env.robot.robot import Robot
+from modular_drl_env.util.quaternion_util import quaternion_to_rpy
 from time import time
 
 __all__ = [
@@ -52,12 +52,9 @@ class PositionRotationSensor(Sensor):
         self.cpu_epoch = time()
         if step % self.update_steps == 0:
             self.position_prev = self.position
-            ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
-            self.position = np.array(ee_link_state[4])
-            self.rotation = ee_link_state[5]  # TODO: think about whether this maybe should be entry 1
+            self.position, self.rotation = self.engine.get_link_state(self.robot.object_id, self.link_id)
             if not self.quaternion:
-                self.rotation = pyb.getEulerFromQuaternion(self.rotation)
-            self.rotation = np.array(self.rotation)
+                self.rotation = quaternion_to_rpy(self.rotation)
             self.position_velocity = (self.position - self.position_prev) / self.sim_step
         self.cpu_time = time() - self.cpu_epoch
 
@@ -65,13 +62,10 @@ class PositionRotationSensor(Sensor):
 
     def reset(self):
         self.cpu_epoch = time()
-        ee_link_state = pyb.getLinkState(self.robot.object_id, self.link_id, computeForwardKinematics=True)
-        self.position = np.array(ee_link_state[4])
+        self.position, self.rotation = self.engine.get_link_state(self.robot.object_id, self.link_id)
         self.position_prev = self.position
-        self.rotation = ee_link_state[5]
         if not self.quaternion:
-            self.rotation = pyb.getEulerFromQuaternion(self.rotation)
-        self.rotation = np.array(self.rotation)
+            self.rotation = quaternion_to_rpy(self.rotation)
         self.position_velocity = np.zeros(3)
         self.cpu_time = time() - self.cpu_epoch
 

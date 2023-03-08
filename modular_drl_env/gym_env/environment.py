@@ -3,11 +3,11 @@ import numpy as np
 import pybullet as pyb
 from time import process_time
 import pandas as pd
-from modular_drl_env.util.recorder import Recorder
 import os
 import platform
 
 # import abstracts
+from modular_drl_env.engine.engine import Engine
 from modular_drl_env.robot.robot import Robot
 from modular_drl_env.sensor.sensor import Sensor
 from modular_drl_env.goal.goal import Goal
@@ -22,6 +22,8 @@ from modular_drl_env.robot import RobotRegistry
 from modular_drl_env.sensor import SensorRegistry
 #   goals
 from modular_drl_env.goal import GoalRegistry
+#   engine
+from modular_drl_env.engine.engine import initialize_engine, get_instance
 
 class ModularDRLEnv(gym.Env):
 
@@ -48,18 +50,16 @@ class ModularDRLEnv(gym.Env):
         self.max_episodes = env_config["max_episodes"]  
         # 0: no logging, 1: logging for console every episode, 2: logging for console every episode and to csv after maximum number of episodes has been reached or after every episode if max_episodes is -1
         self.logging = env_config["logging"] 
-        # dict for determining whether and how to use the pybullet recorder plugin, always off for training
-        self.pybullet_recorder_settings = env_config["pybullet_recorder"]
-        self.pybullet_blender_recorder = None
-        # whether to use static PyBullet teleporting or actually let sim time pass in its simulation
-        self.use_physics_sim = env_config["use_physics_sim"]  
-        # when using the physics sim, this is the amount of steps that we let pass per env step
-        # the lower this value, the more often observations will be collected and a new action be calculated by the agent
-        self.physics_steps_per_env_step = env_config["physics_steps_per_env_step"]
         # length of the stat arrays in terms of episodes over which the average will be drawn for logging
         self.stat_buffer_size = env_config["stat_buffer_size"]  
+        # whether to use physics-free setting of object positions or actually let sim time pass in simulation
+        self.use_physics_sim = env_config["engine"]["use_physics_sim"]  
+        # when using the physics sim, this is the amount of steps that we let pass per env step
+        # the lower this value, the more often observations will be collected and a new action be calculated by the agent
+        # note: if use_physics_sim is False, this does not affect anything other than the sim time counted by the gym env
+        self.sim_steps_per_env_step = env_config["engine"]["sim_steps_per_env_step"]
         # in seconds -> inverse is frame rate in Hz
-        self.sim_step = env_config["sim_step"]  
+        self.sim_step = env_config["engine"]["sim_step"]  
         # the env id, this is used to recognize this env when running multiple in parallel, is used for some file related stuff
         self.env_id = env_config["env_id"]
 
@@ -80,31 +80,31 @@ class ModularDRLEnv(gym.Env):
         self.reward = 0
         self.reward_cumulative = 0
 
-        # set up the PyBullet client
-        disp = pyb.DIRECT if not self.display else pyb.GUI
-        pyb.connect(disp)
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_SHADOWS,0)
+        #   engine setup
+
+        #   asset path slicing
         # to access our assets, we need to direct the code towards the location within the python installation that we're in
         # or if this was downloaded as a repo, simply the neighboring assets folder
-        # in both cases we use some os commands to get the correct folder path
-        is_windows = any(platform.win32_ver())  # check for windows
+        # in both cases we use some os commands to get the correct folder path 
         assets_path = os.path.normpath(__file__)  # path of this file
         assets_path = assets_path.split(os.sep)  # split along os specific separator
         assets_path[-2] = "assets"  # replace second to last entry, which should be gym_env, with assets
         # stitch the path together again, leaving the last element, environment.py, out, such that this path is the correct asset path 
-        if is_windows:
+        if any(platform.win32_ver()):  # check for windows
             self.assets_path = os.path.join(assets_path[0], os.sep, *assets_path[1:-1])  # windows drive letter needs babysitting
         else:
             self.assets_path = os.path.join(os.sep, *assets_path[:-1])  
-        pyb.setAdditionalSearchPath(self.assets_path)
-        if self.use_physics_sim:
-            pyb.setTimeStep(self.sim_step)
-        # set gravity
-        pyb.setGravity(*env_config["gravity"])
-
-        # set up the PyBullet recorder, if wanted
-        if self.pybullet_recorder_settings["use"]:
-            self.pybullet_blender_recorder = Recorder()
+        
+        # init engine from config
+        engine_type = env_config["engine"]["type"]
+        engine_config = env_config["engine"].get("config", {})
+        engine_config["use_physics_sim"] = self.use_physics_sim
+        engine_config["sim_step"] = self.sim_step
+        engine_config["assets_path"] = self.assets_path
+        engine_config["gravity"] = env_config["engine"]["gravity"]
+        engine_config["display_mode"] = self.display
+        initialize_engine(engine_type, engine_config)
+        self.engine:Engine = get_instance()
 
         # init world from config
         world_type = env_config["world"]["type"]
@@ -112,12 +112,12 @@ class ModularDRLEnv(gym.Env):
         world_config["env_id"] = self.env_id
         world_config["sim_step"] = self.sim_step
         
-        self.world = WorldRegistry.get(world_type)(**world_config)
+        self.world:World = WorldRegistry.get(world_type)(**world_config)
 
         # init robots and their associated sensors and goals from config
-        self.robots = []
-        self.sensors = []
-        self.goals = []
+        self.robots:list[Robot] = []
+        self.sensors:list[Sensor] = []
+        self.goals:list[Goal] = []
         id_counter = 0
         for robo_entry in env_config["robots"]:
             robo_type = robo_entry["type"]
@@ -128,7 +128,7 @@ class ModularDRLEnv(gym.Env):
             robo_config["world"] = self.world
             robo_config["sim_step"] = self.sim_step
             id_counter += 1
-            robot = RobotRegistry.get(robo_type)(**robo_config)
+            robot:Robot = RobotRegistry.get(robo_type)(**robo_config)
             self.robots.append(robot)
 
             # create the two mandatory sensors
@@ -164,7 +164,7 @@ class ModularDRLEnv(gym.Env):
                             if other_robot.name == sensor_config["target_robot"]:
                                 sensor_config["target_robot"] = other_robot
                                 break
-                    new_sensor = SensorRegistry.get(sensor_type)(**sensor_config)
+                    new_sensor:Sensor = SensorRegistry.get(sensor_type)(**sensor_config)
                     self.sensors.append(new_sensor)
             
             if "goal" in robo_entry:
@@ -176,7 +176,7 @@ class ModularDRLEnv(gym.Env):
                 goal_config["normalize_rewards"] = self.normalize_rewards
                 goal_config["normalize_observations"] = self.normalize_observations
                 goal_config["max_steps"] = self.max_steps_per_episode
-                new_goal = GoalRegistry.get(goal_type)(**goal_config)
+                new_goal:Goal = GoalRegistry.get(goal_type)(**goal_config)
                 self.goals.append(new_goal)
                 robot.set_goal(new_goal)
 
@@ -187,7 +187,7 @@ class ModularDRLEnv(gym.Env):
                 sensor_config = sensor_entry["config"]
                 sensor_config["sim_step"] = self.sim_step
                 sensor_config["normalize"] = self.normalize_observations
-                new_sensor = SensorRegistry.get(sensor_type)(**sensor_config)
+                new_sensor:Sensor = SensorRegistry.get(sensor_type)(**sensor_config)
                 self.sensors.append(new_sensor)
 
         # register robots with the world
@@ -224,9 +224,6 @@ class ModularDRLEnv(gym.Env):
         if self.max_episodes != -1 and self.episode >= self.max_episodes:
             exit(0)
 
-        # disable rendering for the setup to save time
-        #pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
-
         # reset the tracking variables
         self.steps_current_episode = 0
         self.sim_time = 0
@@ -247,8 +244,8 @@ class ModularDRLEnv(gym.Env):
             if reset_count > 1000:
                 raise Exception("Could not find collision-free starting setup after 1000 tries. Maybe check your world generation code.")
 
-            # reset PyBullet
-            pyb.resetSimulation()
+            # reset the engine, deletes everything
+            self.engine.reset()
 
             # reset world attributes
             self.world.reset(np.average(self.success_stat))
@@ -290,17 +287,6 @@ class ModularDRLEnv(gym.Env):
                 sensor.delete_visual_aux()
                 sensor.build_visual_aux()
 
-        # reset the pybullet recorder and register objects
-        if self.pybullet_recorder_settings["use"]:
-            self.pybullet_blender_recorder.reset()
-            for robot in self.robots:
-                self.pybullet_blender_recorder.register_object(robot)
-            for object in self.world.obstacle_objects:
-                self.pybullet_blender_recorder.register_object(object)
-
-        # turn rendering back on
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
-
         return self._get_obs()
 
     def _get_obs(self):
@@ -340,10 +326,10 @@ class ModularDRLEnv(gym.Env):
             current_robot_action = action[action_offset : self.action_space_dims[idx] + action_offset]
             action_offset += self.action_space_dims[idx]
             exec_time = robot.process_action(current_robot_action)
-            if self.use_physics_sim:
-                for i in range(self.physics_steps_per_env_step):
-                    pyb.stepSimulation()
-                    self.sim_time += self.sim_step
+            # let engine time
+            for i in range(self.sim_steps_per_env_step):
+                self.engine.step()
+                self.sim_time += self.sim_step
             exec_times_cpu.append(exec_time)
 
         # update the sensor data
@@ -395,10 +381,6 @@ class ModularDRLEnv(gym.Env):
             self.reward = np.sum(rewards)
         self.reward_cumulative += self.reward
 
-        # handle pybullet blender recorder
-        if self.pybullet_recorder_settings["use"]:
-            self.pybullet_blender_recorder.save_frame()
-
         # visual help, if enabled
         if self.show_auxillary_geometry_sensors:
             for sensor in self.sensors:
@@ -424,10 +406,6 @@ class ModularDRLEnv(gym.Env):
             self.cumulated_rewards_stat.append(self.reward_cumulative)
             if len(self.cumulated_rewards_stat) > self.stat_buffer_size:
                 self.cumulated_rewards_stat.pop(0)
-
-            # dump pybullet recorder for this episode
-            if self.pybullet_recorder_settings["use"]:
-                self.pybullet_blender_recorder.save_record("./models/env_logs/" + self.pybullet_recorder_settings["save_path"] + "_" +  str(self.episode) + ".pkl")
 
         # handle logging
         if self.logging == 0:
@@ -548,7 +526,7 @@ class ModularDRLEnv(gym.Env):
 
             self.robots[0].moveto_xyzquat(np.array([x,y,z]),np.array(command_quat), self.use_physics_sim)
             if self.use_physics_sim:
-                for i in range(self.physics_steps_per_env_step):
+                for i in range(self.sim_steps_per_env_step):
                     pyb.stepSimulation()
 
             self.robots[0].position_rotation_sensor.update(0)

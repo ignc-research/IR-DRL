@@ -2,7 +2,7 @@ from modular_drl_env.world.world import World
 import numpy as np
 import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
-from modular_drl_env.world.obstacles.pybullet_shapes import Box
+from modular_drl_env.world.obstacles.shapes import Box
 import pybullet_data as pyb_d
 from random import choice
 
@@ -34,6 +34,10 @@ class TableExperiment(World):
         # INFO: if multiple robot base positions are given, we will assume that the first one is the main one for the experiment
         # also, we will always assume that the robot base is set up at 0,0,z
         # this will make generating obstacles easier
+
+        # guard against usage with engines other than pybullet
+        if self.engine.engine_type != "Pybullet":
+            raise Exception("The table experiment cannot be used with engines other than Pybullet!")
 
         self.num_obstacles = num_obstacles
         self.num_humans = num_humans

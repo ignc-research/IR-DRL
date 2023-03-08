@@ -1,22 +1,12 @@
 import numpy as np
 import pybullet as pyb
 from gym import spaces
-from typing import Union, List, Dict, TypedDict
+from typing import List, Dict
 from modular_drl_env.sensor.sensor import Sensor
 import copy
 from time import time
 from abc import abstractmethod
 from .camera_utils import *
-
-class CameraArgs(TypedDict, total= False):
-    width : int
-    height : int
-    type : str
-    up_vector : List[float]
-    fov : float
-    aspect : float
-    near_val : float
-    far_val : float
 
 
 class CameraBase(Sensor):
@@ -27,13 +17,13 @@ class CameraBase(Sensor):
     param: debug: dict with debug parameters
     """
 
-    def __init__(self, position: List = None, target: List = None, camera_args: CameraArgs = None, orientation: List = None,\
+    def __init__(self, position: List = None, target: List = None, camera_args: dict = None, orientation: List = None,\
             debug : Dict[str, bool] = None, name : str = 'default', \
             normalize: bool = False, add_to_observation_space: bool = True, add_to_logging: bool = False, sim_step: float = 0, update_steps: int = 0):
         super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
         self.pos = position if position is not None else [0,0,0]
         self.target = target if target is not None else [0,0,0]
-        self.camera_args : CameraArgs
+        self.camera_args : dict
         self._parse_camera_args(camera_args)
         self.orn = [0,0,0,1] if orientation is None else orientation
         self.name = name
@@ -50,8 +40,8 @@ class CameraBase(Sensor):
 
         self.current_image = None
 
-    def _parse_camera_args(self, camera_args : CameraArgs):
-        default_camera_args : CameraArgs = {
+    def _parse_camera_args(self, camera_args : dict):
+        default_camera_args : dict = {
             'width' : 128,
             'height' : 128,
             'type' : 'rgb',
@@ -159,7 +149,7 @@ class CameraBase(Sensor):
         self.pos = self.target if target is None else target
         self.camera = self._set_camera()
 
-    def _modify_camera_args(self, new_camera_args: CameraArgs = None) -> CameraArgs:
+    def _modify_camera_args(self, new_camera_args: dict = None) -> dict:
         """
         Pass the arguments to be modified, the rest will remain the same.
         """

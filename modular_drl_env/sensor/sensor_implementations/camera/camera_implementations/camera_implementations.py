@@ -1,8 +1,8 @@
 import pybullet as pyb
-from typing import Union, List, Dict, TypedDict
+from typing import List
 from modular_drl_env.robot.robot_implementations.ur5 import UR5
 from ..camera_utils import *
-from ..camera import CameraBase, CameraArgs
+from ..camera import CameraBase
 
 __all__ = [
     'StaticBodyCameraUR5',
@@ -11,7 +11,7 @@ __all__ = [
 
 class StaticBodyCameraUR5(CameraBase):
 
-    def __init__(self, robot : UR5, position_relative_to_effector: List = None, camera_args: CameraArgs = None, name : str = 'default_body_ur5', **kwargs):
+    def __init__(self, robot : UR5, position_relative_to_effector: List = None, camera_args: dict = None, name : str = 'default_body_ur5', **kwargs):
         self.robot = robot
         self.relative_pos = position_relative_to_effector
         super().__init__(camera_args= camera_args, name= name, **kwargs)
@@ -48,7 +48,7 @@ class StaticFloatingCameraFollowEffector(CameraBase):
     floating camera at position, if target is None, the camera will follow the robot's effector.
     """
 
-    def __init__(self, robot : UR5, position: List, target: List = None, camera_args: CameraArgs = None, name : str = 'default_floating', **kwargs):
+    def __init__(self, robot : UR5, position: List, target: List = None, camera_args: dict = None, name : str = 'default_floating', **kwargs):
         super().__init__(target= target, camera_args= camera_args, name= name, **kwargs)
         self.robot = robot
         self.pos = position
@@ -71,7 +71,7 @@ class StaticFloatingCamera(CameraBase):
     floating camera at position, if target is None, the camera will follow the robot's effector.
     """
 
-    def __init__(self, position: List, target: List, camera_args: CameraArgs = None, name : str = 'default_floating', **kwargs):
+    def __init__(self, position: List, target: List, camera_args: dict = None, name : str = 'default_floating', **kwargs):
         super().__init__(position = position, target= target, camera_args= camera_args, name= name, **kwargs)
 
     def _adapt_to_environment(self):

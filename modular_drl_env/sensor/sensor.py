@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import time
-import pybullet as pyb
+from modular_drl_env.engine.engine import get_instance
 
 class Sensor(ABC):
     """
@@ -12,6 +12,9 @@ class Sensor(ABC):
         
         super().__init__()
         
+        # get engine
+        self.engine = get_instance()
+
         # determines whether the output of the sensor is normalized to be between -1 and 1 (or alternatively between 0 and 1, if that makes more sense for a particular type of sensor)
         # note: class variables as well as the logging output should still be unnormalized, only the output of get_data() should be changed by this
         self.normalize = normalize
@@ -37,7 +40,7 @@ class Sensor(ABC):
         self.update_steps = update_steps
 
         # list of auxillary visual objects, this gets purged every env step!
-        self.aux_visual_pyb_objects = []
+        self.aux_visual_objects = []
 
     @abstractmethod
     def update(self, step) -> dict:
@@ -103,7 +106,7 @@ class Sensor(ABC):
         """
         Deletes all visual aides created by this sensor.
         """
-        for aux_object in self.aux_visual_pyb_objects:
-            pyb.removeUserDebugItem(aux_object)
-        self.aux_visual_pyb_objects = []
+        for aux_object in self.aux_visual_objects:
+            self.engine.remove_aux_object(aux_object)
+        self.aux_visual_objects = []
 

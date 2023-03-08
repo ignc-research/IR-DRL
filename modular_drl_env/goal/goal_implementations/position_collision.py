@@ -2,7 +2,6 @@ from modular_drl_env.goal.goal import Goal
 import numpy as np
 from modular_drl_env.robot.robot import Robot
 from gym.spaces import Box
-import pybullet as pyb
 from modular_drl_env.util.quaternion_util import quaternion_similarity
 
 __all__ = [
@@ -197,9 +196,7 @@ class PositionCollisionGoal(Goal):
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
         self.target = self.robot.world.position_targets[self.robot.id]
-        pyb.createMultiBody(baseMass=0,
-                            baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=self.distance_threshold, rgbaColor=[0, 1, 0, 1]),
-                            basePosition=self.target)
+        self.engine.create_sphere(position=self.target, radius=self.distance_threshold, mass=0, color=[0, 1, 0, 0.65], collision=False)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
@@ -450,10 +447,8 @@ class PositionRotationCollisionGoal(Goal):
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
-        self.target_position = self.robot.world.position_targets[self.robot.id]
-        pyb.createMultiBody(baseMass=0,
-                            baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=self.distance_threshold, rgbaColor=[0, 1, 0, 1]),
-                            basePosition=self.target_position)
+        self.target = self.robot.world.position_targets[self.robot.id]
+        self.engine.create_sphere(position=self.target, radius=self.distance_threshold, mass=0, color=[0, 1, 0, 0.65], collision=False)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()

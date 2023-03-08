@@ -32,10 +32,7 @@ class Kukaiiwa(Robot):
         return (7, 6)  # 7 joints
 
     def build(self):
-        self.object_id = pyb.loadURDF(self.urdf_path,
-                                      basePosition=self.base_position.tolist(),
-                                      baseOrientation=self.base_orientation.tolist(), useFixedBase=True)
-        joints_info = [pyb.getJointInfo(self.object_id, i) for i in range(pyb.getNumJoints(self.object_id))]
-        self.joints_ids = np.array([j[0] for j in joints_info if j[2] == pyb.JOINT_REVOLUTE])
+        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation)
+        self.joints_ids = self.engine.get_joints_ids_actuators(self.object_id)
 
         self.moveto_joints(self.resting_pose_angles, False)

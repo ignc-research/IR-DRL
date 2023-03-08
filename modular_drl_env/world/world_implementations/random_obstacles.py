@@ -1,7 +1,6 @@
 from modular_drl_env.world.world import World
-from modular_drl_env.world.obstacles.pybullet_shapes import Box, Sphere
+from modular_drl_env.world.obstacles.shapes import Box, Sphere
 import numpy as np
-import pybullet as pyb
 from random import choice, shuffle
 
 __all__ = [
@@ -62,10 +61,8 @@ class RandomObstacleWorld(World):
 
 
     def build(self):
-
         # add ground plate
-        ground_plate = pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01])
-        self.objects_ids.append(ground_plate)
+        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
 
         # determine random number of obstacles, if needed
         if self.randomize_number_of_obstacles:

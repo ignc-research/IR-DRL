@@ -1,8 +1,8 @@
 import pybullet as pyb
-from typing import Union, List, Dict, TypedDict
+from typing import List
 from modular_drl_env.robot.robot_implementations.ur5 import UR5
 from ..camera_utils import *
-from ..camera import CameraBase, CameraArgs # to prevent circular imports the things within the package have to be imported using the relative path
+from ..camera import CameraBase # to prevent circular imports the things within the package have to be imported using the relative path
 
 __all__ = [
     'StaticFloatingCameraFollowEffector',
@@ -14,7 +14,7 @@ class StaticFloatingCameraFollowEffector(CameraBase):
     floating camera at position, if target is None, the camera will follow the robot's effector.
     """
 
-    def __init__(self, robot : UR5, position: List, target: List = None, camera_args : CameraArgs = None, name : str = 'default_floating', **kwargs):
+    def __init__(self, robot : UR5, position: List, target: List = None, camera_args : dict = None, name : str = 'default_floating', **kwargs):
         super().__init__(target= target, camera_args= camera_args, name= name, **kwargs)
         self.robot = robot
         self.pos = position
@@ -37,7 +37,7 @@ class StaticFloatingCamera(CameraBase):
     floating camera at position, if target is None, the camera will follow the robot's effector.
     """
 
-    def __init__(self, position: List, target: List, camera_args : CameraArgs = None, name : str = 'default_floating', **kwargs):
+    def __init__(self, position: List, target: List, camera_args : dict = None, name : str = 'default_floating', **kwargs):
         super().__init__(position = position, target= target, camera_args= camera_args, name= name, **kwargs)
 
     def _adapt_to_environment(self):

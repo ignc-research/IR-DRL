@@ -1,4 +1,3 @@
-import pybullet as pyb
 from gym.spaces import Box
 import numpy as np
 from modular_drl_env.sensor.sensor import Sensor
@@ -44,15 +43,15 @@ class JointsSensor(Sensor):
         self.cpu_epoch = process_time()
         if step % self.update_steps == 0:
             self.joints_angles_prev = self.joints_angles
-            self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids])
-            self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / self.sim_step
+            self.joints_angles = self.engine.get_joints_values(self.robot.object_id, self.robot.joints_ids)
+            self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / self.sim_step  # most engines can calculate this on their own, but we do it manually to also have it available when we don't use accurate physics
         self.cpu_time = process_time() - self.cpu_epoch
 
         return self.get_observation()
 
     def reset(self):
         self.cpu_epoch = process_time()
-        self.joints_angles = np.array([pyb.getJointState(self.robot.object_id, i)[0] for i in self.robot.joints_ids])
+        self.joints_angles = self.engine.get_joints_values(self.robot.object_id, self.robot.joints_ids)
         self.joints_angles_prev = self.joints_angles
         self.joints_velocities = np.zeros(self.joints_dims)
         self.cpu_time = process_time() - self.cpu_epoch

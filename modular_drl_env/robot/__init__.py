@@ -10,7 +10,7 @@ class RobotRegistry:
         try:
             return cls._robot_classes[robot_type]
         except KeyError:
-            raise ValueError(f"unknown robot type : {robot_type}")
+            raise ValueError(f"unknown robot type: {robot_type}")
 
     @classmethod
     def register(cls, robot_type:str):
@@ -19,7 +19,7 @@ class RobotRegistry:
             return wrapped_class
         return inner_wrapper
 
-
+# Pybullet robots
 RobotRegistry.register('UR5')(UR5)
 RobotRegistry.register('UR5_RRT')(UR5_RRT)
 RobotRegistry.register('UR5_Gripper')(UR5_Gripper)

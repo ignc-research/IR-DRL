@@ -121,4 +121,4 @@ class ObstacleSensor(Sensor):
         line_ends = [self.data_raw[i][3:6] for i in range(len(self.data_raw))]
 
         for i in range(len(line_starts)):
-            self.aux_visual_pyb_objects.append(pyb.addUserDebugLine(line_starts[i], line_ends[i], [0, 0, 1]))
+            self.aux_visual_objects.append(pyb.addUserDebugLine(line_starts[i], line_ends[i], [0, 0, 1]))

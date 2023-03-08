@@ -1,6 +1,6 @@
 # Modular DLR Gym Env for Robots with PyBullet
 
-This repo implements a modular Gym env in which all relevant components, i.e. robots, obstacles, sensors and training goals, can be changed by editing a configuration file without much or any change in the code.
+This repo implements a modular DRL Gym env for training policies for robots. Major components are kept as abstracts, enabling easy reconfiguration of all relevant objects, e.g. robots, sensors or the scenario.
 
 ## Dependencies
 
@@ -20,11 +20,14 @@ Once python is installed, you can use ```pip install -r requirements.txt``` to i
 
 ## State of the code & plans
 
-The gym env is now fully modular and can be controlled by pre-written YAML config files.
+The gym env is fully modular and can be controlled by YAML config files. Customizable defaults and examples can be found in the config folder
 
 To implement your own sensors, scenarios, robots or goals refer to the existing implementations. Both the abstract base classes and the implementations feature explicit instructions and commentary for writing your own version.
 
 Implemented:
+- Engines:
+    - Pybullet
+    - (WIP) Isaac
 - Robots:
     - movement via Inverse Kinematics, Joint Angles and Joint Velocities
     - UR5
