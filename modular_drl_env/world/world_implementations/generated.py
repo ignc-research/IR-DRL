@@ -48,14 +48,13 @@ class GeneratedWorld(World):
                        sim_step: float,
                        env_id: int,
                        obstacles: dict,
-                       engine,
                        start_override: dict={},
                        ):
         """
         :param workspace_boundaries: List of 6 floats containing the bounds of the workspace in the following order: xmin, xmax, ymin, ymax, zmin, zmax
         :param sim_step: float for the time per sim step
         """
-        super().__init__(workspace_boundaries, sim_step, env_id, engine)
+        super().__init__(workspace_boundaries, sim_step, env_id)
         self.config = obstacles 
         self.start_override = start_override
 
