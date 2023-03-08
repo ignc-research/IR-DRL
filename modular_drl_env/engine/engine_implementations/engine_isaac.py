@@ -3,8 +3,8 @@ import atexit
 from typing import List, TYPE_CHECKING, Union, Tuple
 import numpy as np
 import numpy.typing as npt
-from modular_drl_env.isaac_bridge.bridge import is_isaac_running
 from pathlib import Path
+from modular_drl_env.isaac_bridge.bridge import is_isaac_running
 
 # Use type checking to enable tyhe hints and prevent circular imports
 if TYPE_CHECKING:
@@ -13,9 +13,16 @@ if TYPE_CHECKING:
 
 # Try importing all Issac modules in a try/except to allow compilation without it
 try:
+    # isaac imports may only be used after SimulationApp is started (ISAAC uses runtime plugin system)
     from omni.isaac.kit import SimulationApp
+    simulation = SimulationApp({"headless": True})
+
+    # step a single frame to allow internal setup
+    simulation.update()
+
     from omni.kit.commands import execute
-    import omni.kit.app
+    from omni.isaac.core import World
+    from omni.usd._usd import UsdContext
 except ImportError:
     # raise error only if Isaac is running
     if is_isaac_running():
@@ -23,25 +30,26 @@ except ImportError:
     # Isaac is not enabled, ignore exception
     pass
 
-
 class IsaacEngine(Engine):
     def __init__(self, use_physics_sim: bool, display_mode: bool, sim_step: float, gravity: list, assets_path: str) -> None:
         super().__init__("Isaac", use_physics_sim, display_mode, sim_step, gravity, assets_path)
-        # setup simulation
-        self.simulation = SimulationApp({"headless": not display_mode})
 
-        # step a single frame to allow internal setup
-        self.simulation.update()
+        # make sure the simulation was started
+        assert simulation != None, "Issac Sim failed to start!"
+
+        # retrieve interfaces allowing to access ISAAC
+        self.simulation = simulation
+        self.context: UsdContext = simulation.context
+        self.app = simulation.app
+
+        self.world: World = World.instance()
+        assert self.world != None, "Isaac world failed to load!"
 
         # terminate simulation once program exits
         atexit.register(self.simulation.close)
 
         # save asset path
         self.assets_path = assets_path
-
-        # urdf_interface = _urdf.acquire_urdf_interface()
-        # import_config = _urdf.ImportConfig()
-        # print("URDF", urdf_interface, import_config)
 
         # configure URDF importer
         result, self._config = execute("URDFCreateImportConfig")
@@ -53,6 +61,12 @@ class IsaacEngine(Engine):
         self._config .convex_decomp = False
         self._config .import_inertia_tensor = True
         self._config .fix_base = False
+
+        # Track which id (int) corresponds to which prim (str)
+        self.id_dict = {}
+        # Track which prim (str) corresponds to which id (int)
+        self.prim_dict = {}
+        
 
     ###################
     # general methods #
@@ -90,39 +104,33 @@ class IsaacEngine(Engine):
         Spawns a ground plane into the world at position. 
         Must return a unique int identifying the ground plane within the engine.
         """
-        raise "Not implemented!"
+        # todo: set plane by parameters
+        print(position)
+        self.world.scene.add_ground_plane()
+
+        raise "Not implemented"
 
     def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> int:
         """
         Loads in a URDF file into the world at position and orientation.
         Must return a unique int identifying the newly spawned object within the engine.
         """
-        # ISAAC import example
-        # ext_manager = omni.kit.app.get_app().get_extension_manager()
-        # ext_id = ext_manager.get_enabled_extension_id("omni.isaac.urdf")
-        # extension_path = ext_manager.get_extension_path(ext_id)
-        # urdf_path = extension_path + "/data/urdf/robots/carter/urdf/carter.urdf"
-
         # get absolute path to urdf
         urdf_path = self.get_absolute_asset_path(urdf_path)
-        
-        print("Importing urdf from:", urdf_path)
 
         # import URDF
+        from omni.kit.commands import execute
         success, prim = execute("URDFParseAndImportFile", urdf_path=urdf_path, import_config=self._config, )
 
-        print(success, prim)
+        # make sure import succeeded
+        assert success, "Failed urdf import of: " + urdf_path
 
-        # get absolute path to urdf file
-        # path = self.get_absolute_asset_path(urdf_path)
+        # set position, orientation, scale of prim
+        loaded_obj = self.world.scene.get_object(prim)
+        loaded_obj.set_world_pose(position, orientation)
+        loaded_obj.set_local_scale(scale)
 
-        # import urdf
-        # result, prim_path = execute("URDFParseAndImportFile", urdf_path=path, import_config=self._config,)
-
-        # if len(prim_path) == 0:
-        #    raise "Failed to load urdf: " + path
-
-        raise "Not implemented!"
+        return self.track_object(prim)
 
     def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> int:
         """
@@ -216,3 +224,17 @@ class IsaacEngine(Engine):
     
     def get_absolute_asset_path(self, path:str) -> str:
         return Path(self.assets_path).joinpath(path)
+    
+    def track_object(self, prim: str) -> int:
+        """
+        Maps the generated prim path to newly generated unique id (int)
+        """
+        # new id = current size of object tracking dictrionary
+        id = len(self.id_dict)
+
+        # save references
+        self.id_dict[id] = prim
+        self.prim_dict[prim] = id
+
+        # retun new id
+        return id
