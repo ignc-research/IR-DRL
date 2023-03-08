@@ -4,6 +4,7 @@ from typing import List, TYPE_CHECKING, Union, Tuple
 import numpy as np
 import numpy.typing as npt
 from modular_drl_env.isaac_bridge.bridge import is_isaac_running
+from pathlib import Path
 
 # Use type checking to enable tyhe hints and prevent circular imports
 if TYPE_CHECKING:
@@ -214,4 +215,4 @@ class IsaacEngine(Engine):
         raise "Not implemented!"
     
     def get_absolute_asset_path(self, path:str) -> str:
-        return self.assets_path + path
+        return Path(self.assets_path).joinpath(path)
