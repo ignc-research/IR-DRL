@@ -7,7 +7,9 @@ from time import process_time
 
 __all__ = [
     'UR5',
-    'UR5_RRT'
+    'UR5_RRT',
+    'UR5_Gripper',
+    'UR5_Gripper_RRT'
 ]
 
 class UR5(Robot):
@@ -121,3 +123,17 @@ class UR5_RRT(UR5):
         # now we can use that to call the process_action method, which we use in joint mode (control mode 1 per the init of this class) to achieve the sub goal
         super().process_action(sub_goal_normalized)
         return process_time() - cpu_epoch
+    
+class UR5_Gripper(UR5):
+    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float, rpy_delta: float):
+        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta)
+
+        self.urdf_path = "robots/predefined/ur5/urdf/ur5_with_gripper.urdf"
+
+    # TODO: implement interactivity for the gripper
+
+class UR5_Gripper_RRT(UR5_RRT):
+    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float, rpy_delta: float):
+        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta)
+
+        self.urdf_path = "robots/predefined/ur5/urdf/ur5_with_gripper.urdf"
