@@ -22,7 +22,7 @@ try:
     from omni.kit.commands import execute
     from omni.isaac.core import World
     from omni.isaac.core.articulations import Articulation
-    from omni.isaac.core.objects import DynamicCuboid
+    from omni.isaac.core.objects import DynamicCuboid, DynamicSphere
     from omni.usd._usd import UsdContext
     from pxr.Usd import Prim
 
@@ -69,6 +69,8 @@ try:
             self._prim_dict: dict[str, int] = {}
             # Tracks which id (int) corresponds with which spawned object (Articulation)
             self._articulations: dict[int, Articulation] = {}
+            # Tracks spawned cubes
+            self._cubes: dict[int, DynamicCuboid] = {}
             
 
         ###################
@@ -152,18 +154,35 @@ try:
             # generate unique prim path
             prim_path = "/World/cube" + str(self.get_next_id())
 
+            # transform colour into format Isaac accepts (ignore opacity parameter)
+            isaac_colour = np.array(color[:-1])
+            print(isaac_colour)
+
             # create cube # todo: what is halfExtens?
-            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, colour=color)
+            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, color=isaac_colour)
             obj.set_collision_enabled(collision)
 
-            return self.add_object_to_scene(prim_path)
+            # add cube to scene
+            self.scene.add(obj)
+
+            # track object
+            id = self.track_object(prim_path)
+            self._cubes[id] = obj
+
+            return id
 
         def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> int:
             """
             Spawns a sphere.
             Must return a unique int identifying the newly spawned object within the engine.
             """
-            raise "Not implemented!"
+            prim_path = "/World/sphere" + str(self.get_next_id())
+
+            # create sphere
+            obj = DynamicSphere(prim_path, position=position, mass=mass, color=color, radius=radius)
+            obj.set_collision_enabled(collision)
+
+            return self.add_object_to_scene(prim_path)
 
         def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> int:
             """
