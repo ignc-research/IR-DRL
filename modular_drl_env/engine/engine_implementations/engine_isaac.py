@@ -71,6 +71,8 @@ try:
             self._articulations: dict[int, Articulation] = {}
             # Tracks spawned cubes
             self._cubes: dict[int, DynamicCuboid] = {}
+            # Tracks spawned spheres
+            self._spheres: dict[int, DynamicSphere] = {}
             
 
         ###################
@@ -136,7 +138,7 @@ try:
             assert success, "Failed urdf import of: " + urdf_path
 
             # create articulation view and give object an id
-            obj, id = self.add_object_to_scene(prim_path)
+            obj, id = self.add_urdf_to_scene(prim_path)
             
             # set position, orientation, scale of loaded obj
             obj.set_world_pose(position, orientation)
@@ -154,12 +156,8 @@ try:
             # generate unique prim path
             prim_path = "/World/cube" + str(self.get_next_id())
 
-            # transform colour into format Isaac accepts (ignore opacity parameter)
-            isaac_colour = np.array(color[:-1])
-            print(isaac_colour)
-
             # create cube # todo: what is halfExtens?
-            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, color=isaac_colour)
+            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, color=self.to_isaac_colour(color))
             obj.set_collision_enabled(collision)
 
             # add cube to scene
@@ -179,11 +177,18 @@ try:
             prim_path = "/World/sphere" + str(self.get_next_id())
 
             # create sphere
-            obj = DynamicSphere(prim_path, position=position, mass=mass, color=color, radius=radius)
+            obj = DynamicSphere(prim_path, position=position, mass=mass, color=self.to_isaac_colour(color), radius=radius)
             obj.set_collision_enabled(collision)
 
-            return self.add_object_to_scene(prim_path)
+            # add sphere to scene
+            self.scene.add(obj)
 
+            # track object
+            id = self.track_object(prim_path)
+            self._spheres[id] = obj
+
+            return id
+        
         def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> int:
             """
             Spawns a cylinder.
@@ -274,10 +279,14 @@ try:
 
             return [i for i in range(robot.num_dof)]
         
+        #################
+        # ISAAC methods #
+        #################
+
         def get_absolute_asset_path(self, path:str) -> str:
             return Path(self.assets_path).joinpath(path)
 
-        def add_object_to_scene(self, prim_path: str) -> Tuple[Articulation, int]:
+        def add_urdf_to_scene(self, prim_path: str) -> Tuple[Articulation, int]:
             """
             A object created as prim is added to the local scene.
             Its given an id and its wrappers, allowing data access, are saved for increased performance
@@ -317,6 +326,13 @@ try:
             Returns the id which will be used for the next object that will be tracked
             """
             return len(self._id_dict)
+
+        def to_isaac_colour(self, color: List[float]) -> np.ndarray:
+            """
+            Transform colour format into format Isaac accepts, ignoring opacity
+            """
+            return np.array(color[:-1])
+        
     
 except ImportError:
     # raise error only if Isaac is running
