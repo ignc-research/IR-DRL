@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 try:
     # isaac imports may only be used after SimulationApp is started (ISAAC uses runtime plugin system)
     from omni.isaac.kit import SimulationApp
-    simulation = SimulationApp({"headless": False})
+    simulation = SimulationApp({"headless": True})
+    # terminate simulation once program exits
+    atexit.register(simulation.close)
 
     from omni.kit.commands import execute
     from omni.isaac.core import World
@@ -52,9 +54,6 @@ class IsaacEngine(Engine):
         assert self.scene != None, "Isaac scene failed to load!"
         assert self.stage != None, "Isaac stage failed to load!"
 
-        # terminate simulation once program exits
-        atexit.register(self.simulation.close)
-
         # save asset path
         self.assets_path = assets_path
 
@@ -69,10 +68,12 @@ class IsaacEngine(Engine):
         self._config.import_inertia_tensor = True
         self._config.fix_base = False
 
-        # Track which id (int) corresponds to which prim (str)
-        self.id_dict = {}
-        # Track which prim (str) corresponds to which id (int)
-        self.prim_dict = {}
+        # Tracks which id (int) corresponds to which prim (str)
+        self._id_dict: dict[int, str] = {}
+        # Tracks which prim (str) corresponds to which id (int)
+        self._prim_dict: dict[str, int] = {}
+        # Tracks which id (int) corresponds with which spawned object (Articulation)
+        self._articulations: dict[int, Articulation] = {}
         
 
     ###################
@@ -132,15 +133,23 @@ class IsaacEngine(Engine):
         # make sure import succeeded
         assert success, "Failed urdf import of: " + urdf_path
 
+        # create articulation wrapper and initialize it
+        loaded_obj = Articulation(prim_path)
+        self.scene.add(loaded_obj)
+
         # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
         self.world.reset()
 
         # set position, orientation, scale of loaded obj
-        loaded_obj = Articulation(prim_path)
         loaded_obj.set_world_pose(position, orientation)
         loaded_obj.set_local_scale([scale, scale, scale])
 
-        return self.track_object(prim_path)
+        # give spawned object an id, track its articulation wrapper
+        id = self.track_object(prim_path)
+        self._articulations[id] = loaded_obj
+
+        return id
+
 
     def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> int:
         """
@@ -230,7 +239,10 @@ class IsaacEngine(Engine):
         """
         This should return a List uniquely identifying (per robot) ints for every joint that is an actuator, e.g. revolute joints but not fixed joints.
         """
-        raise "Not implemented!"
+        # retreives robot
+        robot = self._articulations[robot_id]
+
+        return [i for i in range(robot.num_dof)]
     
     def get_absolute_asset_path(self, path:str) -> str:
         return Path(self.assets_path).joinpath(path)
@@ -240,11 +252,11 @@ class IsaacEngine(Engine):
         Maps the generated prim path to newly generated unique id (int)
         """
         # new id = current size of object tracking dictrionary
-        id = len(self.id_dict)
+        id = len(self._id_dict)
 
         # save references
-        self.id_dict[id] = prim
-        self.prim_dict[prim] = id
+        self._id_dict[id] = prim
+        self._prim_dict[prim] = id
 
         # retun new id
         return id
