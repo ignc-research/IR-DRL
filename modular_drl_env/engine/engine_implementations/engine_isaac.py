@@ -22,6 +22,7 @@ try:
     from omni.kit.commands import execute
     from omni.isaac.core import World
     from omni.isaac.core.articulations import Articulation
+    from omni.isaac.core.objects import DynamicCuboid
     from omni.usd._usd import UsdContext
     from pxr.Usd import Prim
 
@@ -147,7 +148,15 @@ try:
             Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
             Must return a unique int identifying the newly spawned object within the engine.
             """
-            raise "Not implemented!"
+
+            # generate unique prim path
+            prim_path = "/World/cube" + str(self.get_next_id())
+
+            # create cube # todo: what is halfExtens?
+            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, colour=color)
+            obj.set_collision_enabled(collision)
+
+            return self.add_object_to_scene(prim_path)
 
         def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> int:
             """
@@ -283,6 +292,12 @@ try:
 
             # retun new id
             return id
+
+        def get_next_id(self) -> int:
+            """
+            Returns the id which will be used for the next object that will be tracked
+            """
+            return len(self._id_dict)
     
 except ImportError:
     # raise error only if Isaac is running
