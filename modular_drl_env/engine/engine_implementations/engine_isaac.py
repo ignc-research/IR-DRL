@@ -133,23 +133,15 @@ class IsaacEngine(Engine):
         # make sure import succeeded
         assert success, "Failed urdf import of: " + urdf_path
 
-        # create articulation wrapper and initialize it
-        loaded_obj = Articulation(prim_path)
-        self.scene.add(loaded_obj)
-
-        # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
-        self.world.reset()
-
+        # create articulation view and give object an id
+        obj, id = self.add_object_to_scene(prim_path)
+        
         # set position, orientation, scale of loaded obj
-        loaded_obj.set_world_pose(position, orientation)
-        loaded_obj.set_local_scale([scale, scale, scale])
-
-        # give spawned object an id, track its articulation wrapper
-        id = self.track_object(prim_path)
-        self._articulations[id] = loaded_obj
+        obj.set_world_pose(position, orientation)
+        obj.set_local_scale([scale, scale, scale])
 
         return id
-
+        
 
     def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> int:
         """
@@ -247,6 +239,27 @@ class IsaacEngine(Engine):
     def get_absolute_asset_path(self, path:str) -> str:
         return Path(self.assets_path).joinpath(path)
     
+    def add_object_to_scene(self, prim_path: str) -> Tuple(Articulation, int):
+        """
+        A object created as prim is added to the local scene.
+        Its given an id and its wrappers, allowing data access, are saved for increased performance
+        """
+        # create Articulation wrapper, allowing access of joints/values
+        obj = Articulation(prim_path)
+
+        # add it to the scene
+        self.scene.add(obj)
+
+        # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
+        self.world.reset()
+
+        # give spawned object an id
+        id = self.track_object(prim_path)
+
+        # track all instances of existing Artriculations
+        self._articulations[id] = obj
+        return obj, id
+
     def track_object(self, prim: str) -> int:
         """
         Maps the generated prim path to newly generated unique id (int)
