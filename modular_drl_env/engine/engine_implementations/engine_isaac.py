@@ -106,11 +106,16 @@ try:
             Spawns a ground plane into the world at position. 
             Must return a unique int identifying the ground plane within the engine.
             """
-            # todo: set plane by parameters
-            print(position)
-            self.world.scene.add_ground_plane()
 
-            raise "Not implemented"
+            # define prim path
+            prim_path = "/World/defaultGroundPlane"
+
+            # add object to world
+            self.world.scene.add_default_ground_plane(prim_path=prim_path, z_position=position[2])
+
+            # start tracking it # todo: add articulationView aswell?
+            return self.track_object(prim_path)
+        
 
         def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> int:
             """
