@@ -1,8 +1,11 @@
-# example config
-# explains all attributes and lists all options
-# note: please use plain written numbers, don't use scientific notation like 3e-4 or something like that
+# explanations config
+# explains all attributes and lists all options,
+# this config is not meant to be run, it's for documentation only
+# note: for numerical inputs only plainly written numbers are allowed, this means that scientific notation like 4e-3 is not supported
+#       this is due to a quirk/bug in the PyYAML implementation
 
 # run attributes
+# these are meta attributes about how we interact with the gym env from the outside
 run:
   # bool, determines whether a model is loaded
   load_model: False  
@@ -14,7 +17,7 @@ run:
     num_envs : 16  
     # int, maximum timesteps for this run
     timesteps: 15000000  
-    # int, steps after which a checkpoint of the current agent is saved (this is calculated per env, after the first env reaches this value a save will occur)
+    # int, steps after which a checkpoint of the current agent is saved (this is calculated per env even when multiple ones are run in parallel, after the first env reaches this value a save will occur)
     save_freq : 30000
     # str, folder in which saved checkpoints will be stored
     save_folder: "./models/weights"  
@@ -22,7 +25,7 @@ run:
     save_name: "PPO_default"
     # bool, whether to use a recurrent PPO model (True) or not (False)
     recurrent: False
-    # int, steps until PPO updates the agent (this per env, meaning if one env reaches this value the agent updates)
+    # int, steps until PPO updates the agent (this is per env, meaning if one env reaches this value the agent updates)
     ppo_steps: 1024  
     # int, batch size of the PPO update, note: the PPO buffer is of size num_envs * ppo_steps, so best choose batch size as a natural divisor for that number for even batches
     batch_size: 512
@@ -71,7 +74,7 @@ run:
     # int, 0: no logging at all, 1: logging into console at the end of an episode, 
     # 2: same as 1 + log for entire episode put into csv file in model/env_logs (if max_episodes is not -1 this will only happen at the end of the last episode such that the file contains all episodes)
     logging: 1 
-    # float, sleep added to make movements pass slower for better visiblity
+    # float, sleep added to make movements pass slower for better visiblity (you can also use this to make the simulation run in sync with real time)
     display_delay: 0
     # bool, flags for showing visual aides like goal markings or workspace borders
     show_world_aux: True
@@ -104,19 +107,20 @@ env:
     sim_steps_per_env_step: 1  
   
   #   robots definition
+  # this section adds robots into the env, for demonstration purposes we will add every possible robot here
   robots:
-      # str, robot type, possible values: "UR5", "KR16", "Custom" ("Custom" needs more fields, see below for an example)
     - type: "UR5" 
       config:
         # str, the name under which the robot will be run in the env, appears in logs and sensor names, make sure to give unique ones in order to avoid confusion
         name: "ur5_1"
         # floats, the xyz position where the base of the robot is mounted in the world
         base_position: [0, 0, 0]
-        # floats, the rotation of the robot base w.r.t the world coordinate system, in degrees and roll-pitch-yaw format
+        # floats, the orientation of the robot base w.r.t the world coordinate system, in degrees and roll-pitch-yaw format
         base_orientation: [0, 0, 90]
-        # floats, the resting angles in degrees of the robot's joints a.k.a. its default pose, must be the same amount as the (movable) joints of the robot
+        # list of floats, the resting angles in degrees of the robot's joints a.k.a. its default pose, must be the same amount as the (movable) joints of the robot
+        # if the scenario does not define a starting pose for the robot this will also be the pose in which the robot will start each env episode
         resting_angles: [-180, -45, -90, -135, 90, 0]
-        # int, determines in which way the robot will be controlled by the agent, possible values: 0: inverse kinematics, 1: joint angles, 2: joint velocities
+        # int, determines the way in which the robot will be controlled by the agent, possible values: 0: inverse kinematics, 1: joint angles, 2: joint velocities
         control_mode: 2
         # float, determines the maximum xyz movement when using inverse kinematics
         xyz_delta: 0.005
@@ -129,12 +133,10 @@ env:
       # note: any robot will by default have a position/rotation sensor for its end effector and a joints sensor
       # you can however define position sensors for other parts of the robot here
       sensors:
-        - type: "PositionRotation"
+        - type: "PositionRotation"  # sensor type that reports position and orientation of a robot link
           config:
             # int, every x steps the sensor will update its data, higher values get more fps for the simulation but lower accuracy
             update_steps: 1
-            # whether to normalize this sensors output
-            normalize: False
             # whether this sensor's output will be added to the observation space
             add_to_observation_space: True
             # whether this sensor's logging data will be collected
@@ -145,7 +147,7 @@ env:
             link_id: 6
             # bool, whether to report rotation as quaternion (True) or rpy (False)
             quaternion: True
-        - type: "LidarSensorUR5"
+        - type: "LidarSensorUR5"  # sensor that sends rays and reports the result
           config:
             update_steps: 1
             normalize: False
@@ -170,22 +172,20 @@ env:
               upper_arm: [10, 10]
             # bool, whether the output will report the indicator or raw measured distances
             indicator: True
-            # list, allows to configure which links will be equipped with lidar, see class file for details
-            activated_links: [0, 1, 2, 3, 4]
-        - type: "LidarSensorUR5_Explainable"
+        - type: "Obstacle"  # sensor that uses an engine call to report the relative position of the nearest obstacles
           config:
             update_steps: 1
-            normalize: False
             add_to_observation_space: True
-            add_to_logging: True
-            indicator_buckets: 6
-            ray_start: 0
-            ray_end: 0.3
-            num_rays_circle_directions: 10
-            num_rays_side: 10
-            render: False
-            indicator: True
-        - type: "OnBodyCameraUR5"
+            add_to_logging: False
+
+            # sensor type specific instructions
+            # int, the number of obstacles that this sensor reports on
+            num_obstacles: 2
+            # float, max distance in which to pick up obstacles in, if there are fewer in this radius than num_obstacles a generic output will be reported instead
+            max_distance: 15
+            # int, link id for which the distance mesaures will be given
+            reference_link_id: 7
+        - type: "OnBodyCameraUR5"  # a camera mounted on the robot end effector
           config:
             update_steps: 1
             normalize: False
@@ -214,7 +214,7 @@ env:
               far_val: 5
             # floats, relative position of the camera w.r.t. to the robot's end effector, can also be empty (results in a default positioning)
             position_relative_to_effector: []
-        - type: "StaticFloatingCameraFollowEffector"
+        - type: "StaticFloatingCameraFollowEffector"  # a camera floating in free space but always centered on the robot's end effector
           config:
             update_steps: 1
             normalize: False
@@ -237,8 +237,9 @@ env:
       # here we define the goal that this roboter is supposed to pursue
       # each robot can only have one goal at a time
       # a robot can also have no goal at all, but at least one robot in the env must have a goal
+      # there are a few scenarios that rely on the first robot being the main one, so it's best practice to put the robot with the goal (in case there are others without one) first
       goal:
-        type: "PositionCollision"
+        type: "PositionCollision"  # a goal for reaching a position without colliding
         config:
           # bool, whether this goal's logging data is collected
           add_to_logging: True
@@ -260,8 +261,8 @@ env:
           dist_threshold_increment_start: 0.01
           # float, increment that is subtracted from current distance threshold when the threshold is small and env success rate is above 80%
           dist_threshold_increment_end: 0.001
-          # float, overwrite for the start of the distance threshold, works for both train and eval, useful for resuming training, does nothing if "None"
-          dist_threshold_overwrite: "None"
+          # float, overwrite for the start of the distance threshold, works for both train and eval, useful for resuming training, does nothing if empty
+          dist_threshold_overwrite: 
 
     - type: "KR16" 
       name: "kr16_1"
