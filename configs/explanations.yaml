@@ -89,17 +89,17 @@ env:
   normalize_observations: False
   # bool, whether to normalize rewards or not
   normalize_rewards: False
-  # engine config, governs which phycis sim will power the environment
+  # engine config, governs which physics sim will power the environment
   engine:
-    # str, engine name, can be either Pybullet or Isaac
+    # str, engine name, at the moment this can be either Pybullet or Isaac
     type: "Pybullet"
-    # bool, whether to use acurate physics sim for movement or not
+    # bool, whether to use acurate physics sim for movement or not, False will result in no sim time passing and movements being instanteneous
     use_physics_sim: True
-    # list of floats, determines gravity force in xyz world directions when using the physics sim
+    # list of floats, determines gravity force in N in xyz world directions when using the physics sim
     gravity: [0, 0, -9.8]
     # float, time step of virtual simulated time in seconds for each env step, inverse is frame rate
     sim_step: 0.00416666666  # 1/240 s <-> 240 Hz
-    # int, the amount of physics steps we run per env step, only is used when use_physics_sim is True
+    # int, the amount of physics steps we run per env step, is used only when use_physics_sim is True
     # note: the lower this value, the worse the performance, but the higher the accuracy
     sim_steps_per_env_step: 1  
   
@@ -263,40 +263,40 @@ env:
           # float, overwrite for the start of the distance threshold, works for both train and eval, useful for resuming training, does nothing if "None"
           dist_threshold_overwrite: "None"
 
-      - type: "KR16" 
-        name: "kr16_1"
-        config:
-          base_position: [0, 0, 0]
-          base_orientation: [0, 0, 90]
-          resting_angles: [-180, -45, -90, -135, 90, 0]
-          control_mode: 2
-          xyz_delta: 0.005
-          rpy_delta: 0.005
+    - type: "KR16" 
+      name: "kr16_1"
+      config:
+        base_position: [0, 0, 0]
+        base_orientation: [0, 0, 90]
+        resting_angles: [-180, -45, -90, -135, 90, 0]
+        control_mode: 2
+        xyz_delta: 0.005
+        rpy_delta: 0.005
 
-        #   sensor definition
-        # for this robot we show all examples of robot-bound sensors that need another robot
-        # sensors of this type need another robot as reference
-        # therefore, robots with this sensor must ALWAYS be mentioned after the robot which this sensor is focusing on
-        sensors:
-          - type: "BuddyRobotCamera" 
-            config: 
-              update_steps: 1
-              normalize: False
-              add_to_observation_space: True
-              add_to_logging: True
-              name: "BuddyCam_generated_1"
-              camera_args:
-                height: 128
-                width: 128
-                type: "grayscale"
-                up_vector: [0, 0, 1]
-                fov: 60
-                aspect_ratio: 1
-                near_val: 0.05
-                far_val: 5
-              # str or floats, robot or position in world space to focus on
-              # if str, must be the name of a robot that was mentioned above this one in the config
-              target: "ur5_1"
+      #   sensor definition
+      # for this robot we show all examples of robot-bound sensors that need another robot
+      # sensors of this type need another robot as reference
+      # therefore, robots with this sensor must ALWAYS be mentioned after the robot which this sensor is focusing on
+      sensors:
+        - type: "BuddyRobotCamera" 
+          config: 
+            update_steps: 1
+            normalize: False
+            add_to_observation_space: True
+            add_to_logging: True
+            name: "BuddyCam_generated_1"
+            camera_args:
+              height: 128
+              width: 128
+              type: "grayscale"
+              up_vector: [0, 0, 1]
+              fov: 60
+              aspect_ratio: 1
+              near_val: 0.05
+              far_val: 5
+            # str or floats, robot or position in world space to focus on
+            # if str, must be the name of a robot that was mentioned above this one in the config
+            target: "ur5_1"
 
   #   sensor definition
   # here we will define all sensors that are not bound (in some way or another) to a robot, e.g. free floating cameras

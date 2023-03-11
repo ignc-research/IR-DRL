@@ -20,7 +20,7 @@ Once python is installed, you can use ```pip install -r requirements.txt``` to i
 
 ## State of the code & plans
 
-The gym env is fully modular and can be controlled by YAML config files. Customizable defaults and examples can be found in the config folder
+The gym env is fully modular and can be controlled by YAML config files. Customizable defaults and examples for several scenarios can be found in the config folder. The explanations.yaml file contains an overview of all possible options with comments.
 
 To implement your own sensors, scenarios, robots or goals refer to the existing implementations. Both the abstract base classes and the implementations feature explicit instructions and commentary for writing your own version.
 
