@@ -107,4 +107,4 @@ env:
       obstacle_trajectories: []
       obstacle_training_schedule: False
       experiment: None
-      targets_path: "targets.txt"
+      targets_path: "targets_2.txt"

@@ -51,7 +51,7 @@ env:
             position: [0, 0, 2.2]
             target: [0, 0, 0]
             orientation: None
-            objects_to_remove: [-1, 0, 1, 4]  # remove background, floor, robot and target point
+            objects_to_remove: [-1, 0, 1, 5]  # remove background, floor, robot and target point
             camera_args: {type: "ds", fov: 100, width: 126, height: 126, up_vector: [0, 1, 0], near_val: 0.05, far_val: 1.2}
             debug: None
             name: "PCR_camera"
@@ -95,7 +95,7 @@ env:
     type: "TableExperiment"
     config:
       workspace_boundaries: [-2, 2, -2, 2, 0, 5]
-      num_obstacles: 1
+      num_obstacles: 2
       obstacle_velocities: []
       num_humans: 0
       human_positions: [[1.6, 0, 1.4], [1.6, 0, 1.4]]
@@ -108,4 +108,4 @@ env:
       obstacle_trajectories: []
       obstacle_training_schedule: False
       experiment: None
-      targets_path: "targets.txt"
+      targets_path: "targets_2.txt"
