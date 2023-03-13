@@ -156,10 +156,11 @@ try:
             """
 
             # generate unique prim path
-            prim_path = "/World/cube" + str(self.get_next_id())
+            name = "cube" + str(self.get_next_id())
+            prim_path = "/World/" + name
 
             # create cube # todo: what is halfExtens?
-            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, color=self.to_isaac_color(color))
+            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, color=self.to_isaac_color(color), name=name)
             obj.set_collision_enabled(collision)
 
             # add cube to scene
@@ -176,10 +177,11 @@ try:
             Spawns a sphere.
             Must return a unique int identifying the newly spawned object within the engine.
             """
-            prim_path = "/World/sphere" + str(self.get_next_id())
+            name = "sphere" + str(self.get_next_id())
+            prim_path = "/World/" + name
 
             # create sphere
-            obj = DynamicSphere(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius)
+            obj = DynamicSphere(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, name=name)
             obj.set_collision_enabled(collision)
 
             # add sphere to scene
@@ -196,10 +198,11 @@ try:
             Spawns a cylinder.
             Must return a unique int identifying the newly spawned object within the engine.
             """
-            prim_path = "World/cylinder" + str(self.get_next_id())
+            name = "cylinder" + str(self.get_next_id())
+            prim_path = "/World/" + name
 
             # create cylinder
-            obj = DynamicCylinder(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, orientation=orientation, height=height)
+            obj = DynamicCylinder(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, orientation=orientation, height=height, name=name)
             obj.set_collision_enabled(collision)
 
             # add cylinder to scene
@@ -263,20 +266,20 @@ try:
             """
             Returns the value a single joint is at.
             """
+            # retreive robot
+            robot = self._articulations[robot_id]
+
+            # retrieve joint
+            test = robot.get_joint_positions([joint_id])
+
             raise "Not implemented!"
         
         def get_link_state(self, robot_id: int, link_id: int) -> Tuple[np.ndarray, np.ndarray]:
             """
             Returns a tuple with position and orientation, both in world frame, of the link in question.
             """
-            # retreive robot
-            robot = self._articulations[robot_id]
-
-            # retrieve link
-            test = robot.get_joint_positions([link_id])
-            print(test)
-
             raise "Not implemented!"
+            
 
         def solve_inverse_kinematics(self, robot_id: int, end_effector_link_id: int, target_position: np.ndarray, target_orientation: Union[np.ndarray, None], max_iterations: int=100, threshold: float=1e-2) -> np.ndarray:
             """
