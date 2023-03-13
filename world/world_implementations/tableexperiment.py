@@ -108,7 +108,7 @@ class TableExperiment(World):
             self.objects_ids.append(obs.build())
             self.obstacle_objects.append(obs)
 
-        elif np.random.random() < 0.3 and self.num_obstacles:  # generate a rather large brick moving about, this is a standard case that will appear in evaluation, useufl to have in training
+        elif np.random.random() < 0.05 and self.num_obstacles:  # generate a rather large brick moving about, this is a standard case that will appear in evaluation, useufl to have in training
             extra = 1
             idx = choice([0, 1])
             pos = [np.array([0, -0.45, 1.15]), np.array([0, 0.45, 1.15])]
@@ -153,7 +153,7 @@ class TableExperiment(World):
                 trajectory = self.obstacle_trajectories[i]
             # if there are no given obstacle velocities, randomly generate some
             if not self.obstacle_velocities:
-                move_step = np.random.uniform(low=0.01, high=0.5, size=(1,)) * self.sim_step
+                move_step = np.random.uniform(low=0.1, high=0.5, size=(1,)) * self.sim_step
             else:
                 move_step = self.obstacle_velocities[i] * self.sim_step
             # create random dimensions for obstacles 

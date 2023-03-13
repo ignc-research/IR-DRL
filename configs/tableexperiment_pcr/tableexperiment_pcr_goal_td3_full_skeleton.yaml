@@ -1,8 +1,8 @@
 # implements improved version of "Robot obstacle avoidance system using deep
 # reinforcement learning" for table experiment
 run:
-  load_model: False
-  model_path: "models/weights/PCR_Goal_TD3_4080000_steps_best.zip"
+  load_model: True
+  model_path: "models/weights/PCR_Goal_TD3_full_sklt_10740000_steps_best"
   reset_num_timesteps: True
   train:
     algorithm: "TD3"
