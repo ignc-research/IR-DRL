@@ -21,3 +21,4 @@ class GoalRegistry:
 
 GoalRegistry.register('PositionCollision')(PositionCollisionGoal)
 GoalRegistry.register('PositionCollisionPCR')(PositionCollisionPCR)
+GoalRegistry.register('PositionCollisionTrajectoryPCR')(PositionCollisionTrajectoryPCR)

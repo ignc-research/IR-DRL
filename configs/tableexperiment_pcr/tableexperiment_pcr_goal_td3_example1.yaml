@@ -62,6 +62,7 @@ env:
         sensor3:
           type: "RobotSkeletonSensor"
           config:
+            only_shoulder_elbow_and_ee: False
             debug: {"skeleton": False}
             normalize: False
             add_to_observation_space: False

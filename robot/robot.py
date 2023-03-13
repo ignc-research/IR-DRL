@@ -173,10 +173,20 @@ class Robot(ABC):
             else:
                 # use PyBullet to apply these velocities to robot
                 self.moveto_joints_vels(new_joint_vels)
-        
+        elif self.control_mode == 3:
+            # control robot via relative deviation from trajectory point
+            delta_upper = np.asarray(self.joints_limits_upper) - self.trajectory_point
+            delta_lower = np.asarray(self.joints_limits_lower) - self.trajectory_point
+            deltas = np.where(action > 0, delta_upper[:5], delta_lower[:5])
+            new_joints = self.trajectory_point[:5] + deltas[:5] * np.abs(action)
+            new_joints = np.append(new_joints, self.joints_sensor.joints_angles[-1])
+            self.moveto_joints(new_joints, False)
+
         # returns execution time, gets used in gym env to log the times here
         return time() - cpu_epoch
 
+    def set_trajectory_point(self, q):
+        self.trajectory_point = q
     def moveto_joints_vels(self, desired_joints_velocities: np.ndarray):
         """
         Uses the actual physics simulation to set the joint velocities to desired targets.

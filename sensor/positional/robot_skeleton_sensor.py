@@ -17,6 +17,7 @@ class RobotSkeletonSensor(Sensor):
     def __init__(self, sensor_config):
         super().__init__(sensor_config)
         # set robot
+        self.only_shoulder_elbow_and_ee = sensor_config["only_shoulder_elbow_and_ee"]
         self.robot = sensor_config["robot"]
         self.debug = sensor_config["debug"]
 
@@ -24,25 +25,35 @@ class RobotSkeletonSensor(Sensor):
         self.robot_id = self.robot.object_id
 
         robot_skeleton = []
-        for i in range(pyb.getNumJoints(self.robot_id)):
-            if i > 0:  # this removes the base link which is somewhere in the air
-                # the center of mass of the base link (i == 1) floats in the air so we retrieve its frame link
-                # instead links with an index of 4 or higher have the same coordinates for their link frame and their
-                # center of mass
-                if i == 1 or i >= 4:
-                    robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[4])
-                else:
-                    robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[4])
-                    robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[0])
+        if self.only_shoulder_elbow_and_ee:
+            # shoulder
+            robot_skeleton.append(pyb.getLinkState(self.robot_id, 2)[4])
+            # elbow
+            robot_skeleton.append(pyb.getLinkState(self.robot_id, 3)[4])
+            # ee
+            robot_skeleton.append(pyb.getLinkState(self.robot_id, 7)[4])
 
-        self.robot_skeleton = np.asarray(robot_skeleton, dtype=np.float32).round(10)
+            self.robot_skeleton = np.asarray(robot_skeleton, dtype=np.float32).round(10)
+        else:
+            for i in range(pyb.getNumJoints(self.robot_id)):
+                if i > 0:  # this removes the base link which is somewhere in the air
+                    # the center of mass of the base link (i == 1) floats in the air so we retrieve its frame link
+                    # instead links with an index of 4 or higher have the same coordinates for their link frame and their
+                    # center of mass
+                    if i == 1 or i >= 4:
+                        robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[4])
+                    else:
+                        robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[4])
+                        robot_skeleton.append(pyb.getLinkState(self.robot_id, i)[0])
 
-        # add extra points along the arms of the robot
-        self.robot_skeleton = np.concatenate([
-            self.robot_skeleton,
-            interpolate(self.robot_skeleton[1, :], self.robot_skeleton[2, :], 4, 0.3, 1.5),
-            interpolate(self.robot_skeleton[3, :], self.robot_skeleton[4, :], 3, 0.3, 1.2),
-        ], axis=0).astype(np.float32)
+            self.robot_skeleton = np.asarray(robot_skeleton, dtype=np.float32).round(10)
+
+            # add extra points along the arms of the robot
+            self.robot_skeleton = np.concatenate([
+                self.robot_skeleton,
+                interpolate(self.robot_skeleton[1, :], self.robot_skeleton[2, :], 4, 0.3, 1.5),
+                interpolate(self.robot_skeleton[3, :], self.robot_skeleton[4, :], 3, 0.3, 1.2),
+            ], axis=0).astype(np.float32)
 
         # display skeleton points
         pyb.removeAllUserDebugItems()

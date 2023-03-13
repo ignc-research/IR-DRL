@@ -25,7 +25,7 @@ run:
 
 env:
   max_steps_per_episode: 800
-  use_physics_sim: True  # strictly speaking the original code had this at False
+  use_physics_sim: False  # strictly speaking the original code had this at False
   sim_step: 0.00416666666  
   stat_buffer_size: 25  
   normalize_observations: True
@@ -38,7 +38,7 @@ env:
         base_position: [0, 0, 1.1]
         base_orientation: [0, 0, 0]
         resting_angles: [-180, -45, -90, -135, 90, 0]
-        control_mode: 2
+        control_mode: 3
         xyz_delta: 0.005
         rpy_delta: 0.005
       sensors:
@@ -63,21 +63,16 @@ env:
           type: "RobotSkeletonSensor"
           config:
             debug: {"skeleton": False}
-            only_shoulder_elbow_and_ee: False
+            only_shoulder_elbow_and_ee: True
             normalize: False
             add_to_observation_space: False
             add_to_logging: False
             update_steps: 2
-        sensor4:
-          type: VelocitySensor
-          config:
-            normalize: True
-            add_to_observation_space: True
-            add_to_logging: False
-            update_steps: 1
+
       goal:
-        type: "PositionCollisionPCR"
+        type: "PositionCollisionTrajectoryPCR"
         config:
+          trajectories: "trajectories_new.json"
           boundaries: [-2, 2, -2, 2, 1.09, 3]
           debug: {"closest_obstacle_cuboid": False}
           normalize_rewards: True
@@ -85,11 +80,6 @@ env:
           add_to_observation_space: True
           add_to_logging: True
           continue_after_success: False
-          dist_threshold_start: 0.07
-          dist_threshold_end : 0.01
-          dist_threshold_increment_start: 0.0001
-          dist_threshold_increment_end: 0.00001
-          dist_threshold_overwrite: "None"
 
   world:
     type: "TableExperiment"

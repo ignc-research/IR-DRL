@@ -175,7 +175,9 @@ class ModularDRLEnv(gym.Env):
         self.action_space_dims = []
         for idx, robot in enumerate(self.robots):
             joints_dims, ik_dims = robot.get_action_space_dims()
-            if robot.control_mode:  # aka if self.control_mode[idx] == 1 or == 2
+            if robot.control_mode == 3:
+                self.action_space_dims.append(5)
+            elif robot.control_mode:  # aka if self.control_mode[idx] == 1 or == 2
                 self.action_space_dims.append(joints_dims)
             else:  # == 0
                 self.action_space_dims.append(ik_dims)
