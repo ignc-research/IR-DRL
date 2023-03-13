@@ -93,7 +93,7 @@ try:
             # todo: this calles reset function on objects. Enough?
             self.world.reset()
 
-        def perform_collision_check(self, robots: List["Robot"], obstacles: List[int]) -> bool:
+        def perform_collision_check(self, robots: List["Robot"], obstacles: List[str]) -> bool:
             """
             Performs a collision check 
             1. between all robots and all obstacles in the world and
@@ -108,10 +108,10 @@ try:
         # all orientations are unit quaternions in x, y, z, w format
         # all colors are RGB values between 0 and 1 in r, g, b, a format
 
-        def add_ground_plane(self, position: np.ndarray) -> int:
+        def add_ground_plane(self, position: np.ndarray) -> str:
             """
             Spawns a ground plane into the world at position. 
-            Must return a unique int identifying the ground plane within the engine.
+            Must return a unique str identifying the ground plane within the engine.
             """
 
             # define prim path
@@ -124,10 +124,10 @@ try:
             return self.track_object(prim_path)
         
 
-        def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> int:
+        def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> str:
             """
             Loads in a URDF file into the world at position and orientation.
-            Must return a unique int identifying the newly spawned object within the engine.
+            Must return a unique str identifying the newly spawned object within the engine.
             """
             # get absolute path to urdf
             urdf_path = self.get_absolute_asset_path(urdf_path)
@@ -149,10 +149,10 @@ try:
             return id
             
 
-        def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> int:
+        def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> str:
             """
             Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
-            Must return a unique int identifying the newly spawned object within the engine.
+            Must return a unique str identifying the newly spawned object within the engine.
             """
 
             # generate unique prim path
@@ -172,10 +172,10 @@ try:
 
             return id
 
-        def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> int:
+        def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> str:
             """
             Spawns a sphere.
-            Must return a unique int identifying the newly spawned object within the engine.
+            Must return a unique str identifying the newly spawned object within the engine.
             """
             name = "sphere" + str(self.get_next_id())
             prim_path = "/World/" + name
@@ -193,10 +193,10 @@ try:
 
             return id
         
-        def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> int:
+        def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> str:
             """
             Spawns a cylinder.
-            Must return a unique int identifying the newly spawned object within the engine.
+            Must return a unique str identifying the newly spawned object within the engine.
             """
             name = "cylinder" + str(self.get_next_id())
             prim_path = "/World/" + name
@@ -214,7 +214,7 @@ try:
 
             return id
 
-        def move_base(self, object_id: int, position: np.ndarray, orientation: np.ndarray):
+        def move_base(self, object_id: str, position: np.ndarray, orientation: np.ndarray):
             """
             Moves the base of an object or robot towards the desired position and orientation instantaneously, without physcis calucations.
             """
@@ -224,13 +224,13 @@ try:
         # helper methods (e.g. lines or debug visualization) #
         ######################################################
 
-        def add_aux_line(self, lineFromXYZ: List[float], lineToXYZ: List[float]) -> int:
+        def add_aux_line(self, lineFromXYZ: List[float], lineToXYZ: List[float]) -> str:
             """
             Adds a simple line
             """
             raise "Not implemented!"
 
-        def remove_aux_object(self, aux_object_id):
+        def remove_aux_object(self, aux_object_id: str):
             """
             Removes an auxillary object via its int id.
             """
@@ -240,19 +240,19 @@ try:
         # robot methods #
         #################
 
-        def joints_torque_control_velocities(self, robot_id: int, joints_ids: List[int], target_velocities: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
+        def joints_torque_control_velocities(self, robot_id: str, joints_ids: List[int], target_velocities: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
             """
             Sets the velocities of the desired joints for the desired robot to the target values using the robot's actuators. Forces contains the maximum forces that can be used for this.
             """
             raise "Not implemented!"
 
-        def joints_torque_control_angles(self, robot_id: int, joints_ids: List[int], target_angles: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
+        def joints_torque_control_angles(self, robot_id: str, joints_ids: List[int], target_angles: npt.NDArray[np.float32], forces: npt.NDArray[np.float32]):
             """
             Sets the angles of the desired joints for the desired robot to the target values using the robot's actuators. Forces contains the maximum forces that can be used for this.
             """
             raise "Not implemented!"
 
-        def set_joint_value(self, robot_id: int, joint_id: int, joint_value: float):
+        def set_joint_value(self, robot_id: str, joint_id: int, joint_value: float):
             """
             Sets the a specific joint to a specific value ignoring phycis, i.e. resulting in instant movement.
             """
@@ -262,7 +262,7 @@ try:
             # set joint state
             robot.set_joint_positions([joint_value], [joint_id])
 
-        def get_joint_value(self, robot_id: int, joint_id: int) -> float:
+        def get_joint_value(self, robot_id: str, joint_id: int) -> float:
             """
             Returns the value a single joint is at.
             """
@@ -274,7 +274,7 @@ try:
 
             raise "Not implemented!"
         
-        def get_link_state(self, robot_id: int, link_id: int) -> Tuple[np.ndarray, np.ndarray]:
+        def get_link_state(self, robot_id: str, link_id: str) -> Tuple[np.ndarray, np.ndarray]:
             """
             Returns a tuple with position and orientation, both in world frame, of the link in question.
             """
@@ -284,7 +284,7 @@ try:
             raise "Not implemented!"
             
 
-        def solve_inverse_kinematics(self, robot_id: int, end_effector_link_id: int, target_position: np.ndarray, target_orientation: Union[np.ndarray, None], max_iterations: int=100, threshold: float=1e-2) -> np.ndarray:
+        def solve_inverse_kinematics(self, robot_id: str, end_effector_link_id: str, target_position: np.ndarray, target_orientation: Union[np.ndarray, None], max_iterations: int=100, threshold: float=1e-2) -> np.ndarray:
             """
             Solves the inverse kinematics problem for the given robot. Returns a vector of joint values.
             If target_orientation is None perform inverse kinematics for position only.

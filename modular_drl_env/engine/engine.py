@@ -51,7 +51,7 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def perform_collision_check(self, robots: List["Robot"], obstacles: List[int]) -> bool:
+    def perform_collision_check(self, robots: List["Robot"], obstacles: List[str]) -> bool:
         """
         Performs a collision check 
         1. between all robots and all obstacles in the world and
