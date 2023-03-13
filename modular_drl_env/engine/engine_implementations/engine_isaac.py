@@ -278,6 +278,9 @@ try:
             """
             Returns a tuple with position and orientation, both in world frame, of the link in question.
             """
+            children = self._articulations[robot_id].prim.GetAllChildren()
+            print(children, len(children))
+
             raise "Not implemented!"
             
 
