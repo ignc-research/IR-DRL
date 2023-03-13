@@ -63,18 +63,14 @@ try:
             self._config.import_inertia_tensor = True
             self._config.fix_base = False
 
-            # Tracks which id (int) corresponds to which prim (str)
-            self._id_dict: dict[int, str] = {}
-            # Tracks which prim (str) corresponds to which id (int)
-            self._prim_dict: dict[str, int] = {}
-            # Tracks which id (int) corresponds with which spawned object (Articulation)
-            self._articulations: dict[int, Articulation] = {}
+            # Tracks which id corresponds with which spawned modifyable object
+            self._articulations: dict[str, Articulation] = {}
             # Tracks spawned cubes
-            self._cubes: dict[int, DynamicCuboid] = {}
+            self._cubes: dict[str, DynamicCuboid] = {}
             # Tracks spawned spheres
-            self._spheres: dict[int, DynamicSphere] = {}
+            self._spheres: dict[str, DynamicSphere] = {}
             # Track spawned cylinders
-            self._cylinders: dict[int, DynamicCylinder] = {}
+            self._cylinders: dict[str, DynamicCylinder] = {}
             
 
         ###################
@@ -115,13 +111,14 @@ try:
             """
 
             # define prim path
-            prim_path = "/World/defaultGroundPlane"
+            name = "defaultGroundPlane"
+            prim_path = "/World/" + name
 
             # add object to world
-            self.world.scene.add_default_ground_plane(prim_path=prim_path, z_position=position[2])
+            self.world.scene.add_default_ground_plane(prim_path=prim_path, z_position=position[2], name=name)
 
-            # start tracking it # todo: add articulationView aswell?
-            return self.track_object(prim_path)
+            # return name as id
+            return name
         
 
         def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> str:
@@ -156,7 +153,7 @@ try:
             """
 
             # generate unique prim path
-            name = "cube" + str(self.get_next_id())
+            name = "cube" + str(len(self._cubes))
             prim_path = "/World/" + name
 
             # create cube # todo: what is halfExtens?
@@ -167,17 +164,15 @@ try:
             self.scene.add(obj)
 
             # track object
-            id = self.track_object(prim_path)
-            self._cubes[id] = obj
-
-            return id
+            self._cubes[name] = obj
+            return name
 
         def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> str:
             """
             Spawns a sphere.
             Must return a unique str identifying the newly spawned object within the engine.
             """
-            name = "sphere" + str(self.get_next_id())
+            name = "sphere" + str(len(self._spheres))
             prim_path = "/World/" + name
 
             # create sphere
@@ -188,17 +183,15 @@ try:
             self.scene.add(obj)
 
             # track object
-            id = self.track_object(prim_path)
-            self._spheres[id] = obj
-
-            return id
+            self._spheres[name] = obj
+            return name
         
         def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> str:
             """
             Spawns a cylinder.
             Must return a unique str identifying the newly spawned object within the engine.
             """
-            name = "cylinder" + str(self.get_next_id())
+            name = "cylinder" + str(len(self._cylinders))
             prim_path = "/World/" + name
 
             # create cylinder
@@ -209,10 +202,8 @@ try:
             self.scene.add(obj)
 
             # track object
-            id = self.track_object(prim_path)
-            self._cylinders[id] = obj
-
-            return id
+            self._cylinders[name] = obj
+            return name
 
         def move_base(self, object_id: str, position: np.ndarray, orientation: np.ndarray):
             """
@@ -251,6 +242,16 @@ try:
             Sets the angles of the desired joints for the desired robot to the target values using the robot's actuators. Forces contains the maximum forces that can be used for this.
             """
             raise "Not implemented!"
+
+        def set_joints_values(self, robot_id: str, joints_ids: List[int], joints_values: npt.NDArray[np.float32]):
+            """
+            Same as set_joint_value, but for multiple joints at once.
+            """
+            # retrieve robot
+            robot = self._articulations[robot_id]
+
+            # set joint positions
+            robot.set_joint_positions(joints_values, joints_ids)
 
         def set_joint_value(self, robot_id: str, joint_id: int, joint_value: float):
             """
@@ -291,7 +292,7 @@ try:
             """
             raise "Not implemented!"
 
-        def get_joints_ids_actuators(self, robot_id) -> List[int]:
+        def get_joints_ids_actuators(self, robot_id: str) -> List[int]:
             """
             This should return a List uniquely identifying (per robot) ints for every joint that is an actuator, e.g. revolute joints but not fixed joints.
             """
@@ -307,7 +308,7 @@ try:
         def get_absolute_asset_path(self, path:str) -> str:
             return Path(self.assets_path).joinpath(path)
 
-        def add_urdf_to_scene(self, prim_path: str) -> Tuple[Articulation, int]:
+        def add_urdf_to_scene(self, prim_path: str) -> Tuple[Articulation, str]:
             """
             A object created as prim is added to the local scene.
             Its given an id and its wrappers, allowing data access, are saved for increased performance
@@ -321,32 +322,10 @@ try:
             # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
             self.world.reset()
 
-            # give spawned object an id
-            id = self.track_object(prim_path)
-
             # track all instances of existing Artriculations
+            id = obj.name
             self._articulations[id] = obj
             return obj, id
-
-        def track_object(self, prim: str) -> int:
-            """
-            Maps the generated prim path to newly generated unique id (int)
-            """
-            # new id = current size of object tracking dictrionary
-            id = len(self._id_dict)
-
-            # save references
-            self._id_dict[id] = prim
-            self._prim_dict[prim] = id
-
-            # retun new id
-            return id
-
-        def get_next_id(self) -> int:
-            """
-            Returns the id which will be used for the next object that will be tracked
-            """
-            return len(self._id_dict)
 
         def to_isaac_color(self, color: List[float]) -> np.ndarray:
             """
