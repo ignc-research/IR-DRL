@@ -70,3 +70,19 @@ def rpy_to_quaternion(rpy):
     w = cr * cp * cy + sr * sp * sy
 
     return np.array([x, y, z, w])
+
+def quaternion_to_matrix(quat):
+    x, y, z, w = quat
+
+    matrix = np.zeros((3,3))
+    matrix[0, 0] = 1 - 2 * y**2 - 2 * z**2
+    matrix[0, 1] = 2 * x * y - 2 * z * w
+    matrix[0, 2] = 2 * x * z + 2 * y * w
+    matrix[1, 0] = 2 * x * y + 2 * z * w
+    matrix[1, 1] = 1 - 2 * x**2 - 2 * z**2
+    matrix[1, 2] = 2 * y * z - 2 * x * w
+    matrix[2, 0] = 2 * x * z - 2 * y * w
+    matrix[2, 1] = 2 * y * z + 2 * x * w
+    matrix[2, 2] = 1 - 2 * x**2 - 2 * y**2
+
+    return matrix

@@ -75,10 +75,11 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> str:
+    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1, is_robot: bool=False) -> str:
         """
         Loads in a URDF file into the world at position and orientation.
         Must return a unique str identifying the newly spawned object within the engine.
+        The is_robot flag determines whether the engine handles this object as a robot (something with movable links/joints) or a simple geometry object (a singular mesh).
         """
         pass
 
@@ -118,7 +119,7 @@ class Engine(ABC):
     ######################################################
 
     @abstractmethod
-    def add_aux_line(self, lineFromXYZ: List[float], lineToXYZ: List[float]) -> str:
+    def add_aux_line(self, lineFromXYZ: List[float], lineToXYZ: List[float], color: List[float]=None) -> str:
         """
         Adds a simple line
         Must return a unique str identifying the newly spawned object within the engine.
@@ -192,13 +193,21 @@ class Engine(ABC):
         """
         Solves the inverse kinematics problem for the given robot. Returns a vector of joint values.
         If target_orientation is None perform inverse kinematics for position only.
+        max_iterations and threshold govern the maximum number of IK iterations and the target precision threshold respectively.
         """
         pass
 
     @abstractmethod
-    def get_joints_ids_actuators(self, robot_id: str) -> List[int]:
+    def get_joints_ids_actuators(self, robot_id: str) -> List[str]:
         """
-        This should return a List uniquely identifying (per robot) ints for every joint that is an actuator, e.g. revolute joints but not fixed joints.
+        This should return a List of uniquely identifying (per robot) strs for every joint that is an actuator, e.g. revolute joints but not fixed joints.
+        """
+        pass
+
+    @abstractmethod
+    def get_links_ids(self, robot_id: str) -> List[str]:
+        """
+        This should return a List of uniquely identifying (per robot) strs for every link that makes up the robot.
         """
         pass
 

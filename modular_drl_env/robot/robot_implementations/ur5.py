@@ -22,8 +22,8 @@ class UR5(Robot):
         self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300.])
         self.joints_max_velocities = np.array([10., 10., 10., 10., 10., 10.])
 
-        self.end_effector_link_id = 7
-        self.base_link_id = 1
+        self.end_effector_link_id = "ee_link"
+        self.base_link_id = "base_link"
 
         self.urdf_path = "robots/predefined/ur5/urdf/ur5.urdf"
 
@@ -32,7 +32,7 @@ class UR5(Robot):
 
     def build(self):
 
-        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation)
+        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation, is_robot=True)
         self.joints_ids = self.engine.get_joints_ids_actuators(self.object_id)
 
         self.moveto_joints(self.resting_pose_angles, False)     

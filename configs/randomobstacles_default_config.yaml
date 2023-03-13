@@ -38,10 +38,6 @@ run:
     show_world_aux: True
     show_goal_aux: True
     show_sensor_aux: False
-    pybullet_recorder:
-      use: False
-      save_path: "demo"
-      scale: 1
 
 env:
   max_steps_per_episode: 1024  
@@ -49,7 +45,7 @@ env:
   normalize_observations: False
   normalize_rewards: False
   engine:
-    type: "Isaac"
+    type: "Pybullet"
     use_physics_sim: True
     gravity: [0, 0, -9.8]
     sim_step: 0.00416666666 

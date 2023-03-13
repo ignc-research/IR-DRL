@@ -23,8 +23,8 @@ class Kukaiiwa(Robot):
         self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300., 300.])
         self.joints_max_velocities = np.deg2rad(np.array([98., 98., 100., 130., 140., 180., 180.]))
 
-        self.end_effector_link_id = 6
-        self.base_link_id = 0
+        self.end_effector_link_id = "lbr_iiwa_link_7"
+        self.base_link_id = "lbr_iiwa_link_0"
 
         self.urdf_path = "robots/predefined/kuka_iiwa/model.urdf"
 
@@ -32,7 +32,7 @@ class Kukaiiwa(Robot):
         return (7, 6)  # 7 joints
 
     def build(self):
-        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation)
+        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation, is_robot=True)
         self.joints_ids = self.engine.get_joints_ids_actuators(self.object_id)
 
         self.moveto_joints(self.resting_pose_angles, False)
