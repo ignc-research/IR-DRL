@@ -22,7 +22,7 @@ try:
     from omni.kit.commands import execute
     from omni.isaac.core import World
     from omni.isaac.core.articulations import Articulation
-    from omni.isaac.core.objects import DynamicCuboid, DynamicSphere
+    from omni.isaac.core.objects import DynamicCuboid, DynamicSphere, DynamicCylinder
     from omni.usd._usd import UsdContext
     from pxr.Usd import Prim
 
@@ -73,6 +73,8 @@ try:
             self._cubes: dict[int, DynamicCuboid] = {}
             # Tracks spawned spheres
             self._spheres: dict[int, DynamicSphere] = {}
+            # Track spawned cylinders
+            self._cylinders: dict[int, DynamicCylinder] = {}
             
 
         ###################
@@ -157,7 +159,7 @@ try:
             prim_path = "/World/cube" + str(self.get_next_id())
 
             # create cube # todo: what is halfExtens?
-            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, color=self.to_isaac_colour(color))
+            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, color=self.to_isaac_color(color))
             obj.set_collision_enabled(collision)
 
             # add cube to scene
@@ -177,7 +179,7 @@ try:
             prim_path = "/World/sphere" + str(self.get_next_id())
 
             # create sphere
-            obj = DynamicSphere(prim_path, position=position, mass=mass, color=self.to_isaac_colour(color), radius=radius)
+            obj = DynamicSphere(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius)
             obj.set_collision_enabled(collision)
 
             # add sphere to scene
@@ -194,7 +196,20 @@ try:
             Spawns a cylinder.
             Must return a unique int identifying the newly spawned object within the engine.
             """
-            raise "Not implemented!"
+            prim_path = "World/cylinder" + str(self.get_next_id())
+
+            # create cylinder
+            obj = DynamicCylinder(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, orientation=orientation, height=height)
+            obj.set_collision_enabled(collision)
+
+            # add cylinder to scene
+            self.scene.add(obj)
+
+            # track object
+            id = self.track_object(prim_path)
+            self._cylinders[id] = obj
+
+            return id
 
         def move_base(self, object_id: int, position: np.ndarray, orientation: np.ndarray):
             """
@@ -327,7 +342,7 @@ try:
             """
             return len(self._id_dict)
 
-        def to_isaac_colour(self, color: List[float]) -> np.ndarray:
+        def to_isaac_color(self, color: List[float]) -> np.ndarray:
             """
             Transform colour format into format Isaac accepts, ignoring opacity
             """
