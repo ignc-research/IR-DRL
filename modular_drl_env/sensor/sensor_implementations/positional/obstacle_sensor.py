@@ -10,6 +10,10 @@ __all__ = [
 ]
 
 class ObstacleSensor(Sensor):
+    """
+    This sensor reports the relative position of obstacles in the vicinity.
+    To make the measurements consistent, it will spawn a small invisible and non-colliding sphere at a probe location, which it will then use to measure the distances.
+    """
 
     def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, num_obstacles: int, max_distance: float, reference_link_id: int):
         
@@ -32,6 +36,11 @@ class ObstacleSensor(Sensor):
         self.output_name = "nearest_" + str(self.num_obstacles) + "_obstacles_link_" + str(self.reference_link_id) + "_" + self.robot.name
         self.output_name_time = "obstacle_sensor_link_" + str(self.reference_link_id) + "_cpu_time_" + self.robot.name
 
+        # probe object
+        self.probe = None
+        self.link_position = None
+        self.default_position = np.array([0, 0, -10])
+
         # init data storage
         self.output_vector = None
         self.data_raw = None
@@ -43,20 +52,31 @@ class ObstacleSensor(Sensor):
     def update(self, step) -> dict:
         self.cpu_epoch = process_time()
         if step % self.update_steps == 0:
+            # move probe to current link position
+            self.link_position, _ = self.engine.get_link_state(self.robot.object_id, self.reference_link_id)
+            self.engine.move_base(self.probe, self.link_position, np.array([0, 0, 0, 1]))
+
             self.output_vector = self.default_observation
             self.data_raw = self._run_obstacle_detection()
             new_data = self._process(self.data_raw)
             self.output_vector[:len(new_data)] = new_data
+            self.engine.move_base(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
 
         return self.get_observation()
 
     def reset(self):
         self.cpu_epoch = process_time()
+
+        # create probe at link location
+        self.link_position, _ = self.engine.get_link_state(self.robot.object_id, self.reference_link_id)
+        self.probe = self.engine.create_sphere(self.link_position, 0.001, 0, [0.5, 0.5, 0.5, 0.0001], True)
+
         self.output_vector = self.default_observation
         self.data_raw = self._run_obstacle_detection()
         new_data = self._process(self.data_raw)
         self.output_vector[:len(new_data)] = new_data
+        self.engine.move_base(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
 
     def get_observation(self) -> dict:
@@ -83,12 +103,16 @@ class ObstacleSensor(Sensor):
         # get nearest robots
         for robot in self.robot.world.robots_in_world:
             if robot.object_id != self.robot.object_id:
-                closestPoints = pyb.getClosestPoints(self.robot.object_id, robot.object_id, self.max_distance, self.reference_link_id)
+                closestPoints = pyb.getClosestPoints(self.probe, robot.object_id, self.max_distance)
+                if not closestPoints:
+                    continue
                 min_val = min(closestPoints, key=lambda x: x[8])  # index 8 is the distance in the object returned by pybullet
                 res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8]]))  # start, end, distance
         # get nearest obstacles
         for obstacle_id in self.robot.world.objects_ids:
-            closestPoints = pyb.getClosestPoints(self.robot.object_id, obstacle_id, self.max_distance, self.reference_link_id)
+            closestPoints = pyb.getClosestPoints(self.probe, obstacle_id, self.max_distance)
+            if not closestPoints:
+                continue
             min_val = min(closestPoints, key=lambda x: x[8])
             res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8]]))
         # sort

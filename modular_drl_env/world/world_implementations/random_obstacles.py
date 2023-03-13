@@ -121,7 +121,25 @@ class RandomObstacleWorld(World):
 
         # generate starting points and targets
         robots_with_starting_points = [robot for robot in self.robots_in_world if robot.goal is not None]
-        self._create_ee_starting_points(robots_with_starting_points)
+        #self._create_ee_starting_points(robots_with_starting_points)
+        val = False
+        while not val:
+            for robot in self.robots_in_world:
+                rando = np.random.rand(3)
+                x = (self.x_min + self.x_max) / 2 + 0.5 * (rando[0] - 0.5) * (self.x_max - self.x_min)
+                y = (self.y_min + self.y_max) / 2 + 0.5 * (rando[1] - 0.5) * (self.y_max - self.y_min)
+                z = (self.z_min + self.z_max) / 2 + 0.5 * (rando[2] - 0.5) * (self.z_max - self.z_min)
+                standard_rot = np.array([np.pi, 0, np.pi])
+                random_rot = np.random.uniform(low=-np.pi, high=np.pi, size=(3,))
+                standard_rot += random_rot * 0.1  
+                robot.moveto_xyzrpy(np.array([x,y,z]), standard_rot, False)
+                robot.joints_sensor.reset()
+                self.ee_starting_points.append((np.array([x,y,z]), standard_rot, robot.joints_sensor.joints_angles))
+            self.perform_collision_check()
+            if not self.collision:
+                val = True
+                continue
+            self.ee_starting_points = []
         min_dist = min((self.x_max - self.x_min) / 2, (self.y_max - self.y_min) / 2, (self.z_max - self.z_min) / 2)
         self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=min_dist)
 
