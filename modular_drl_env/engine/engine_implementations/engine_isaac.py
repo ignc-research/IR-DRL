@@ -121,29 +121,37 @@ try:
             return name
         
 
-        def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1) -> str:
+        def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1, is_robot: bool=False) -> str:
             """
             Loads in a URDF file into the world at position and orientation.
             Must return a unique str identifying the newly spawned object within the engine.
+            The is_robot flag determines whether the engine handles this object as a robot (something with movable links/joints) or a simple geometry object (a singular mesh).
             """
             # get absolute path to urdf
-            urdf_path = self.get_absolute_asset_path(urdf_path)
+            abs_path = self.get_absolute_asset_path(urdf_path)
 
             # import URDF
             from omni.kit.commands import execute
-            success, prim_path = execute("URDFParseAndImportFile", urdf_path=urdf_path, import_config=self._config, )
+            success, prim_path = execute("URDFParseAndImportFile", urdf_path=abs_path, import_config=self._config)
             
             # make sure import succeeded
-            assert success, "Failed urdf import of: " + urdf_path
+            assert success, "Failed urdf import of: " + abs_path
 
-            # create articulation view and give object an id
-            obj, id = self.add_urdf_to_scene(prim_path)
+            # create wrapper allowing to modify object
+            obj = Articulation(prim_path)
+            self.scene.add(obj)
+
+            # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
+            self.world.reset()
             
             # set position, orientation, scale of loaded obj
             obj.set_world_pose(position, orientation)
             obj.set_local_scale([scale, scale, scale])
 
-            return id
+            # track object (prim path will always be unique if created by import command)
+            self._articulations[prim_path] = obj
+
+            return prim_path
             
 
         def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> str:
@@ -279,10 +287,30 @@ try:
             """
             Returns a tuple with position and orientation, both in world frame, of the link in question.
             """
-            children = self._articulations[robot_id].prim.GetAllChildren()
-            print(children, len(children))
 
-            raise "Not implemented!"
+            # check if object has been retrieved previously
+            obj = self._articulations.get((robot_id, link_id))
+
+            # component was accessed before, retrieve its pose
+            if obj is not None:
+                return obj.get_world_pose()
+
+            # get all children
+            children: List[Prim] = self._articulations[robot_id].prim.GetAllChildren()
+
+            # find the child with matching name
+            for child in children:
+                if(child.GetName() != link_id):
+                    continue
+                
+                path = child.GetPrimPath()
+
+                obj = Articulation(path)
+                self._articulations[(robot_id, link_id)] = obj 
+
+                return obj.get_world_pose()
+
+            raise f"Component of robot {robot_id} with id {link_id} wasn't found!"
             
 
         def solve_inverse_kinematics(self, robot_id: str, end_effector_link_id: str, target_position: np.ndarray, target_orientation: Union[np.ndarray, None], max_iterations: int=100, threshold: float=1e-2) -> np.ndarray:
@@ -300,6 +328,12 @@ try:
             robot = self._articulations[robot_id]
 
             return [i for i in range(robot.num_dof)]
+
+        def get_links_ids(self, robot_id: str) -> List[str]:
+            """
+            This should return a List of uniquely identifying (per robot) strs for every link that makes up the robot.
+            """
+            return [child.GetName() for child in self._articulations[robot_id].prim.GetAllChildren()]
         
         #################
         # ISAAC methods #
@@ -307,25 +341,6 @@ try:
 
         def get_absolute_asset_path(self, path:str) -> str:
             return Path(self.assets_path).joinpath(path)
-
-        def add_urdf_to_scene(self, prim_path: str) -> Tuple[Articulation, str]:
-            """
-            A object created as prim is added to the local scene.
-            Its given an id and its wrappers, allowing data access, are saved for increased performance
-            """
-            # create Articulation wrapper, allowing access of joints/values
-            obj = Articulation(prim_path)
-
-            # add it to the scene
-            self.scene.add(obj)
-
-            # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
-            self.world.reset()
-
-            # track all instances of existing Artriculations
-            id = obj.name
-            self._articulations[id] = obj
-            return obj, id
 
         def to_isaac_color(self, color: List[float]) -> np.ndarray:
             """
