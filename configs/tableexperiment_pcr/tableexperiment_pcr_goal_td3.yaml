@@ -46,7 +46,7 @@ env:
           type: "StaticPointCloudCamera"
           config:
             n_points_encoded_obstacle_pcr: 50
-            use_gpu: True
+            use_gpu: False
             add_to_logging: True
             position: [0, 0, 2.2]
             target: [0, 0, 0]

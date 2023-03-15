@@ -34,7 +34,9 @@ class PositionCollisionTrajectoryPCR(Goal):
         # get trajectories
         import json
         with open(goal_config["trajectories"], "r") as f:
-            self.trajectories = json.load(f)["trajectories"]
+            self.trajectory_data = json.load(f)
+        self.trajectories = self.trajectory_data["trajectories"]
+        self.trajectory_targets = np.asarray(self.trajectory_data["targets"])
 
         # placeholders so that we have access in other methods without doing double work
         self.cpu_epoch = None
@@ -88,8 +90,13 @@ class PositionCollisionTrajectoryPCR(Goal):
         self.collided = False
         self.done = False
         self.ep_reward = 0
-        # get a new random trajectory
-        self.trajectory = self.trajectories[np.random.randint(0, len(self.trajectories))]
+        # get trajectory for target
+        self.target = self.robot.world.position_targets[self.robot.id]
+        traj_indx = np.argwhere(np.all(self.target == self.trajectory_targets, axis=1))
+        traj_indx = traj_indx[np.random.randint(0, len(traj_indx))]
+        self.trajectory = self.trajectories[traj_indx.item()]
+        self.trajectory = np.asarray(self.trajectory, dtype=np.float32)
+        self.waypoint = self.trajectory[-1]
         # set observations
         self._set_observation(0)
 
@@ -116,8 +123,7 @@ class PositionCollisionTrajectoryPCR(Goal):
                     "qt_qr_delta": qt_qr_delta}
 
     def _set_observation(self, step):
-        self.qt = np.asarray(self.trajectory[np.clip(step, 0, len(self.trajectory) - 1)])
-        self.waypoint = self.trajectory[-1]
+        self.qt = self.trajectory[np.clip(step, 1, len(self.trajectory) - 1)]
         self.f = True if np.all(self.qt == self.waypoint) else False
         self.robot.set_trajectory_point(self.qt)
         self.qt_qr_delta = self.qt - self.robot.joints_sensor.joints_angles
@@ -127,7 +133,7 @@ class PositionCollisionTrajectoryPCR(Goal):
         t = time.time()
 
         # set observations
-        self._set_observation(step)
+        self._set_observation(step + 1)
 
         if not self.collided:
             self.collided = self.robot.world.collision
@@ -152,19 +158,21 @@ class PositionCollisionTrajectoryPCR(Goal):
 
         # reward for reaching a waypoint
         self.is_success = False
-        threshhold_d = 0.7
-        if np.all(np.absolute(self.robot.joints_sensor.joints_angles[0:5] - self.qt[0:5]) < threshhold_d):
-            r_waypoint = 1
-            self.is_success = True
-            self.done = True
-        else:
-            r_waypoint = 0
-
+        threshhold_d = 0.2
+        # can only succeed if not collided
         if self.collided:
             self.done = True
             r_collision = 1
+            r_waypoint = 0
         else:
             r_collision = 0
+            # if success
+            if np.all(np.absolute(self.robot.joints_sensor.joints_angles[0:5] - self.qt[0:5]) < threshhold_d):
+                r_waypoint = 1
+                self.is_success = True
+                self.done = True
+            else:
+                r_waypoint = 0
 
         w_dist = -0.002
         w_delta = 0.001
@@ -259,7 +267,7 @@ class PositionCollisionTrajectoryPCR(Goal):
         # closest projection in spherical coordinates with respect to shoulder, elbow and ee
         delta = robot_sklt - self.closest_projection
 
-        self.closest_projection_spherical = np.empty((3, 3))
+        self.closest_projection_spherical = np.empty((3, 3), dtype=np.float32)
         # r
         self.closest_projection_spherical[:, 0] = np.sqrt(np.sum(np.square(delta), axis=1))
         # teta

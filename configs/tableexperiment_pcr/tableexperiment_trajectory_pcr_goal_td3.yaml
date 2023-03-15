@@ -1,8 +1,8 @@
 # implements improved version of "Robot obstacle avoidance system using deep
 # reinforcement learning" for table experiment
 run:
-  load_model: True
-  model_path: "models/weights/PCR_Goal_TD3_4080000_steps_best.zip"
+  load_model: False
+  model_path: ""
   reset_num_timesteps: True
   train:
     algorithm: "TD3"
@@ -12,7 +12,7 @@ run:
     ppo_steps: 1024
     batch_size: 256
     save_folder: "./models/weights"
-    save_name: "Paper_1_3"
+    save_name: "Trajectory_goal"
     gamma: 0.99
     tau: 0.001
     learning_rate: 0.001
@@ -72,7 +72,7 @@ env:
       goal:
         type: "PositionCollisionTrajectoryPCR"
         config:
-          trajectories: "trajectories_new.json"
+          trajectories: "trajectories_with_goal.json"
           boundaries: [-2, 2, -2, 2, 1.09, 3]
           debug: {"closest_obstacle_cuboid": False}
           normalize_rewards: True
