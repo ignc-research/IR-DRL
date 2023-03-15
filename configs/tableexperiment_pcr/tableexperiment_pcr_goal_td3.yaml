@@ -9,7 +9,7 @@ run:
     algorithm: "TD3"
     num_envs : 20
     timesteps: 10000000
-    save_freq : 25000
+    save_freq : 15000
     ppo_steps: 1024
     batch_size: 256
     save_folder: "./models/weights"
