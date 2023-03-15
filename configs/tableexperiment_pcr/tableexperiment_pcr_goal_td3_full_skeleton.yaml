@@ -7,13 +7,13 @@ run:
   train:
     action_dims: 6
     algorithm: "TD3"
-    num_envs : 12
-    timesteps: 15000000
+    num_envs : 20
+    timesteps: 10000000
     save_freq : 25000
     ppo_steps: 1024
     batch_size: 256
     save_folder: "./models/weights"
-    save_name: "PCR_Goal_TD3_full_sklt"
+    save_name: "Model_2"
     gamma: 0.99
     tau: 0.001
     learning_rate: 0.001

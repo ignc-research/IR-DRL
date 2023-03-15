@@ -7,13 +7,13 @@ run:
   train:
     action_dims: 6
     algorithm: "TD3"
-    num_envs : 12
-    timesteps: 15000000
+    num_envs : 20
+    timesteps: 10000000
     save_freq : 25000
     ppo_steps: 1024
     batch_size: 256
     save_folder: "./models/weights"
-    save_name: "Paper_1_3"
+    save_name: "Model_1"
     gamma: 0.99
     tau: 0.001
     learning_rate: 0.001
@@ -47,7 +47,7 @@ env:
           type: "StaticPointCloudCamera"
           config:
             n_points_encoded_obstacle_pcr: 50
-            use_gpu: False
+            use_gpu: True
             add_to_logging: True
             position: [0, 0, 2.2]
             target: [0, 0, 0]
