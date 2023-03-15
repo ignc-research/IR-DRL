@@ -107,6 +107,8 @@ class GeneratedWorld(World):
         elif self.start_override is None:
             for robot in self.robots_in_world:
                 robot.moveto_joints(robot.resting_pose_angles, False)
+                robot.position_rotation_sensor.reset()
+                self.ee_starting_points.append((robot.position_rotation_sensor.position, robot.position_rotation_sensor.rotation, robot.resting_pose_angles))
         else:
             self._create_ee_starting_points(robots_with_starting_points)
         self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=0.01)
