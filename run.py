@@ -78,7 +78,8 @@ if __name__ == "__main__":
                             n_steps=run_config["ppo_steps"],
                             batch_size=run_config["batch_size"])
             if run_config["algorithm"] == "TD3":
-                action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(6), sigma=np.ones(6))
+                action_dims = run_config["action_dims"]
+                action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(action_dims), sigma=np.ones(action_dims))
 
                 model = TD3("MultiInputPolicy", envs,
                             policy_kwargs=run_config["custom_policy"],

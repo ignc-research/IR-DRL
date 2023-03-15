@@ -185,6 +185,7 @@ class PositionCollisionTrajectoryPCR(Goal):
         if step > self.max_steps:
             self.done = True
 
+        self.reward_value = reward
         self.ep_reward += reward
         self.cpu_epoch = time.time() - t
 

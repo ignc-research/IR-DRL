@@ -5,6 +5,7 @@ run:
   model_path: ""
   reset_num_timesteps: True
   train:
+    action_dims: 6
     algorithm: "TD3"
     num_envs : 12
     timesteps: 15000000
