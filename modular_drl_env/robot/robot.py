@@ -23,7 +23,8 @@ class Robot(ABC):
                        resting_angles: Union[list, np.ndarray], 
                        control_mode: int, 
                        xyz_delta: float,
-                       rpy_delta: float):
+                       rpy_delta: float,
+                       joint_vel_mul: float=1):
         super().__init__()
 
         # set engine
@@ -86,6 +87,9 @@ class Robot(ABC):
         # maximum deltas on movements, will be used in Inverse Kinematics control
         self.xyz_delta = xyz_delta
         self.rpy_delta = rpy_delta
+
+        # multiplier for joint velocities, can be used to make the robot move slower/faster in control mode 2
+        self.joint_vel_mul = joint_vel_mul
 
     @abstractmethod
     def get_action_space_dims(self):
@@ -180,7 +184,7 @@ class Robot(ABC):
             # if we don't, we run simple algebra to get the new joint angles for this step and then apply them
 
             # transform action (-1 to 1) to joint velocities
-            new_joint_vels = action * self.joints_max_velocities
+            new_joint_vels = action * self.joints_max_velocities * self.joint_vel_mul
             if not self.use_physics_sim:
                 # compute the delta for this sim step
                 joint_delta = new_joint_vels * self.sim_step
