@@ -22,8 +22,8 @@ class Robot(ABC):
                        base_orientation: Union[list, np.ndarray], 
                        resting_angles: Union[list, np.ndarray], 
                        control_mode: int, 
-                       xyz_delta: float,
-                       rpy_delta: float,
+                       xyz_delta: float=0.005,
+                       rpy_delta: float=0.005,
                        joint_vel_mul: float=1):
         super().__init__()
 
