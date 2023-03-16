@@ -171,6 +171,8 @@ try:
             # add cube to scene
             self.scene.add(obj)
 
+            obj.set_local_scale(halfExtents)
+
             # track object
             self._cubes[name] = obj
             return name
