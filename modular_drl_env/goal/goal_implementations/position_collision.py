@@ -196,7 +196,7 @@ class PositionCollisionGoal(Goal):
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
         self.target = self.robot.world.position_targets[self.robot.id]
-        self.engine.create_sphere(position=self.target, radius=self.distance_threshold, mass=0, color=[0, 1, 0, 0.65], collision=False)
+        self.engine.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
@@ -448,7 +448,7 @@ class PositionRotationCollisionGoal(Goal):
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
         self.target = self.robot.world.position_targets[self.robot.id]
-        self.engine.create_sphere(position=self.target, radius=self.distance_threshold, mass=0, color=[0, 1, 0, 0.65], collision=False)
+        self.engine.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()

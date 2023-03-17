@@ -74,11 +74,15 @@ class PybulletEngine(Engine):
         self._geometry["defaultGroundPlane"] = pyb.loadURDF("workspace/plane.urdf", position.tolist())
         return "defaultGroundPlane"
     
-    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1, is_robot: bool=False) -> str:
+    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: List[float]=[1, 1, 1], is_robot: bool=False) -> str:
         """
         Loads in a URDF file into the world at position and orientation.
         Must return a unique str identifying the newly spawned object within the engine.
         """
+        x, y, z = scale
+        if not x==y==z:
+            print("[load_urdf] Ignoring uneven scaling dimensions for URDF and using only x instead!")
+        scale = x
         pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=True, globalScaling=scale)
         if is_robot:
             name = "robot_" + str(len(self._robots))
@@ -94,40 +98,47 @@ class PybulletEngine(Engine):
             self._geometry[name] = pyb_id
         return name
     
-    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: list, color: List[float], collision: bool=True) -> str:
+    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
         """
         Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
         Must return a unique str identifying the newly spawned object within the engine.
         """
         name = "geom_" + str(len(self._geometry))
         self._geometry[name] = pyb.createMultiBody(baseMass=mass,
-                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents, rgbaColor=color),
-                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents) if collision else -1,
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_BOX, halfExtents=[x/2 for x in scale], rgbaColor=color),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, halfExtents=[x/2 for x in scale]) if collision else -1,
                                     basePosition=position.tolist(),
                                     baseOrientation=orientation.tolist())
         return name
 
-    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> str:
+    def create_sphere(self, position: np.ndarray, mass: float, radius: float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
         """
         Spawns a sphere.
         Must return a unique str identifying the newly spawned object within the engine.
         """
+        x, y, z = scale
+        if not x==y==z:
+            print("[create_sphere] Ignoring uneven scale for sphere and only using x value!")
+        scale = x
         name = "geom_" + str(len(self._geometry))
         self._geometry[name] = pyb.createMultiBody(baseMass=mass,
-                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=radius, rgbaColor=color),
-                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_SPHERE, radius=radius) if collision else -1,
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=radius * scale, rgbaColor=color),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_SPHERE, radius=radius * scale) if collision else -1,
                                     basePosition=position.tolist())
         return name
 
-    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> str:
+    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
         """
         Spawns a cylinder.
         Must return a unique str identifying the newly spawned object within the engine.
         """
+        x, y, z = scale
+        if not x==y:
+            print("[create_cylinder] Ignoring uneven scale for radius of cylinder and only using x value!")
         name = "geom_" + str(len(self._geometry))
         self._geometry[name] = pyb.createMultiBody(baseMass=mass,
-                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height, rgbaColor=color),
-                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height) if collision else -1,
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=radius * x, height=height * z, rgbaColor=color),
+                                    baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_CYLINDER, radius=radius * x, height=height * z) if collision else -1,
                                     basePosition=position.tolist(),
                                     baseOrientation=orientation.tolist())
         return name
