@@ -95,6 +95,8 @@ try:
             1. between all robots and all obstacles in the world and
             2. between each robot
             """
+            print(robots, obstacles)
+
             raise "Not implemented!"
 
         ####################
@@ -121,7 +123,7 @@ try:
             return name
         
 
-        def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1, is_robot: bool=False) -> str:
+        def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: List[float]=[1, 1, 1], is_robot: bool=False) -> str:
             """
             Loads in a URDF file into the world at position and orientation.
             Must return a unique str identifying the newly spawned object within the engine.
@@ -146,7 +148,7 @@ try:
             
             # set position, orientation, scale of loaded obj
             obj.set_world_pose(position, orientation)
-            obj.set_local_scale([scale, scale, scale])
+            obj.set_local_scale(scale)
 
             # track object (prim path will always be unique if created by import command)
             self._articulations[prim_path] = obj
@@ -154,7 +156,7 @@ try:
             return prim_path
             
 
-        def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> str:
+        def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
             """
             Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
             Must return a unique str identifying the newly spawned object within the engine.
@@ -171,13 +173,13 @@ try:
             # add cube to scene
             self.scene.add(obj)
 
-            obj.set_local_scale(halfExtents)
+            obj.set_local_scale(scale)
 
             # track object
             self._cubes[name] = obj
             return name
 
-        def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> str:
+        def create_sphere(self, position: np.ndarray, mass: float, radius: float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
             """
             Spawns a sphere.
             Must return a unique str identifying the newly spawned object within the engine.
@@ -186,7 +188,7 @@ try:
             prim_path = "/World/" + name
 
             # create sphere
-            obj = DynamicSphere(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, name=name)
+            obj = DynamicSphere(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, name=name, scale=scale)
             obj.set_collision_enabled(collision)
 
             # add sphere to scene
@@ -196,7 +198,7 @@ try:
             self._spheres[name] = obj
             return name
         
-        def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> str:
+        def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
             """
             Spawns a cylinder.
             Must return a unique str identifying the newly spawned object within the engine.
@@ -205,7 +207,7 @@ try:
             prim_path = "/World/" + name
 
             # create cylinder
-            obj = DynamicCylinder(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, orientation=orientation, height=height, name=name)
+            obj = DynamicCylinder(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, orientation=orientation, height=height, name=name, scale=scale)
             obj.set_collision_enabled(collision)
 
             # add cylinder to scene
