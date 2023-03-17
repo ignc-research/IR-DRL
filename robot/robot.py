@@ -180,7 +180,16 @@ class Robot(ABC):
             deltas = np.where(action > 0, delta_upper[:5], delta_lower[:5])
             new_joints = self.trajectory_point[:5] + deltas[:5] * np.abs(action)
             new_joints = np.append(new_joints, self.joints_sensor.joints_angles[-1])
-            self.moveto_joints(new_joints, False)
+
+            # compute the maximum step we do in that direction
+            joint_delta = new_joints - self.joints_sensor.joints_angles
+            joint_delta = joint_delta / np.linalg.norm(joint_delta)
+            joint_delta = joint_delta * self.joints_vel_delta * self.sim_step
+
+            # compute the joint angles we can actually go to
+            new_joints = joint_delta + self.joints_sensor.joints_angles
+
+            self.moveto_joints(new_joints, self.use_physics_sim)
 
         # returns execution time, gets used in gym env to log the times here
         return time() - cpu_epoch
