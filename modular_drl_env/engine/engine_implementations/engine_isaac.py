@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 try:
     # isaac imports may only be used after SimulationApp is started (ISAAC uses runtime plugin system)
     from omni.isaac.kit import SimulationApp
-    simulation = SimulationApp({"headless": True})
+    simulation = SimulationApp({"headless": False})
     # terminate simulation once program exits
     atexit.register(simulation.close)
 
@@ -61,7 +61,7 @@ try:
             self._config.merge_fixed_joints = False
             self._config.convex_decomp = False
             self._config.import_inertia_tensor = True
-            self._config.fix_base = False
+            self._config.fix_base = True
 
             # Tracks which id corresponds with which spawned modifyable object
             self._articulations: dict[str, Articulation] = {}
