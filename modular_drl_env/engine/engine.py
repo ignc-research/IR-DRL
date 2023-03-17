@@ -75,7 +75,7 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1, is_robot: bool=False) -> str:
+    def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: List[float]=[1, 1, 1], is_robot: bool=False) -> str:
         """
         Loads in a URDF file into the world at position and orientation.
         Must return a unique str identifying the newly spawned object within the engine.
@@ -84,15 +84,15 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List, color: List[float], collision: bool=True) -> str:
+    def create_box(self, position: np.ndarray, orientation: np.ndarray, mass: float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
         """
-        Spawns a box at position and orientation. Half extents are the length of the three dimensions starting from position.
+        Spawns a 1x1x1m box at position and orientation. Use the scale parameter to change its extents.
         Must return a unique str identifying the newly spawned object within the engine.
         """
         pass
 
     @abstractmethod
-    def create_sphere(self, position: np.ndarray, radius: float, mass: float, color: List[float], collision: bool=True) -> str:
+    def create_sphere(self, position: np.ndarray, mass: float, radius: float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
         """
         Spawns a sphere.
         Must return a unique str identifying the newly spawned object within the engine.
@@ -100,7 +100,7 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float], collision: bool=True) -> str:
+    def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
         """
         Spawns a cylinder.
         Must return a unique str identifying the newly spawned object within the engine.
