@@ -142,7 +142,7 @@ try:
             self.scene.add(obj)
 
             # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
-            self.world.reset()
+            self.world.reset() # todo: Must be called after all Articulations were created
             
             # set position, orientation, scale of loaded obj
             obj.set_world_pose(position, orientation)
