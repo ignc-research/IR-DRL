@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 try:
     # isaac imports may only be used after SimulationApp is started (ISAAC uses runtime plugin system)
     from omni.isaac.kit import SimulationApp
-    simulation = SimulationApp({"headless": False})
+    simulation = SimulationApp({"headless": True})
     # terminate simulation once program exits
     atexit.register(simulation.close)
 
