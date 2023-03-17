@@ -188,8 +188,6 @@ class Robot(ABC):
 
             # compute the joint angles we can actually go to
             new_joints = joint_delta + self.joints_sensor.joints_angles
-            print(self.trajectory_point)
-            print(new_joints)
             self.moveto_joints(new_joints, self.use_physics_sim)
 
         # returns execution time, gets used in gym env to log the times here
