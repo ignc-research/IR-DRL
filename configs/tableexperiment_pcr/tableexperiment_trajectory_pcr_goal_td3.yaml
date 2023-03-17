@@ -7,7 +7,7 @@ run:
   train:
     action_dims: 5
     algorithm: "TD3"
-    num_envs : 12
+    num_envs : 6
     timesteps: 10000000
     save_freq : 15000
     ppo_steps: 1024
