@@ -74,7 +74,7 @@ class PositionCollisionTrajectoryPCR(Goal):
         if self.add_to_observation_space:
             ret = dict()
             ret["closest_projection_spherical"] = Box(low=-1, high=1, shape=(3, 3), dtype=np.float32)
-            ret["qt"] = Box(low=-1, high=1, shape=(6, 1), dtype=np.float32)
+            ret["qt"] = Box(low=-1, high=1, shape=(6,), dtype=np.float32)
             ret["f"] = gym.spaces.MultiBinary(1)
             ret["qt_qr_delta"] = Box(low=-1, high=1, shape=(6,), dtype=np.float32)
             return ret
@@ -118,7 +118,7 @@ class PositionCollisionTrajectoryPCR(Goal):
             qt_qr_delta = self.qt_qr_delta / (2*np.pi)
 
             return {"closest_projection_spherical": closest_projection_spherical,
-                    "qt": qt[:, na],
+                    "qt": qt,
                     "f": self.f,
                     "qt_qr_delta": qt_qr_delta}
 
@@ -158,7 +158,7 @@ class PositionCollisionTrajectoryPCR(Goal):
 
         # reward for reaching a waypoint
         self.is_success = False
-        threshhold_d = 0.07
+        threshhold_d = 0.2
         # can only succeed if not collided
         if self.collided:
             self.done = True
