@@ -1,13 +1,13 @@
 # config that builds the env as Yifan had it
 run:
   load_model: False
-  model_path: "models/weights/PPO_UR5P2/model_14880000_steps.zip"
+  model_path: ""
   train:
     num_envs : 16
     timesteps: 15000000
     save_freq : 30000
     save_folder: "./models/weights"
-    save_name: "PPO_Kr120P1"
+    save_name: "PPO_default"
     recurrent: False
     ppo_steps: 1024
     batch_size: 512
@@ -55,31 +55,16 @@ env:
     sim_step: 0.00416666666
     sim_steps_per_env_step: 1
   robots:
-    - type: "KR120"
+    - type: "UR5"
       config:
-        name: "kr120_1"
+        name: "ur5_1"
         base_position: [ 0, 0, 1.1 ]
         base_orientation: [ 0, 0, 0 ]
-        resting_angles: [0, -135, 90, 0, 90, 0]
-        control_mode: 2
+        resting_angles: [ -180, -45, -90, -135, 90, 0 ]
+        control_mode: 0
         xyz_delta: 0.005
         rpy_delta: 0.005
       sensors:
-        #- type: "LidarSensorUR5"
-        #  config:
-        #    update_steps: 1
-        #    add_to_observation_space: True
-        #    add_to_logging: True
-        #    indicator_buckets: 6
-        #    ray_start: 0
-        #    ray_end: 0.3
-        #    ray_setup:
-        #      ee_forward: [ 1, 1 ]
-        #      wrist3_circle: [ 5, 5 ]
-        #      wrist2_circle: [ 5, 5 ]
-        #      wrist1_circle: [ 5, 5 ]
-        #      upper_arm: [ 5, 5 ]
-        #    indicator: True
         - type: "Obstacle"
           config:
             update_steps: 1
@@ -105,9 +90,9 @@ env:
   world:
     type: "RandomBoxes"
     config:
-      #workspace_boundaries: [-0.8, 0.8, -0.8, 0.8, 1.1, 1.9]
-      workspace_boundaries: [-2, 2, -2, 2, 0.8, 4]
+      workspace_boundaries: [-0.8, 0.8, -0.8, 0.8, 1.1, 1.9]
+      #workspace_boundaries: [-2, 2, -2, 2, 0.8, 4]
       #workspace_boundaries: [-5, 5, -5, 5, 1.1, 5]
       box_measurements: [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
       max_num_boxes : 6
-      obstacle_min_dist: 0.6
+      obstacle_min_dist: 0.2
