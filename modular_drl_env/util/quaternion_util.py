@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 
 # small collection of helper functions for quaternions with format x, y, z, w
@@ -40,17 +42,18 @@ def quaternion_apx_eq(quat1, quat2, thresh=5e-2):
 def quaternion_to_rpy(quat):
     x, y, z, w = quat
 
-    srcp = 2 * (w * x + y * z)
-    crcp = 1 - 2 * (x * x + y * y)
-    r = np.arctan2(srcp, crcp)
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    r = math.atan2(t0, t1)
 
-    sp = np.sqrt(1 + 2 * (w * y - x * z))
-    cp = np.sqrt(1 - 2 * (w * y - x * z))
-    p = 2 * np.arctan2(sp, cp) - np.pi / 2
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    p = math.asin(t2)
 
-    sycp = 2 * (w * z + x * y)
-    cycp = 1 - 2 * (y * y + z * z)
-    y = np.arctan2(sycp, cycp)
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    y = math.atan2(t3, t4)
 
     return np.array([r, p, y])
 
