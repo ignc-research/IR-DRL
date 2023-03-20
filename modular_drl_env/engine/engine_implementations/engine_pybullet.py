@@ -66,6 +66,17 @@ class PybulletEngine(Engine):
                     break  # same as above
         return col
     
+    def toggle_rendering(self, toggle: bool):
+        """
+        Turns on or off rendering. Only has a noticeable effect when running with GUI.
+        This is useful as some engines are very slow when spawning new objects while rendering, this can bring major speedups.
+        If your engine doesn't support this, simply leave this unchanged.
+        """
+        if toggle:
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        else:
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+    
     ####################
     # geometry methods #
     ####################
