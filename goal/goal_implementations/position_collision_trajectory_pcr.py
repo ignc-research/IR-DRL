@@ -189,7 +189,7 @@ class PositionCollisionTrajectoryPCR(Goal):
         else:
             r_collision = 0
             # if success
-            if np.all(np.absolute(self.robot.joints_sensor.joints_angles[0:5] - self.qt[0:5]) < self.distance_threshold):
+            if self.f and np.all(np.absolute(self.robot.joints_sensor.joints_angles[0:5] - self.qt[0:5]) < self.distance_threshold):
                 r_waypoint = 1
                 self.is_success = True
                 self.done = True
