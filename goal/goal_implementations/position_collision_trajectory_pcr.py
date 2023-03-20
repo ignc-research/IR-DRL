@@ -205,6 +205,7 @@ class PositionCollisionTrajectoryPCR(Goal):
 
         reward = w_dist * r_dist + w_delta * r_delta + w_a * r_a + w_a_dot * r_a_dot + w_waypoint * r_waypoint + w_collision * r_collision
         if step > self.max_steps:
+            self.timeout = True
             self.done = True
 
         self.reward_value = reward
