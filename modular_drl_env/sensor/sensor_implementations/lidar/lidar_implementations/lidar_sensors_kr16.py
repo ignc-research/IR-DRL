@@ -3,6 +3,7 @@ import numpy as np
 import pybullet as pyb
 from gym.spaces import Box
 from ..lidar import LidarSensor
+from modular_drl_env.util.quaternion_util import quaternion_to_matrix
 
 __all__ = [
     'LidarSensorKR16'
@@ -61,10 +62,10 @@ class LidarSensorKR16(LidarSensor):
         self.rays_ends = []
 
         
-        linkState_ee = pyb.getLinkState(self.robot.object_id, 6)
+        pos_ee, or_ee = self.engine.get_link_state(self.robot.object_id, "ee_link")
         frame_ee = np.eye(4)
-        frame_ee[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_ee[5]), (3,3))
-        frame_ee[0:3, 3] = linkState_ee[4]
+        frame_ee[:3, :3] = quaternion_to_matrix(or_ee)
+        frame_ee[0:3, 3] = pos_ee
 
         # deal with all activated links
         # end effector forwards ray:
@@ -111,10 +112,10 @@ class LidarSensorKR16(LidarSensor):
         # rays around the upper arm of the end effector
         if "upper_arm" in self.ray_setup: 
             interval = -0.48 / self.ray_setup["upper_arm"][1]  # evenly space rays along entire length, arm length of 0.48 found out by testing and does not account for potential urdf mesh scaling
-            linkState_arm = pyb.getLinkState(self.robot.object_id, 2)
+            pos_ar, or_ar = self.engine.get_link_state(self.robot.object_id, 'link_3')
             frame_arm = np.eye(4)
-            frame_arm[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_arm[5]), (3,3))
-            frame_arm[0:3, 3] = linkState_arm[4]
+            frame_arm[:3, :3] = quaternion_to_matrix(or_ar)
+            frame_arm[0:3, 3] = pos_ar
             extra_offset = 0.095
             for angle in np.linspace(0, 2 * np.pi - 2 * np.pi/self.ray_setup["upper_arm"][0], self.ray_setup["upper_arm"][0]):
                 for i in range(self.ray_setup["upper_arm"][1]):
@@ -152,6 +153,6 @@ class LidarSensorKR16(LidarSensor):
 
         for index, result in enumerate(self.results):
             if result[0] == -1:
-                self.aux_visual_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], missRayColor))
+                self.aux_visual_objects.append(self.engine.add_aux_line(self.rays_starts[index], self.rays_ends[index], missRayColor))
             else:
-                self.aux_visual_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], hitRayColor))
+                self.aux_visual_objects.append(self.engine.add_aux_line(self.rays_starts[index], self.rays_ends[index], hitRayColor))

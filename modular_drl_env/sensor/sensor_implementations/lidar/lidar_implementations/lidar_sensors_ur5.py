@@ -5,6 +5,7 @@ from gym.spaces import Box
 from time import time
 from abc import abstractmethod
 from ..lidar import LidarSensor
+from modular_drl_env.util.quaternion_util import quaternion_to_matrix
 
 
 __all__ = [
@@ -71,20 +72,20 @@ class LidarSensorUR5(LidarSensor):
         # get the local frames, then use a local definition of the rays to translate them into the global coordinate system
         # end effector forwards ray:
         if "ee_forward" in self.ray_setup:
-            linkState_ee = pyb.getLinkState(self.robot.object_id, 7)
+            pos_ee, or_ee = self.engine.get_link_state(self.robot.object_id, 'ee_link')
             frame_ee = np.eye(4)
-            frame_ee[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_ee[5]), (3,3))
-            frame_ee[0:3, 3] = linkState_ee[4]
+            frame_ee[:3, :3] = quaternion_to_matrix(or_ee)
+            frame_ee[0:3, 3] = pos_ee
 
-            self.rays_starts.append(linkState_ee[4])
+            self.rays_starts.append(pos_ee)
             self.rays_ends.append(np.matmul(frame_ee, np.array([0, 0, self.ray_end, 1]).T)[0:3].tolist())
 
         # wrist 3 rays (half circle)
         if "wrist3_circle" in self.ray_setup:
-            linkState_wrist3 = pyb.getLinkState(self.robot.object_id, 6)
+            pos_w3, or_w3 = self.engine.get_link_state(self.robot.object_id, 'wrist_3_link')
             frame_wrist3 = np.eye(4)
-            frame_wrist3[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist3[5]), (3,3))
-            frame_wrist3[0:3, 3] = linkState_wrist3[4]
+            frame_wrist3[:3, :3] = quaternion_to_matrix(or_w3)
+            frame_wrist3[0:3, 3] = pos_w3
 
             for angle in np.linspace(-np.pi/2, np.pi/2, self.ray_setup["wrist3_circle"][0]):
                 for i in range(self.ray_setup["wrist3_circle"][1]):
@@ -94,10 +95,10 @@ class LidarSensorUR5(LidarSensor):
         
         # wrist 2 rays (half circle)
         if "wrist2_circle" in self.ray_setup:
-            linkState_wrist2 = pyb.getLinkState(self.robot.object_id, 5)
+            pos_w2, or_w2 = self.engine.get_link_state(self.robot.object_id, 'wrist_2_link')
             frame_wrist2 = np.eye(4)
-            frame_wrist2[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist2[5]), (3,3))
-            frame_wrist2[0:3, 3] = linkState_wrist2[4]
+            frame_wrist2[:3, :3] = quaternion_to_matrix(or_w2)
+            frame_wrist2[0:3, 3] = pos_w2
 
             for angle in np.linspace(-np.pi/2, np.pi/2, self.ray_setup["wrist3_circle"][0]):
                 for i in range(self.ray_setup["wrist3_circle"][1]):
@@ -110,10 +111,10 @@ class LidarSensorUR5(LidarSensor):
 
         # wrist 1 rays (half circle)
         if "wrist1_circle" in self.ray_setup:
-            linkState_wrist1 = pyb.getLinkState(self.robot.object_id, 4)
+            pos_w1, or_w1 = self.engine.get_link_state(self.robot.object_id, 'wrist_1_link')
             frame_wrist1 = np.eye(4)
-            frame_wrist1[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist1[5]), (3,3))
-            frame_wrist1[0:3, 3] = linkState_wrist1[4]
+            frame_wrist1[:3, :3] = quaternion_to_matrix(or_w1)
+            frame_wrist1[0:3, 3] = pos_w1
 
             for angle in np.linspace(-np.pi/2, np.pi/2, self.ray_setup["wrist3_circle"][0]):
                 for i in range(self.ray_setup["wrist3_circle"][1]):
@@ -123,10 +124,10 @@ class LidarSensorUR5(LidarSensor):
 
         # arm 3 rays (full circle)
         if "upper_arm" in self.ray_setup:
-            linkState_arm3 = pyb.getLinkState(self.robot.object_id, 3)
+            pos_fa, or_fa = self.engine.get_link_state(self.robot.object_id, 'forearm_link')
             frame_arm3 = np.eye(4)
-            frame_arm3[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_arm3[5]), (3,3))
-            frame_arm3[0:3, 3] = linkState_arm3[4]
+            frame_arm3[:3, :3] = quaternion_to_matrix(or_fa)
+            frame_arm3[0:3, 3] = pos_fa
 
             for angle in np.linspace(-np.pi, np.pi - 2 * np.pi / self.ray_setup["upper_arm"][0], self.ray_setup["upper_arm"][0]):
                 for i in range(self.ray_setup["upper_arm"][1]):
@@ -165,9 +166,9 @@ class LidarSensorUR5(LidarSensor):
 
         for index, result in enumerate(self.results):
             if result[0] == -1:
-                self.aux_visual_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], missRayColor))
+                self.aux_visual_objects.append(self.engine.add_aux_line(self.rays_starts[index], self.rays_ends[index], missRayColor))
             else:
-                self.aux_visual_objects.append(pyb.addUserDebugLine(self.rays_starts[index], self.rays_ends[index], hitRayColor))
+                self.aux_visual_objects.append(self.engine.add_aux_line(self.rays_starts[index], self.rays_ends[index], hitRayColor))
 
 
 class LidarSensorUR5_Explainable(LidarSensor):
@@ -209,31 +210,31 @@ class LidarSensorUR5_Explainable(LidarSensor):
 
         # get link states
         # link IDs hardcoded for the URDF file we use
-        linkState_ee = pyb.getLinkState(self.robot.object_id, 7)
-        linkState_wrist1 = pyb.getLinkState(self.robot.object_id, 4)
-        linkState_wrist2 = pyb.getLinkState(self.robot.object_id, 5)
-        linkState_wrist3 = pyb.getLinkState(self.robot.object_id, 6)
-        linkState_arm3 = pyb.getLinkState(self.robot.object_id, 3)
+        pos_ee, or_ee= pyb.getLinkState(self.robot.object_id, 'ee_link')
+        pos_w1, or_w1 = pyb.getLinkState(self.robot.object_id, 'wrist_1_link')
+        pos_w2, or_w2  = pyb.getLinkState(self.robot.object_id, 'wrist_2_link')
+        pos_w3, or_w3  = pyb.getLinkState(self.robot.object_id, 'wrist_3_link')
+        pos_fa, or_fa = pyb.getLinkState(self.robot.object_id, 'forearm_link')
 
         # create frame matrices
         frame_ee = np.eye(4)
-        frame_ee[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_ee[5]), (3,3))
-        frame_ee[0:3, 3] = linkState_ee[4]
+        frame_ee[:3, :3] = quaternion_to_matrix(or_ee)
+        frame_ee[0:3, 3] = pos_ee
         frame_wrist1 = np.eye(4)
-        frame_wrist1[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist1[5]), (3,3))
-        frame_wrist1[0:3, 3] = linkState_wrist1[4]
+        frame_wrist1[:3, :3] = quaternion_to_matrix(or_w1)
+        frame_wrist1[0:3, 3] = pos_w1
         frame_wrist2 = np.eye(4)
-        frame_wrist2[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist2[5]), (3,3))
-        frame_wrist2[0:3, 3] = linkState_wrist2[4]
+        frame_wrist2[:3, :3] = quaternion_to_matrix(or_w2)
+        frame_wrist2[0:3, 3] = pos_w2
         frame_wrist3 = np.eye(4)
-        frame_wrist3[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_wrist3[5]), (3,3))
-        frame_wrist3[0:3, 3] = linkState_wrist3[4]
+        frame_wrist3[:3, :3] = quaternion_to_matrix(or_w3)
+        frame_wrist3[0:3, 3] = pos_w3
         frame_arm3 = np.eye(4)
-        frame_arm3[:3, :3] = np.reshape(pyb.getMatrixFromQuaternion(linkState_arm3[5]), (3,3))
-        frame_arm3[0:3, 3] = linkState_arm3[4]
+        frame_arm3[:3, :3] = quaternion_to_matrix(or_fa)
+        frame_arm3[0:3, 3] = pos_fa
 
         # add the ray that goes straight forward out of the end effector
-        rays_starts.append(linkState_ee[4])
+        rays_starts.append(pos_ee)
         rays_ends.append(np.matmul(frame_ee, np.array([0, 0, self.ray_end, 1]).T)[0:3].tolist())
 
         # run through each frame to add ray starts and ends

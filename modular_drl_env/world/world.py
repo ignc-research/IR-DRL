@@ -166,6 +166,10 @@ class World(ABC):
                 random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
                 joints.append(random_joints)
                 robot.moveto_joints(random_joints, False)
+
+                # step engine to move joints to specified location
+                self.engine.step()
+
                 # check if robot is out of bounds directly
                 robot.position_rotation_sensor.reset()  # refresh position data for oob calculation below
                 if self.out_of_bounds(robot.position_rotation_sensor.position):
@@ -219,6 +223,10 @@ class World(ABC):
                     upper_limits = robot.joints_limits_upper
                 random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
                 robot.moveto_joints(random_joints, False)
+
+                # step engine to move joints to specified location
+                self.engine.step()
+
                 # check if robot is out of bounds directly
                 robot.position_rotation_sensor.reset()  # refresh position data for oob calculation below
                 robot.joints_sensor.reset()  # refresh joints data for calculation further down

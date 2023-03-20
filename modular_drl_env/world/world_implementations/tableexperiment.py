@@ -75,9 +75,9 @@ class TableExperiment(World):
         
     def build(self):
         # ground plate
-        self.objects_ids.append(pyb.loadURDF("workspace/plane.urdf", [0, 0, -0.01]))
+        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
         # table
-        self.objects_ids.append(pyb.loadURDF(pyb_d.getDataPath()+"/table/table.urdf", useFixedBase=True, globalScaling=1.75))
+        self.objects_ids.append(self.engine.load_urdf(pyb_d.getDataPath()+"/table/table.urdf", np.array([0, 0, 0]), np.array([0, 0, 0, 1]), scale=[1.75, 1.75, 1.75]))
         # humans
         for i in range(self.num_humans):
             human = Human(self.human_positions[i], self.human_rotations[i], self.human_trajectories[i], self.sim_step, 0.5, 1.5)

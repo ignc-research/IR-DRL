@@ -32,8 +32,12 @@ class Human(Obstacle):
         self.human = Man(0, partitioned=False, timestep=self.sim_step, scaling=self.scale, static=(len(self.trajectory)==0))
         #self.human.resetGlobalTransformation(self.position_orig, pyb.getEulerFromQuaternion(self.rotation_orig.tolist()))
         self.human.advance(self.position_orig, self.orientation_orig.tolist())
-        self.object_id = self.human.body_id
-        return self.human.body_id
+        self.internal_id = self.human.body_id
+        # ultra hacky solution to make this work with the new engine abstraction, but should be fine because this human model will only ever work with pybullet
+        name = "human_" + str(len(self.engine._geometry))
+        self.engine._geometry[name] = self.internal_id
+        self.object_id = name
+        return name
 
     def move(self):
         if not self.trajectory:
@@ -44,7 +48,7 @@ class Human(Obstacle):
             # get the target from trajectory
             target_pos = self.trajectory[self.trajectory_idx]
             # get current position
-            self.position = np.array(pyb.getBasePositionAndOrientation(self.object_id)[0])
+            self.position = np.array(pyb.getBasePositionAndOrientation(self.internal_id)[0])
             # get the last target (see below why)
             last_target = self.trajectory[self.trajectory_idx -1] if self.trajectory_idx > 0 else self.trajectory[len(self.trajectory) - 1]
 

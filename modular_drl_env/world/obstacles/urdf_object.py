@@ -8,7 +8,7 @@ class URDFObject(Obstacle):
     This implements an obstacle that is based off a URDF.
     """
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, urdf_path: str, scale: float=1) -> None:
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, urdf_path: str, scale: list=[1, 1, 1]) -> None:
         super().__init__(position, rotation, trajectory, move_step)
 
         self.urdf_path = urdf_path
@@ -24,7 +24,7 @@ class URDFObjectGenerated(URDFObject):
     Has a few adaptions to make parallel environments running at the same time work.
     """
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, urdf_path: str, env_id:int, scale: float = 1) -> None:
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, urdf_path: str, env_id:int, scale: list=[1, 1, 1]) -> None:
         super().__init__(position, rotation, trajectory, move_step, urdf_path, scale)
         self.file_name = None  # see below
         self.env_id = env_id  # to prevent parallel file write access

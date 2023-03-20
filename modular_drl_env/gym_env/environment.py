@@ -289,6 +289,9 @@ class ModularDRLEnv(gym.Env):
                 sensor.delete_visual_aux()
                 sensor.build_visual_aux()
 
+        # perform one engine step to initialize all physics data
+        self.engine.step()
+
         return self._get_obs()
 
     def _get_obs(self):
