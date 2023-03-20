@@ -50,6 +50,14 @@ class PositionCollisionTrajectoryPCR(Goal):
         self.is_success = False
         self.done = False
 
+        # set the distance thresholds and the increments for changing them
+        self.distance_threshold = goal_config["dist_threshold_start"] if self.train else goal_config[
+            "dist_threshold_end"]
+        self.distance_threshold_start = goal_config["dist_threshold_start"]
+        self.distance_threshold_end = goal_config["dist_threshold_end"]
+        self.distance_threshold_increment_start = goal_config["dist_threshold_increment_start"]
+        self.distance_threshold_increment_end = goal_config["dist_threshold_increment_end"]
+
         # workspace bounderies
         self.boundaries = goal_config["boundaries"]
         self.boundaries_min = np.array([self.boundaries[0], self.boundaries[2], self.boundaries[4]])
@@ -100,6 +108,21 @@ class PositionCollisionTrajectoryPCR(Goal):
         # set observations
         self._set_observation(0)
 
+        if self.train:
+            # calculate increment
+            ratio_start_end = (self.distance_threshold - self.distance_threshold_end) / (
+                    self.distance_threshold_start - self.distance_threshold_end)
+            increment = (
+                                self.distance_threshold_increment_start - self.distance_threshold_increment_end) * ratio_start_end + self.distance_threshold_increment_end
+            if success_rate > 0.8 and self.distance_threshold > self.distance_threshold_end:
+                self.distance_threshold -= increment
+            elif success_rate < 0.8 and self.distance_threshold < self.distance_threshold_start:
+                self.distance_threshold += increment / 25  # upwards movement should be slower
+            if self.distance_threshold > self.distance_threshold_start:
+                self.distance_threshold = self.distance_threshold_start
+            if self.distance_threshold < self.distance_threshold_end:
+                self.distance_threshold = self.distance_threshold_end
+
         self.cpu_epoch = time.time() - t
         return self.metric_name, 0, False, True
 
@@ -139,7 +162,7 @@ class PositionCollisionTrajectoryPCR(Goal):
             self.collided = self.robot.world.collision
 
         # binary signal for when robot is too close to obstacle
-        d_min = 0.1
+        d_min = 0.225
         if self.min_distance_to_obstacles < d_min:
             r_dist = 1
         else:
@@ -158,7 +181,6 @@ class PositionCollisionTrajectoryPCR(Goal):
 
         # reward for reaching a waypoint
         self.is_success = False
-        threshhold_d = 0.07
         # can only succeed if not collided
         if self.collided:
             self.done = True
@@ -167,7 +189,7 @@ class PositionCollisionTrajectoryPCR(Goal):
         else:
             r_collision = 0
             # if success
-            if np.all(np.absolute(self.robot.joints_sensor.joints_angles[0:5] - self.qt[0:5]) < threshhold_d):
+            if np.all(np.absolute(self.robot.joints_sensor.joints_angles[0:5] - self.qt[0:5]) < self.distance_threshold):
                 r_waypoint = 1
                 self.is_success = True
                 self.done = True
