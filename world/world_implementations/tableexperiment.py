@@ -98,13 +98,14 @@ class TableExperiment(World):
         extra = 0
 
         if self.experiment == 1:
-            extra = 1
-            idx = choice([0, 1])
-            pos = [np.array([0, -0.45, 1.15]), np.array([-0.2, -0.45, 1.2])]
-            mov = np.random.uniform(low=0.5, high=1, size=(1,)) * self.sim_step
+            extra = 2
+            idx = 0
+            pos = [np.array([0, -0.45, 1.15]), np.array([0, 0.45, 1.15])]
+            mov = 0.5 * self.sim_step
             traj = [[np.array([-0.6, -0.45, 1.15]), np.array([0.6, -0.45, 1.15])],
-                    [np.array([0.6, -0.45, 1.15]), np.array([-0.6, -0.45, 1.15])]]
-            obs = Box(pos[0], [0, 0, 0, 1], traj[idx], mov, [0.2, 0.1, 0.075], color=[0.75, 0, 0.25, 1])
+                    [np.array([-0.6, 0.45, 1.15]), np.array([0.6, 0.45, 1.15])]]
+            obs = Box(pos[idx], [0, 0, 0, 1], traj[idx], mov, [0.4, 0.1, 0.15], color=[0.75, 0, 0.25, 1])
+            print(idx)
             self.objects_ids.append(obs.build())
             self.obstacle_objects.append(obs)
 
@@ -228,9 +229,13 @@ class TableExperiment(World):
         # in contrast to other worlds, we will not check if for robots that need goals
         # this world only supports one robot with a position goal
         # use the preset targets if there are some
+        if self.experiment == 1:
+            self.position_targets = [np.asarray([0.3,  -0.5,  1.2])]
+            return [np.asarray([0,  1,  1.45])]
         if self.targets is not None:
             idx = np.random.randint(0, len(self.targets))
             self.position_targets = [self.targets[idx]]
+            print([self.targets[idx]])
             return [self.targets[idx]]
         # otherwise generate randomly
         else:
@@ -239,6 +244,7 @@ class TableExperiment(World):
                 if np.linalg.norm(target - self.robots_in_world[0].base_position) > 0.15:
                     break
             self.position_targets = [target]
+
             return [target]
 
     def create_rotation_target(self) -> list:
