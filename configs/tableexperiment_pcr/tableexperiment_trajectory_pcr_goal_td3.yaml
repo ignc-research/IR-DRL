@@ -7,7 +7,7 @@ run:
   train:
     action_dims: 5
     algorithm: "TD3"
-    num_envs : 6
+    num_envs : 1
     timesteps: 10000000
     save_freq : 15000
     ppo_steps: 1024
@@ -47,7 +47,7 @@ env:
           type: "StaticPointCloudCamera"
           config:
             n_points_encoded_obstacle_pcr: 50
-            use_gpu: True
+            use_gpu: False
             add_to_logging: True
             position: [0, 0, 2.2]
             target: [0, 0, 0]
