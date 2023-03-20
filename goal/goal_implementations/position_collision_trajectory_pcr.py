@@ -124,7 +124,7 @@ class PositionCollisionTrajectoryPCR(Goal):
                 self.distance_threshold = self.distance_threshold_end
 
         self.cpu_epoch = time.time() - t
-        return self.metric_name, 0, False, True
+        return self.metric_name, self.distance_threshold, True, True
 
     def normalize_spherical_coordinates(self, x):
         # normalize r
