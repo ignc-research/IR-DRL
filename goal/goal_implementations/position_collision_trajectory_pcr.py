@@ -223,6 +223,7 @@ class PositionCollisionTrajectoryPCR(Goal):
         logging_dict["min_distance_to_obstacles"] = self.min_distance_to_obstacles
         logging_dict["ep_reward"] = self.ep_reward
         logging_dict["goal_cpu_time"] = self.cpu_epoch
+        logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
         return logging_dict
 
     def _set_min_distance_to_obstacle_and_closest_cuboid(self):
