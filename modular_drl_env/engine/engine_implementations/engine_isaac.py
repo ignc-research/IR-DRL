@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 try:
     # isaac imports may only be used after SimulationApp is started (ISAAC uses runtime plugin system)
     from omni.isaac.kit import SimulationApp
-    simulation = SimulationApp({"headless": True})
+    simulation = SimulationApp({"headless": False})
     # terminate simulation once program exits
     atexit.register(simulation.close)
 
@@ -23,6 +23,9 @@ try:
     from omni.isaac.core import World
     from omni.isaac.core.articulations import Articulation
     from omni.isaac.core.objects import DynamicCuboid, DynamicSphere, DynamicCylinder
+    from omni.physx import get_physx_simulation_interface
+    from omni.physx.scripts.physicsUtils import *
+    from pxr import UsdGeom, Sdf, Gf, Vt, PhysxSchema
     from omni.usd._usd import UsdContext
     from pxr.Usd import Prim
 
@@ -62,7 +65,8 @@ try:
             self._config.convex_decomp = False
             self._config.import_inertia_tensor = True
             self._config.fix_base = True
-
+            self._config.create_physics_scene = True
+            
             # Tracks which id corresponds with which spawned modifyable object
             self._articulations: dict[str, Articulation] = {}
             # Tracks spawned cubes
@@ -71,6 +75,14 @@ try:
             self._spheres: dict[str, DynamicSphere] = {}
             # Track spawned cylinders
             self._cylinders: dict[str, DynamicCylinder] = {}
+
+            # save reference to default physics material path, configured after adding default ground plane
+            self.physics_material_path = None
+
+            def _on_contact_report_event(self, contact_headers, contact_data):
+                print("CONTACT")
+
+            get_physx_simulation_interface().subscribe_contact_report_events(_on_contact_report_event)  
             
 
         ###################
@@ -94,8 +106,10 @@ try:
             Performs a collision check 
             1. between all robots and all obstacles in the world and
             2. between each robot
-            """
-            print(robots, obstacles)
+            """   
+    
+            while True:
+                self.step()
 
             raise "Not implemented!"
 
@@ -118,9 +132,12 @@ try:
 
             # add object to world
             self.world.scene.add_default_ground_plane(prim_path=prim_path, z_position=position[2], name=name)
+            
+            # add collision
+            self.add_collision_material(prim_path)
 
-            # return name as id
-            return name
+            # return prim_path as id
+            return prim_path
         
 
         def load_urdf(self, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: List[float]=[1, 1, 1], is_robot: bool=False) -> str:
@@ -150,6 +167,9 @@ try:
             obj.set_world_pose(position, orientation)
             obj.set_local_scale(scale)
 
+            # add collision
+            self.add_collision_material(prim_path)
+
             # track object (prim path will always be unique if created by import command)
             self._articulations[prim_path] = obj
 
@@ -175,9 +195,12 @@ try:
 
             obj.set_local_scale(scale)
 
+            # add collision
+            self.add_collision_material(prim_path)
+
             # track object
             self._cubes[name] = obj
-            return name
+            return prim_path
 
         def create_sphere(self, position: np.ndarray, mass: float, radius: float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
             """
@@ -194,9 +217,12 @@ try:
             # add sphere to scene
             self.scene.add(obj)
 
+            # add collision
+            self.add_collision_material(prim_path)
+
             # track object
             self._spheres[name] = obj
-            return name
+            return prim_path
         
         def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
             """
@@ -213,9 +239,12 @@ try:
             # add cylinder to scene
             self.scene.add(obj)
 
+            # add collision
+            self.add_collision_material(prim_path)
+
             # track object
             self._cylinders[name] = obj
-            return name
+            return prim_path
 
         def move_base(self, object_id: str, position: np.ndarray, orientation: np.ndarray):
             """
@@ -351,6 +380,28 @@ try:
             Transform colour format into format Isaac accepts, ignoring opacity
             """
             return np.array(color[:-1])
+
+        def add_collision_material(self, prim_path:str):
+            # setup physics material, if necessary
+            if self.physics_material_path is None:  
+                print("CREATING PHYSICS MATERIAL")  
+                # create default material
+                self.physics_material_path = "/World/Material"
+                UsdShade.Material.Define(self.stage, self.physics_material_path)
+                physics_material = UsdPhysics.MaterialAPI.Apply(self.stage.GetPrimAtPath(self.physics_material_path))
+                physics_material.CreateStaticFrictionAttr().Set(0.1)
+                physics_material.CreateDynamicFrictionAttr().Set(0.1)
+                physics_material.CreateRestitutionAttr().Set(0.1)
+                physics_material.CreateDensityAttr().Set(0.001)
+
+            # add physics material to object
+            prim = self.stage.GetPrimAtPath(prim_path)
+            add_physics_material_to_prim(self.stage, prim, Sdf.Path(self.physics_material_path))
+
+            # register contract report
+            contactReportAPI = PhysxSchema.PhysxContactReportAPI.Apply(prim)
+            contactReportAPI.CreateThresholdAttr().Set(0)
+
         
     
 except ImportError:
