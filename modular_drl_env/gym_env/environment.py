@@ -240,7 +240,7 @@ class ModularDRLEnv(gym.Env):
         # the code will abort if even after several attempts no valid starting setup is found
         # TODO: maybe find a smarter way to do this
         reset_count = 0
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        self.engine.toggle_rendering(False)
         while True:
             if reset_count > 1000:
                 raise Exception("Could not find collision-free starting setup after 1000 tries. Maybe check your world generation code.")
@@ -264,7 +264,7 @@ class ModularDRLEnv(gym.Env):
                 break
             else:
                 reset_count += 1
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        self.engine.toggle_rendering(True)
 
         # set all robots to active
         self.active_robots = [True for robot in self.robots]

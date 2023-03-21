@@ -33,8 +33,8 @@ class ObstacleSensor(Sensor):
         self.reference_link_id = reference_link_id
 
         # set output data field name
-        self.output_name = "nearest_" + str(self.num_obstacles) + "_obstacles_link_" + str(self.reference_link_id) + "_" + self.robot.name
-        self.output_name_time = "obstacle_sensor_link_" + str(self.reference_link_id) + "_cpu_time_" + self.robot.name
+        self.output_name = "nearest_" + str(self.num_obstacles) + "_obstacles_" + str(self.reference_link_id) + "_" + self.robot.name
+        self.output_name_time = "obstacle_sensor_" + str(self.reference_link_id) + "_cpu_time_" + self.robot.name
 
         # probe object
         self.probe = None

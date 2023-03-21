@@ -50,6 +50,9 @@ class Goal(ABC):
         self.needs_a_rotation = False  # goal needs a target rotation in the worldspace
         self.needs_a_joints_position = False  # goal needs a target joint position in configuration space
 
+        # set of visual aux objects
+        self.aux_object_ids = []
+
     @abstractmethod
     def get_observation_space_element(self) -> dict:
         """
@@ -102,6 +105,12 @@ class Goal(ABC):
         """
         This method should add objects that are helpful to visualize the goal. In most cases this will be something 
         like marking the target zone. 
+        """
+        pass
+
+    def delete_visual_aux(self):
+        """
+        Should delete all visual aux objects built by this goal.
         """
         pass
 

@@ -24,12 +24,12 @@ class PositionRotationSensor(Sensor):
         self.robot = robot
 
         # set output data field names
-        self.output_name_rotation = "rotation_link_" + str(link_id) + "_" + self.robot.name
+        self.output_name_rotation = "rotation_" + str(link_id) + "_" + self.robot.name
         # the position field is pointless as an absolute value and therefore not used in the get_data() method
         # the relative vector between target and current position will be added to the env observation space
         # by the position goal using this sensor's data (same goes for the rotation goal)
-        self.output_name_position = "position_link_" + str(link_id) + "_" + self.robot.name
-        self.output_name_velocity = "velocity_link_" + str(link_id) + "_" + self.robot.name
+        self.output_name_position = "position_" + str(link_id) + "_" + self.robot.name
+        self.output_name_velocity = "velocity_" + str(link_id) + "_" + self.robot.name
         self.output_name_time = "position_rotation_sensor_cpu_time_" + self.robot.name
 
         # set the link of the robot for which data is to be gathered

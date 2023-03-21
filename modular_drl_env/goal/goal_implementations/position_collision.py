@@ -6,7 +6,8 @@ from modular_drl_env.util.quaternion_util import quaternion_similarity
 
 __all__ = [
     'PositionCollisionGoal',
-    'PositionRotationCollisionGoal'
+    'PositionRotationCollisionGoal',
+    'PositionCollisionBetterSmoothingGoal'
 ]
 
 class PositionCollisionGoal(Goal):
@@ -196,7 +197,11 @@ class PositionCollisionGoal(Goal):
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
         self.target = self.robot.world.position_targets[self.robot.id]
-        self.engine.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False)
+        self.aux_object_ids.append(self.engine.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
+
+    def delete_visual_aux(self):
+        for aux_object_id in self.aux_object_ids:
+            self.engine.remove_aux_object(aux_object_id)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
@@ -207,6 +212,67 @@ class PositionCollisionGoal(Goal):
         logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
 
         return logging_dict
+    
+class PositionCollisionBetterSmoothingGoal(PositionCollisionGoal):
+    """
+    This class implements a goal of reaching a certain position while avoiding collisions.
+    The reward function follows Yifan's code with some improvements to smoothing.
+    Note that this will only work with robots
+    """
+
+    def __init__(self, robot: Robot, normalize_rewards: bool, normalize_observations: bool, train: bool, add_to_logging: bool, max_steps: int, continue_after_success: bool, reward_success=10, reward_collision=-10, reward_distance_mult=-0.01, reward_smoothness_mult=-0.001, dist_threshold_start=0.3, dist_threshold_end=0.01, dist_threshold_increment_start=0.01, dist_threshold_increment_end=0.001, dist_threshold_overwrite: float = None, dist_threshold_change: float = 0.8):
+        super().__init__(robot, normalize_rewards, normalize_observations, train, add_to_logging, max_steps, continue_after_success, reward_success, reward_collision, reward_distance_mult, dist_threshold_start, dist_threshold_end, dist_threshold_increment_start, dist_threshold_increment_end, dist_threshold_overwrite, dist_threshold_change)
+        self.reward_smoothness_mult = reward_smoothness_mult
+        self.last_velocities = []
+        self.velocity_smoothness_importance_decay = 0.9
+
+    def reward(self, step, action):
+
+        reward = 0
+
+        self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
+        self.collided = self.robot.world.collision
+
+        shaking = 0
+        current_velocity = self.robot.joints_sensor.joints_velocities
+        it_velocity = current_velocity
+        for idx, vel in reversed(list(enumerate(self.last_velocities))):
+            diff_norm = np.linalg.norm(it_velocity - vel)
+            shaking += (self.velocity_smoothness_importance_decay ** idx) * diff_norm
+            it_velocity = vel
+        self.shaking = shaking
+        reward += shaking * self.reward_smoothness_mult
+        
+        self.last_velocities.append(current_velocity)
+        if len(self.last_velocities) > 5:
+            self.last_velocities.pop(0)
+
+        self.is_success = False
+        if self.out_of_bounds:
+            self.done = True
+            reward += self.reward_collision / 2
+        elif self.collided:
+            self.done = True
+            reward += self.reward_collision
+        elif self.distance < self.distance_threshold:
+            self.done = True
+            self.is_success = True
+            reward += self.reward_success
+        elif step > self.max_steps:
+            self.done = True
+            self.timeout = True
+            reward += self.reward_collision / 10
+        else:
+            self.done = False
+            reward += self.reward_distance_mult * self.distance
+        
+        self.reward_value = reward
+        if self.normalize_rewards:
+            self.reward_value = self.normalizing_constant_a_reward * self.reward_value + self.normalizing_constant_b_reward
+        
+        # return
+        return self.reward_value, self.is_success, self.done, self.timeout, self.out_of_bounds    
+
     
 class PositionRotationCollisionGoal(Goal):
 
