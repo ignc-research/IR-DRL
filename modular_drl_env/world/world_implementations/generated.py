@@ -34,7 +34,7 @@ def getScale(obj):
     if "scale" in obj:
         scale = obj["scale"]
     else:
-        scale = 1
+        scale = [1, 1, 1]
     return scale
 
 class GeneratedWorld(World):
