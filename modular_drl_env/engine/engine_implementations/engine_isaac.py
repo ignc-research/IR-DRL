@@ -108,7 +108,10 @@ try:
             material.CreateStaticFrictionAttr().Set(0.5)
             material.CreateDynamicFrictionAttr().Set(0.5)
             material.CreateRestitutionAttr().Set(0.9)
-            material.CreateDensityAttr().Set(0.001)            
+            material.CreateDensityAttr().Set(0.001) 
+
+            # tracks the ids of objects which are currently colliding
+            self.collisions: List[List[str, str]] = []           
 
         ###################
         # general methods #
@@ -132,11 +135,24 @@ try:
             1. between all robots and all obstacles in the world and
             2. between each robot
             """   
-    
-            while True:
-                self.step()
 
-            raise "Not implemented!"
+            # gets the ids of parts all robots are made out of
+            link_ids = [self.get_links_ids(robot.id) for robot in robots]
+
+            # checks if any robots are colliding
+            for i in range(len(robots)):
+                robot_part_ids = link_ids[i]
+                # check each pair of robots for collision exactly one time
+                for j in range(i + 1, len(robots)):
+                    if self.are_colliding(robot_part_ids, link_ids[j]):
+                        return True
+                
+                # checks if this robot is colliding with any obstacle
+                if self.are_colliding(robot_part_ids, obstacles):
+                    return True
+            
+            # no collisions were detected
+            return False            
 
         ####################
         # geometry methods #
@@ -403,16 +419,64 @@ try:
             return str(self.spawned_objects)
 
         def _on_contact_report_event(self, contact_headers, contact_data):
+            """
+            After each simulation step, ISAAC calles this function. 
+            Parameters contain updates about the collision status of spawned objects
+            """
+
             for contact_header in contact_headers:
-                print("Got contact header type: " + str(contact_header.type))
-                print("Actor0: " + str(PhysicsSchemaTools.intToSdfPath(contact_header.actor0)))
-                print("Actor1: " + str(PhysicsSchemaTools.intToSdfPath(contact_header.actor1)))
-                print("Number of contacts: " + str(contact_header.num_contact_data))
-                
+                # parse contact information
+                contact_type = str(contact_header.type)
 
+                # prim paths of objects with updated collision status
+                actor0 = str(PhysicsSchemaTools.intToSdfPath(contact_header.actor0))
+                actor1 = str(PhysicsSchemaTools.intToSdfPath(contact_header.actor1))
 
+                collision = [actor0, actor1]
 
+                # contact was found
+                if 'CONTACT_FOUND' in contact_type:
+                    self.collisions.append(collision)
+
+                # contact was lost
+                elif 'CONTACT_LOST' in contact_type:
+                    self.collisions = [c for c in self.collisions if not collision]
+
+                # contact persists
+                elif 'CONTACT_PERSIST' in contact_type:
+                    # objects can spawn in a colliding position. 
+                    # No contact will be 'found', it registers as 'persisting'
+                    if collision not in self.collisions:
+                        self.collisions.append(collision)
         
+
+        def are_colliding(self, paths1: List[str], paths2: List[str]) -> bool:
+            """
+            Given two lists of prim paths, checks if any elements of paths1 are colliding with any elements of paths2.
+            Returns true if any do, otherwise false
+            """
+
+            for path1 in paths1:
+                for path2 in paths2:
+                    if [path1, path2] in self.collisions:
+                        return True
+            return False
+
+
+        def is_colliding(self, path1: str, path2: str) -> bool:
+            """
+            Given two prim paths, returns true if the two are colliding, otherwise false.
+            """
+
+            # self.collisions tracks prim_paths of colliding objects.
+            # List is maintained by the _on_contact_report_event function
+
+            if [path1, path2] in self.collisions:
+                return True
+            if [path2, path1] in self.collisions:
+                return True
+            return False
+
     
 except ImportError:
     # raise error only if Isaac is running
