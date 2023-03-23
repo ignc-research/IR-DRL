@@ -171,7 +171,7 @@ try:
             name = "defaultGroundPlane"
             prim_path = "/" + name
 
-            add_quad_plane(self.stage, prim_path, 'Z', 750, Gf.Vec3f(0.0), Gf.Vec3f(0.5))
+            add_quad_plane(self.stage, prim_path, 'Z', 750, to_isaac_vector(position), Gf.Vec3f(0.5))
 
             # add collision
             self.add_collision_material(prim_path, self.floor_material_path)
@@ -259,21 +259,16 @@ try:
             Spawns a cylinder.
             Must return a unique str identifying the newly spawned object within the engine.
             """
-            name = "cylinder" + str(len(self._cylinders))
+            name = "cylinder" + self.incrementObjectId()
             prim_path = "/World/" + name
 
             # create cylinder
-            obj = DynamicCylinder(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, orientation=orientation, height=height, name=name, scale=scale)
-            obj.set_collision_enabled(collision)
-
-            # add cylinder to scene
-            self.scene.add(obj)
-
+            add_rigid_cylinder(self.stage, prim_path, radius, height, position=to_isaac_vector(position), orientation=to_isaac_vector(orientation), color=to_isaac_color(color), density=mass)
+            
             # add collision
-            self.add_collision_material(prim_path)
+            if collision:
+                self.add_collision_material(prim_path)
 
-            # track object
-            self._cylinders[name] = obj
             return prim_path
 
         def move_base(self, object_id: str, position: np.ndarray, orientation: np.ndarray):
