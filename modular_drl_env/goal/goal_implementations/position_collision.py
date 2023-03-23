@@ -244,7 +244,7 @@ class PositionCollisionBetterSmoothingGoal(PositionCollisionGoal):
         reward += shaking * self.reward_smoothness_mult
         
         self.last_velocities.append(current_velocity)
-        if len(self.last_velocities) > 5:
+        if len(self.last_velocities) > 1:
             self.last_velocities.pop(0)
 
         self.is_success = False

@@ -10,9 +10,9 @@ __all__ = [
 
 class JointsSensor(Sensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, add_joint_velocities: bool=False):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int, robot: Robot, add_joint_velocities: bool=False):
 
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step)
         
         # set associated robot
         self.robot = robot
@@ -44,7 +44,7 @@ class JointsSensor(Sensor):
         if step % self.update_steps == 0:
             self.joints_angles_prev = self.joints_angles
             self.joints_angles = self.engine.get_joints_values(self.robot.object_id, self.robot.joints_ids)
-            self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / self.sim_step  # most engines can calculate this on their own, but we do it manually to also have it available when we don't use accurate physics
+            self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / (self.update_steps * self.sim_step * self.sim_steps_per_env_step)  # most engines can calculate this on their own, but we do it manually to also have it available when we don't use accurate physics
         self.cpu_time = process_time() - self.cpu_epoch
 
         return self.get_observation()

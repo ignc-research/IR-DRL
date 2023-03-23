@@ -15,9 +15,9 @@ class ObstacleSensor(Sensor):
     To make the measurements consistent, it will spawn a small invisible and non-colliding sphere at a probe location, which it will then use to measure the distances.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, num_obstacles: int, max_distance: float, reference_link_id: int):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int, robot: Robot, num_obstacles: int, max_distance: float, reference_link_id: int):
         
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step)
 
         # set associated robot
         self.robot = robot
