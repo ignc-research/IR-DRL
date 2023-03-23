@@ -22,12 +22,24 @@ try:
     from omni.kit.commands import execute
     from omni.isaac.core import World
     from omni.isaac.core.articulations import Articulation
-    from omni.isaac.core.objects import DynamicCuboid, DynamicSphere, DynamicCylinder
     from omni.physx import get_physx_simulation_interface
     from omni.physx.scripts.physicsUtils import *
     from pxr import UsdGeom, Sdf, Gf, Vt, PhysxSchema
     from omni.usd._usd import UsdContext
     from pxr.Usd import Prim
+
+    def to_isaac_color(color: List[float]) -> np.ndarray:
+        """
+        Transform colour format into format Isaac accepts, ignoring opacity
+        """
+        return np.array(color[:-1])
+
+    def to_isaac_vector(vec3: np.ndarray) -> Gf.Vec3f:
+        return Gf.Vec3f(list(vec3))
+
+    def to_issac_quat(vec3: np.ndarray) -> Gf.Quatf:
+        a, b, c, d = list(vec3)
+        return Gf.Quatf(float(a), float(b), float(c), float(d))
 
     class IsaacEngine(Engine):
         def __init__(self, use_physics_sim: bool, display_mode: bool, sim_step: float, gravity: list, assets_path: str) -> None:
@@ -67,23 +79,36 @@ try:
             self._config.fix_base = True
             self._config.create_physics_scene = True
             
+            # track amount of objects spawned to allow generation unique prim paths
+            self.spawned_objects = 0
+
             # Tracks which id corresponds with which spawned modifyable object
             self._articulations: dict[str, Articulation] = {}
-            # Tracks spawned cubes
-            self._cubes: dict[str, DynamicCuboid] = {}
-            # Tracks spawned spheres
-            self._spheres: dict[str, DynamicSphere] = {}
-            # Track spawned cylinders
-            self._cylinders: dict[str, DynamicCylinder] = {}
 
-            # save reference to default physics material path, configured after adding default ground plane
-            self.physics_material_path = None
+            # subscribe to physics contact report event, this callback issued after each simulation step
+            self._contact_report_sub = get_physx_simulation_interface().subscribe_contact_report_events(self._on_contact_report_event)
 
-            def _on_contact_report_event(self, contact_headers, contact_data):
-                print("CONTACT")
+            # configure physics simulation
+            scene = UsdPhysics.Scene.Define(self.stage, "/physicsScene")
+            scene.CreateGravityDirectionAttr().Set(Gf.Vec3f(0.0, 0.0, -1.0))
+            scene.CreateGravityMagnitudeAttr().Set(981.0)
 
-            get_physx_simulation_interface().subscribe_contact_report_events(_on_contact_report_event)  
-            
+            # Configure default floor material
+            self.floor_material_path = "/floorMaterial"
+            UsdShade.Material.Define(self.stage, self.floor_material_path)
+            floor_material = UsdPhysics.MaterialAPI.Apply(self.stage.GetPrimAtPath(self.floor_material_path))
+            floor_material.CreateStaticFrictionAttr().Set(0.0)
+            floor_material.CreateDynamicFrictionAttr().Set(0.0)
+            floor_material.CreateRestitutionAttr().Set(1.0)
+
+            # Configure default collision material
+            self.collision_material_path = "/collisionMaterial"
+            UsdShade.Material.Define(self.stage, self.collision_material_path)
+            material = UsdPhysics.MaterialAPI.Apply(self.stage.GetPrimAtPath(self.collision_material_path))
+            material.CreateStaticFrictionAttr().Set(0.5)
+            material.CreateDynamicFrictionAttr().Set(0.5)
+            material.CreateRestitutionAttr().Set(0.9)
+            material.CreateDensityAttr().Set(0.001)            
 
         ###################
         # general methods #
@@ -125,16 +150,15 @@ try:
             Spawns a ground plane into the world at position. 
             Must return a unique str identifying the ground plane within the engine.
             """
-
+            
             # define prim path
             name = "defaultGroundPlane"
-            prim_path = "/World/" + name
+            prim_path = "/" + name
 
-            # add object to world
-            self.world.scene.add_default_ground_plane(prim_path=prim_path, z_position=position[2], name=name)
-            
+            add_quad_plane(self.stage, prim_path, 'Z', 750, Gf.Vec3f(0.0), Gf.Vec3f(0.5))
+
             # add collision
-            self.add_collision_material(prim_path)
+            self.add_collision_material(prim_path, self.floor_material_path)
 
             # return prim_path as id
             return prim_path
@@ -146,6 +170,7 @@ try:
             Must return a unique str identifying the newly spawned object within the engine.
             The is_robot flag determines whether the engine handles this object as a robot (something with movable links/joints) or a simple geometry object (a singular mesh).
             """
+
             # get absolute path to urdf
             abs_path = self.get_absolute_asset_path(urdf_path)
 
@@ -159,19 +184,19 @@ try:
             # create wrapper allowing to modify object
             obj = Articulation(prim_path)
             self.scene.add(obj)
-
-            # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
-            self.world.reset() # todo: Must be called after all Articulations were created
             
             # set position, orientation, scale of loaded obj
             obj.set_world_pose(position, orientation)
             obj.set_local_scale(scale)
 
             # add collision
-            self.add_collision_material(prim_path)
+            self.add_collision_material(prim_path, self.collision_material_path)
 
             # track object (prim path will always be unique if created by import command)
             self._articulations[prim_path] = obj
+
+            # its recommended to always do a reset after adding your assets, for physics handles to be propagated properly
+            self.world.reset() # todo: Must be called after all Articulations were created
 
             return prim_path
             
@@ -183,23 +208,16 @@ try:
             """
 
             # generate unique prim path
-            name = "cube" + str(len(self._cubes))
-            prim_path = "/World/" + name
+            name = "cube" + self.incrementObjectId()
+            prim_path = "/" + name
 
-            # create cube # todo: what is halfExtens?
-            obj = DynamicCuboid(prim_path, position=position, orientation=orientation, mass=mass, color=self.to_isaac_color(color), name=name)
-            obj.set_collision_enabled(collision)
-
-            # add cube to scene
-            self.scene.add(obj)
-
-            obj.set_local_scale(scale)
+            # create cube
+            add_rigid_box(self.stage, prim_path, size=scale, position=to_isaac_vector(position), orientation=to_issac_quat(orientation), color=to_isaac_color(color), density=mass)
 
             # add collision
-            self.add_collision_material(prim_path)
+            if collision:
+                self.add_collision_material(prim_path, self.collision_material_path)
 
-            # track object
-            self._cubes[name] = obj
             return prim_path
 
         def create_sphere(self, position: np.ndarray, mass: float, radius: float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
@@ -207,21 +225,17 @@ try:
             Spawns a sphere.
             Must return a unique str identifying the newly spawned object within the engine.
             """
-            name = "sphere" + str(len(self._spheres))
-            prim_path = "/World/" + name
+
+            name = "sphere" + self.incrementObjectId()
+            prim_path = "/" + name
 
             # create sphere
-            obj = DynamicSphere(prim_path, position=position, mass=mass, color=self.to_isaac_color(color), radius=radius, name=name, scale=scale)
-            obj.set_collision_enabled(collision)
-
-            # add sphere to scene
-            self.scene.add(obj)
-
+            add_rigid_sphere(self.stage, prim_path, radius, to_isaac_vector(position), color=to_isaac_color(color), density=mass)
+            
             # add collision
-            self.add_collision_material(prim_path)
+            if collision:
+                self.add_collision_material(prim_path, self.collision_material_path)
 
-            # track object
-            self._spheres[name] = obj
             return prim_path
         
         def create_cylinder(self, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, scale: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
@@ -375,32 +389,28 @@ try:
         def get_absolute_asset_path(self, path:str) -> str:
             return Path(self.assets_path).joinpath(path)
 
-        def to_isaac_color(self, color: List[float]) -> np.ndarray:
-            """
-            Transform colour format into format Isaac accepts, ignoring opacity
-            """
-            return np.array(color[:-1])
-
-        def add_collision_material(self, prim_path:str):
-            # setup physics material, if necessary
-            if self.physics_material_path is None:  
-                print("CREATING PHYSICS MATERIAL")  
-                # create default material
-                self.physics_material_path = "/World/Material"
-                UsdShade.Material.Define(self.stage, self.physics_material_path)
-                physics_material = UsdPhysics.MaterialAPI.Apply(self.stage.GetPrimAtPath(self.physics_material_path))
-                physics_material.CreateStaticFrictionAttr().Set(0.1)
-                physics_material.CreateDynamicFrictionAttr().Set(0.1)
-                physics_material.CreateRestitutionAttr().Set(0.1)
-                physics_material.CreateDensityAttr().Set(0.001)
-
-            # add physics material to object
-            prim = self.stage.GetPrimAtPath(prim_path)
-            add_physics_material_to_prim(self.stage, prim, Sdf.Path(self.physics_material_path))
+        def add_collision_material(self, prim_path:str, material_path:str):
+            print("Adding collision to:", prim_path)
+            # add physics material
+            add_physics_material_to_prim(self.stage, self.stage.GetPrimAtPath(Sdf.Path(prim_path)), Sdf.Path(material_path))
 
             # register contract report
-            contactReportAPI = PhysxSchema.PhysxContactReportAPI.Apply(prim)
-            contactReportAPI.CreateThresholdAttr().Set(0)
+            contactReportAPI = PhysxSchema.PhysxContactReportAPI.Apply(self.stage.GetPrimAtPath(prim_path))
+            contactReportAPI.CreateThresholdAttr().Set(200000)
+
+        def incrementObjectId(self) -> str:
+            self.spawned_objects += 1
+            return str(self.spawned_objects)
+
+        def _on_contact_report_event(self, contact_headers, contact_data):
+            for contact_header in contact_headers:
+                print("Got contact header type: " + str(contact_header.type))
+                print("Actor0: " + str(PhysicsSchemaTools.intToSdfPath(contact_header.actor0)))
+                print("Actor1: " + str(PhysicsSchemaTools.intToSdfPath(contact_header.actor1)))
+                print("Number of contacts: " + str(contact_header.num_contact_data))
+                
+
+
 
         
     
