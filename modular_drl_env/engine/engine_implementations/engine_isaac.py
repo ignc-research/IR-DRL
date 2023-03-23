@@ -137,7 +137,7 @@ try:
             """   
 
             # gets the ids of parts all robots are made out of
-            link_ids = [self.get_links_ids(robot.id) for robot in robots]
+            link_ids = [self.get_links_ids(robot.object_id) for robot in robots]
 
             # checks if any robots are colliding
             for i in range(len(robots)):
@@ -342,9 +342,8 @@ try:
             robot = self._articulations[robot_id]
 
             # retrieve joint
-            test = robot.get_joint_positions([joint_id])
-
-            raise "Not implemented!"
+            return robot.get_joint_positions([joint_id])
+            
         
         def get_link_state(self, robot_id: str, link_id: str) -> Tuple[np.ndarray, np.ndarray]:
             """
