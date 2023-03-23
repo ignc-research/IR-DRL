@@ -72,7 +72,7 @@ env:
             add_to_logging: True
             num_obstacles: 1
             max_distance: 10
-            reference_link_id: 7
+            reference_link_id: "ee_link"
       goal:
         type: "PositionCollision"
         config:

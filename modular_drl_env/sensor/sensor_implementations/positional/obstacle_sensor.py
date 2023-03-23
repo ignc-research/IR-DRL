@@ -70,7 +70,7 @@ class ObstacleSensor(Sensor):
 
         # create probe at link location
         self.link_position, _ = self.engine.get_link_state(self.robot.object_id, self.reference_link_id)
-        self.probe = self.engine.create_sphere(self.link_position, 0.001, 0, [0.5, 0.5, 0.5, 0.0001], True)
+        self.probe = self.engine.create_sphere(self.link_position, 0, 0.001, color = [0.5, 0.5, 0.5, 0.0001], collision=True)
 
         self.output_vector = self.default_observation
         self.data_raw = self._run_obstacle_detection()
@@ -103,14 +103,14 @@ class ObstacleSensor(Sensor):
         # get nearest robots
         for robot in self.robot.world.robots_in_world:
             if robot.object_id != self.robot.object_id:
-                closestPoints = pyb.getClosestPoints(self.probe, robot.object_id, self.max_distance)
+                closestPoints = pyb.getClosestPoints(self.engine._geometry[self.probe], self.engine._robots[robot.object_id], self.max_distance)  # TODO: fix the object IDs once engine is fully compatible with this
                 if not closestPoints:
                     continue
                 min_val = min(closestPoints, key=lambda x: x[8])  # index 8 is the distance in the object returned by pybullet
                 res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8]]))  # start, end, distance
         # get nearest obstacles
         for obstacle_id in self.robot.world.objects_ids:
-            closestPoints = pyb.getClosestPoints(self.probe, obstacle_id, self.max_distance)
+            closestPoints = pyb.getClosestPoints(self.engine._geometry[self.probe], self.engine._geometry[obstacle_id], self.max_distance)  # TODO: same as above
             if not closestPoints:
                 continue
             min_val = min(closestPoints, key=lambda x: x[8])

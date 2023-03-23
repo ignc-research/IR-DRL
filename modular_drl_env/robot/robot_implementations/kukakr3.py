@@ -24,8 +24,8 @@ class KukaKr3(Robot):
         self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300.])
         self.joints_max_velocities = np.array([10., 10., 10., 10., 10., 10.])
 
-        self.end_effector_link_id = 6
-        self.base_link_id = 7
+        self.end_effector_link_id = "tool0"
+        self.base_link_id = "base_link"
 
         self.urdf_path = "robots/predefined/kuka_kr3/urdf/kr3r540.urdf"
 

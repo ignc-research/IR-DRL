@@ -4,7 +4,6 @@ from numpy.random import shuffle
 from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.shapes import Box
 import pybullet_data as pyb_d
-import pybullet as pyb
 
 __all__ = [
     'RandomBoxesWorld'
@@ -44,7 +43,7 @@ class RandomBoxesWorld(World):
 
     def build(self):
         # table
-        self.objects_ids.append(pyb.loadURDF(pyb_d.getDataPath() + "/table/table.urdf", useFixedBase=True, globalScaling=1.75))
+        self.objects_ids.append(self.engine.load_urdf(pyb_d.getDataPath() + "/table/table.urdf", np.array([0, 0, 0]), np.array([0, 0, 0, 1]), [1.75, 1.75, 1.75]))
 
         # add ground plate
         self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
