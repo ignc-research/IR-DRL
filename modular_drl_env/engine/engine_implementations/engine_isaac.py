@@ -464,6 +464,9 @@ try:
 
             # self.collisions tracks prim_paths of colliding objects.
             # List is maintained by the _on_contact_report_event function
+             
+            # todo: objects seem to always occour in the same order (a colliding with b, never b with a).
+            # Second condition can probably be removed for increased performance, but keeping it ensures collisions are always detected
 
             if [path1, path2] in self.collisions:
                 return True
