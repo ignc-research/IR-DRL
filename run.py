@@ -6,6 +6,7 @@ from modular_drl_env.util.configparser import parse_config
 parser = ArgumentParser(prog = "Modular DRL Robot Gym Env",
                         description = "Builds and runs a modular gym env for simulated robots using a config file.")
 parser.add_argument("configfile", help="Path to the config yaml you want to use.")
+parser.add_argument("--isaac", action="store_true", help="Internal hint indicating that run.py was restarted to allow switching to ISAACs python interpreter")
 mode = parser.add_mutually_exclusive_group(required=True)
 mode.add_argument("--train", action="store_true", help="Runs the env in train mode.")
 mode.add_argument("--eval", action="store_true", help="Runs the env in eval mode.")
@@ -104,6 +105,10 @@ if __name__ == "__main__":
         #exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')
         while True:
             obs = env.reset()
+            print(obs)
+            for obs_entry in obs:
+                print(obs[obs_entry].shape)
+
             #exp_visualizer.close_open_figs()
             #fig, axs = exp_visualizer.start_imshow_from_obs(obs, value_or_action='action')
             done = False

@@ -27,12 +27,8 @@ def is_isaac_installed() -> bool:
 
 
 def is_isaac_running() -> bool:
-    # try importing isaac module
-    try:
-        from omni.isaac.kit import SimulationApp
-        return True
-    except ImportError:
-        return False
+    # isaac tag was added to args when restarting program with isaac interpreter
+    return "--isaac" in sys.argv
 
 
 def start():
@@ -52,7 +48,7 @@ def start():
         command += f' {arg}'
 
     print(f'Switching python environemnt by running command: {command}')
-    os.system(command)
+    os.system(command + ' --isaac')
 
     # exit old python environment after python interpreter finished execution
     exit(0)
