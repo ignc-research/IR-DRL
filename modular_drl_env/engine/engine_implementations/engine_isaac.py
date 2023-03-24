@@ -452,7 +452,7 @@ try:
 
             for path1 in paths1:
                 for path2 in paths2:
-                    if [path1, path2] in self.collisions:
+                    if self.is_colliding(path1, path2):
                         return True
             return False
 
