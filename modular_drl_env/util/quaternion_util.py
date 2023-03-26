@@ -89,3 +89,13 @@ def quaternion_to_matrix(quat):
     matrix[2, 2] = 1 - 2 * x**2 - 2 * y**2
 
     return matrix
+
+def matrix_to_quaternion(mat):
+
+    x = mat[2][1] - mat[1][2]
+    y = mat[0][2] - mat[2][0]
+    z = mat[1][0] - mat[0][1]
+    w = np.sqrt(1.0 + mat[0][0] + mat[1][1] + mat[2][2])
+
+    return np.array([x, y, z, w])
+    

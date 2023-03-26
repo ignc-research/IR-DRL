@@ -33,7 +33,7 @@ class AvoidObstacle(World):
             obstacle.trajectory = [obstacle.trajectory[0], self.robots_in_world[0].position_rotation_sensor.position]
             obstacle.move()
 
-    def build(self):
+    def build(self, success_rate: float):
         # add ground plate
         self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
 

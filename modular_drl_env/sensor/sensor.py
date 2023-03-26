@@ -27,7 +27,7 @@ class Sensor(ABC):
         # useful to set to false if you need the sensor data for your model but don't want it in the logs
         self.add_to_logging = add_to_logging
 
-        # time that passes per sim(=env) step
+        # time that passes per sim step
         self.sim_step = sim_step
         self.sim_steps_per_env_step = sim_steps_per_env_step
 

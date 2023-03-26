@@ -43,6 +43,7 @@ class LidarSensor(Sensor):
         lidar_data_raw = self._get_lidar_data()
         self.lidar_indicator, self.lidar_distances = self._process_raw_lidar(lidar_data_raw)
         self.cpu_time = time() - self.cpu_epoch
+        self.aux_visual_objects = []
 
     def get_observation(self) -> dict:
         if self.indicator:

@@ -93,7 +93,7 @@ class Goal(ABC):
         This is usefull if you e.g. have some running metric that can change the goal's parameters depending on training success.
         The success rate will be a float between 0 and 1.
         Return a list of tuples with 4 entries:
-        - 1: str, name of the metric, best use the self.metric_name class variable for this
+        - 1: str, name of the metric, best use a self.metric_name class variable for this
         - 2: float, the actual value of the metric, use 0 if you don't have a metric
         - 3: bool: determines if the env can write back the metric into goal, this is used by a stable_baselines callback to synchronize the metric across parallel envs, set to False if not using a metric
         - 4: bool: determines whether a lower metric is better (True) or if a higher metric is better (False)

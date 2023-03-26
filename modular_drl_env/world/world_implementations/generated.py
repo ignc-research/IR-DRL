@@ -87,7 +87,7 @@ class GeneratedWorld(World):
 
 
 
-    def build(self):
+    def build(self, success_rate: float):
         # load obstacle configs
         for obstacle in self.config:
             self.load_obstacle(obstacle)
@@ -104,13 +104,13 @@ class GeneratedWorld(World):
                 pos = self.start_override["position"][idx]
                 rot = self.start_override["rotation"][idx]
                 self.robots_in_world[idx].moveto_xyzquat(pos, rot, False)
-        elif self.start_override is None:
-            for robot in self.robots_in_world:
-                robot.moveto_joints(robot.resting_pose_angles, False)
-                robot.position_rotation_sensor.reset()
-                self.ee_starting_points.append((robot.position_rotation_sensor.position, robot.position_rotation_sensor.rotation, robot.resting_pose_angles))
+        # elif self.start_override is None:
+        #     for robot in self.robots_in_world:
+        #         robot.moveto_joints(robot.resting_pose_angles, False)
+        #         robot.position_rotation_sensor.reset()
+        #         self.ee_starting_points.append((robot.position_rotation_sensor.position, robot.position_rotation_sensor.rotation, robot.resting_pose_angles))
         else:
-            self._create_ee_starting_points(robots_with_starting_points)
+            self._create_ee_starting_points(robots_with_starting_points, factor=success_rate**3)
         self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=0.01)
 
         # move robots to starting position

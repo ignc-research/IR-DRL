@@ -39,10 +39,10 @@ class PybulletEngine(Engine):
 
     def reset(self):
         pyb.resetSimulation()
-        self._robots = {}
-        self._geometry = {}
-        self._links = {}
-        self._aux = {}
+        self._robots = dict()
+        self._geometry = dict()
+        self._links = dict()
+        self._aux = dict()
 
     def perform_collision_check(self, robots: List["Robot"], obstacles: List[str]) -> bool:
         pyb.performCollisionDetection()

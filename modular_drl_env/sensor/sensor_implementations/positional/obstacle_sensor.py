@@ -78,6 +78,7 @@ class ObstacleSensor(Sensor):
         self.output_vector[:len(new_data)] = new_data
         self.engine.move_base(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
+        self.aux_visual_objects = []
 
     def get_observation(self) -> dict:
         if self.normalize:
@@ -139,10 +140,9 @@ class ObstacleSensor(Sensor):
         return logging_dict
 
     def build_visual_aux(self):
-        position = np.array(pyb.getLinkState(self.robot.object_id, self.reference_link_id)[4])
 
         line_starts = [self.data_raw[i][0:3] for i in range(len(self.data_raw))]
         line_ends = [self.data_raw[i][3:6] for i in range(len(self.data_raw))]
 
         for i in range(len(line_starts)):
-            self.aux_visual_objects.append(pyb.addUserDebugLine(line_starts[i], line_ends[i], [0, 0, 1]))
+            self.aux_visual_objects.append(self.engine.add_aux_line(line_starts[i], line_ends[i], [0, 0, 1]))

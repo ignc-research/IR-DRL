@@ -258,7 +258,7 @@ class ModularDRLEnv(gym.Env):
                 robot.build()
 
             # spawn world objects, create starting points and targets for robots, move them to starting position
-            self.world.build()
+            self.world.build(np.average(self.success_stat))
             
             # check collision
             self.world.perform_collision_check()
@@ -288,7 +288,6 @@ class ModularDRLEnv(gym.Env):
                 goal.build_visual_aux()
         if self.show_auxillary_geometry_sensors:
             for sensor in self.sensors:
-                sensor.delete_visual_aux()
                 sensor.build_visual_aux()
 
         # perform one engine step to initialize all physics data
