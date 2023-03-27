@@ -12,12 +12,12 @@ class Kukaiiwa(Robot):
 
     def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool,
                  base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray],
-                 resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul: float=1):
+                 resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul: float=1, joint_limit_mul: float=1):
         super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation,
-                         resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul)
+                         resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul, joint_limit_mul)
         # from urdf file
-        self.joints_limits_lower = np.deg2rad(np.array([-170, -120, -170, -120, -170, -120, -175]))
-        self.joints_limits_upper = np.deg2rad(np.array([170, 120, 170, 120, 170, 120, 175]))
+        self.joints_limits_lower = np.deg2rad(np.array([-170, -120, -170, -120, -170, -120, -175])) * joint_limit_mul
+        self.joints_limits_upper = np.deg2rad(np.array([170, 120, 170, 120, 170, 120, 175])) * joint_limit_mul
         self.joints_range = self.joints_limits_upper - self.joints_limits_lower
 
         self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300., 300.])
