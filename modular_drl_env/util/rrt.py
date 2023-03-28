@@ -192,7 +192,7 @@ def bi_rrt(q_start, q_goal, robot, engine, obstacles_ids, max_steps, epsilon, go
 
 
     # get collision function
-    collision_or_out = get_collision_or_out_fn(robot, obstacles_ids)
+    collision_or_out = get_collision_or_out_fn(robot, obstacles_ids, engine)
 
     # check goal and start
     if collision_or_out(q_start):
@@ -201,7 +201,7 @@ def bi_rrt(q_start, q_goal, robot, engine, obstacles_ids, max_steps, epsilon, go
         raise CollisionException("Goal configuration is in collision or out of bounds!")
 
     # get the connect function
-    connect = get_connect_fn(collision_or_out, epsilon, engine)
+    connect = get_connect_fn(collision_or_out, epsilon)
 
     # get the sampling function
     sample = get_sample_fn(robot, engine)
