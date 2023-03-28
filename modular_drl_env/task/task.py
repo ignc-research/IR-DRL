@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, TYPE_CHECKING, Tuple, Union, Optional
 import numpy as np
 import torch
+from pathlib import Path
 
 if TYPE_CHECKING:
     from modular_drl_env.robot.robot import Robot
@@ -9,10 +10,11 @@ if TYPE_CHECKING:
     from modular_drl_env.sensor import Sensor
 
 class Task(ABC):
-    def __init__(self, asset_path:str, headless:bool=True) -> None:
+    def __init__(self, asset_path:str, step_size: float, headless:bool=True) -> None:
         super().__init__()
         self.asset_path = asset_path  # Path to assets used in simulation
         self.headless = headless  # True if the simulation will not be rendered, otherwise false 
+        self.step_size = step_size  # Amount of time passing each time .step() is called
 
     @abstractmethod
     def set_up(
@@ -22,7 +24,6 @@ class Task(ABC):
         sensors: List[Sensor],
         num_envs: int,
         boundaries: Tuple[float, float, float],
-        step_size: float
     ) -> Tuple[List[int], List[int], List [int]]:
         """
         The robot, obstacle and sensor class contains all pramameters about the objects which need to be spawned:
@@ -39,8 +40,10 @@ class Task(ABC):
         Sensors are always free floating and not attatched to a robot/obstacle. If a sensor needs to be attatched,
         it is specified in the Robot/Obstacle class.
 
-        After spawning all objects, the set_up function will assign an ID to all objects.
+        After spawning all objects, the set_up function will assign an ID(str) to all objects.
         Each id is unique, even between different classes.
+
+        Will create a default gound plane
 
         num_envs: Number of environments which will be simulated in paralles
         boundaries: Maximum amount of space required per environment
@@ -130,10 +133,10 @@ class Task(ABC):
         pass
 
     @abstractmethod
-    def get_collisions(self) -> List[Tuple[int, int]]:
+    def get_collisions(self) -> List[Tuple[str, str]]:
         """
         Returns the ids of objects which are colliding. Updated after each step.
-        Example: [(1, 2), (1, 3)] -> Object 1 is colliding with object 2 and 3.
+        Example: [(Robot1, Robot2), (Robot1, Obstacle3)] -> Object 1 is colliding with object 2 and 3.
         """
         pass
 
@@ -143,3 +146,6 @@ class Task(ABC):
         Steps the environment for one timestep
         """
         pass
+
+    def _get_absolute_asset_path(self, urdf_path: str):
+        return Path(self.asset_path).joinpath(urdf_path)
