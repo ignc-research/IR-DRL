@@ -91,6 +91,7 @@ class UR5_RRT(UR5):
             self.planned_trajectory = bi_rrt(q_start=q_start,
                                              q_goal=q_goal,
                                              robot=self,
+                                             engine=self.engine,
                                              obstacles_ids=self.world.objects_ids,
                                              max_steps=self.rrt_config["max_steps"],
                                              epsilon=self.rrt_config["epsilon"],

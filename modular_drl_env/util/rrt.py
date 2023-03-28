@@ -49,7 +49,7 @@ class Tree:
             print("---------------------")
             print(node.q)
 
-def get_collision_or_out_fn(robot, obstacles_ids):
+def get_collision_or_out_fn(robot, obstacles_ids, engine):
     """
     Creates a collision/oob function for a Robot robot and
     a list of obstacle ids obstacles_ids.
@@ -59,7 +59,7 @@ def get_collision_or_out_fn(robot, obstacles_ids):
         robot.moveto_joints(q, False)
 
         # first check oob
-        pos = np.array(pyb.getLinkState(robot.object_id, robot.end_effector_link_id)[4])
+        pos, _ = engine.get_link_state(robot.object_id, robot.end_effector_link_id)
         out = robot.world.out_of_bounds(pos)
         if out:
             return True
@@ -69,21 +69,21 @@ def get_collision_or_out_fn(robot, obstacles_ids):
 
             col = False
             for obst in obstacles_ids:
-                if pyb.getContactPoints(robot.object_id, obst):
+                if pyb.getContactPoints(engine._robots[robot.object_id], engine._geometry[obst]):
                     col = True
                     break
             return col
 
     return collision_or_oob
 
-def get_sample_fn(robot):
+def get_sample_fn(robot, engine):
     """
     Creates a function for sampling the configuration space of a robot.
     """
     def out(q):
         # we rewrite the out function here because checking every sample for both oob and collision would be bad for performance
         robot.moveto_joints(q, False)
-        pos = np.array(pyb.getLinkState(robot.object_id, robot.end_effector_link_id)[4])
+        pos, _ = engine.get_link_state(robot.object_id, robot.end_effector_link_id)
         out = robot.world.out_of_bounds(pos)
         return out
 
@@ -158,7 +158,7 @@ def bi_path(node1, node2, tree1, q_start):
 
     return list(reversed(a_traj)) + b_traj[1:]  # entry zero of b is the same as the last one of a
 
-def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias, visible=False, force_swap=200):
+def bi_rrt(q_start, q_goal, robot, engine, obstacles_ids, max_steps, epsilon, goal_bias, visible=False, force_swap=200):
     """
     Bi-RRT algorithm. Returns a valid, collision free trajectory of joint positions
     """
@@ -201,10 +201,10 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
         raise CollisionException("Goal configuration is in collision or out of bounds!")
 
     # get the connect function
-    connect = get_connect_fn(collision_or_out, epsilon)
+    connect = get_connect_fn(collision_or_out, epsilon, engine)
 
     # get the sampling function
-    sample = get_sample_fn(robot)
+    sample = get_sample_fn(robot, engine)
 
     # main algorithm
     for i in range(max_steps):
@@ -288,13 +288,13 @@ def bi_rrt(q_start, q_goal, robot, obstacles_ids, max_steps, epsilon, goal_bias,
     
     return None
 
-def smooth_path(path, epsilon, robot, obstacles_ids):
+def smooth_path(path, epsilon, robot, engine, obstacles_ids):
     """
     Takes a working path and smoothes it by checking if intermediate steps can be skipped.
     Greedy and thus pretty slow.
     """
 
-    collision = get_collision_or_out_fn(robot, obstacles_ids)
+    collision = get_collision_or_out_fn(robot, obstacles_ids, engine)
 
     def free(q_start, q_end, epsilon):
         tmp = q_start
