@@ -141,9 +141,11 @@ try:
             self._world.reset()
 
             # return indices allowing to quickly access robots/obstacles/sensors
-            num_robots = len(robots)
-            num_obstacles = len(obstacles)
+            num_robots = len(robots) * num_envs
+            num_obstacles = len(obstacles) * num_envs
             num_objects = num_obstacles + num_robots
+
+            assert num_envs == 1, "Multiple environments not implemented!"
 
             # The regex function will find obstacles before robots -> Obstacles have lower indices than robots 
             return [i for i in range(num_obstacles, num_objects)], [i for i in range(num_obstacles)], [i for i in range(len(sensors))]
