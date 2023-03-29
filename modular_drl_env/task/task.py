@@ -40,16 +40,13 @@ class Task(ABC):
         Sensors are always free floating and not attatched to a robot/obstacle. If a sensor needs to be attatched,
         it is specified in the Robot/Obstacle class.
 
-        After spawning all objects, the set_up function will assign an ID(str) to all objects.
-        Each id is unique, even between different classes.
-
         Will create a default gound plane
 
         num_envs: Number of environments which will be simulated in paralles
         boundaries: Maximum amount of space required per environment
         set_size: Amount of time simulated per sim step
 
-        Returns the generated robot, obstacles and sensor ids.
+        Returns the generated robot, obstacles and sensor ids. All of them are integers, and no robot id equals any obstacle id
         """
         pass
 
@@ -69,7 +66,7 @@ class Task(ABC):
     def set_joint_position_targets(
         self,
         positions: Optional[Union[np.ndarray, torch.Tensor]],
-        indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
+        robot_indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
         joint_indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
     ) -> None:
         """
@@ -81,7 +78,7 @@ class Task(ABC):
     def set_joint_velocities(
         self,
         velocities: Optional[Union[np.ndarray, torch.Tensor]],
-        indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
+        robot_indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
         joint_indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
     ) -> None:
         """
@@ -93,7 +90,7 @@ class Task(ABC):
     def set_joint_velocity_targets(
         self,
         velocities: Optional[Union[np.ndarray, torch.Tensor]],
-        indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
+        robot_indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
         joint_indices: Optional[Union[np.ndarray, List, torch.Tensor]] = None,
     ) -> None:
         """
@@ -115,7 +112,8 @@ class Task(ABC):
 
     @abstractmethod
     def get_local_poses(
-        self, indices: Optional[Union[np.ndarray, list, torch.Tensor]] = None
+        self,
+        indices: Optional[Union[np.ndarray, list, torch.Tensor]] = None,
     ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[torch.Tensor, torch.Tensor]]:
         """
         Gets the local pose, meaning translation and orientation, of all objects (robots and obstacles)
