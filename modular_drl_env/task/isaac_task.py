@@ -332,7 +332,7 @@ try:
             ) -> None:
             from omni.physx.scripts.physicsUtils import add_rigid_sphere
 
-            # create cube
+            # create sphere
             add_rigid_sphere(
                 self.stage, prim_path,
                 radius=radius,
@@ -356,6 +356,8 @@ try:
             collision: bool
         ) -> None:
             from omni.physx.scripts.physicsUtils import add_rigid_cylinder
+
+            # create cylinder
             add_rigid_cylinder(
                 self.stage, prim_path,
                 radius=radius,
