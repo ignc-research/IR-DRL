@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import atexit
 from modular_drl_env.world.obstacles.shapes import *
+from modular_drl_env.world.obstacles.urdf_object import URDFObject
 
 # avoid circular imports
 if TYPE_CHECKING:
@@ -111,7 +112,7 @@ try:
             # spawn robots
             for i, robot in enumerate(robots):
                 # import robot from urdf, creating prim path
-                prim_path = self._import_robot(robot.urdf_path)
+                prim_path = self._import_urdf(robot.urdf_path)
 
                 # move imported robot to location of all robots
                 prim_path = self._move_prim(prim_path, self._robots_world_path + str(i))
@@ -258,7 +259,7 @@ try:
                 if 'CONTACT_FOUND' in contact_type or 'CONTACT_PERSIST' in contact_type:
                     self._collisions.append((actor0, actor1)) 
 
-        def _import_robot(self, urdf_path: str) -> str:
+        def _import_urdf(self, urdf_path: str) -> str:
             """
             Loads in a URDF file into the world at position and orientation.
             Must return a unique str identifying the newly spawned object within the engine.
