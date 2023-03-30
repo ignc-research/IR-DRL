@@ -145,5 +145,12 @@ class Task(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_joint_info(self, robot_index: int) -> List[Tuple[str, int]]:
+        """
+        Returns the joint names and corresponding joint indices of a robot.
+        """
+        pass
+
     def _get_absolute_asset_path(self, urdf_path: str):
         return Path(self.asset_path).joinpath(urdf_path)
