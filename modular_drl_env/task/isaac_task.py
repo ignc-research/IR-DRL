@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import atexit
 from modular_drl_env.world.obstacles.shapes import *
-from modular_drl_env.world.obstacles.urdf_object import URDFObject
 
 # avoid circular imports
 if TYPE_CHECKING:
@@ -369,6 +368,12 @@ try:
 
             if collision:
                 self._add_collision_material(prim_path, self._collision_material_path)
+
+        def get_joint_info(self, robot_index: int) -> List[Tuple[str, int]]:
+            """
+            Returns the joint names and corresponding joint indices of a robot.
+            """
+            return [(child.GetName(), index) for index, child in enumerate(self._robots.prims[robot_index].GetAllChildren())]
         
     # static utillity functions
     from pxr import Gf
