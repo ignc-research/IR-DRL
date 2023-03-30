@@ -130,6 +130,7 @@ class KukaShelfExperiment(World):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []
+        self.joints_targets = []
         self.ee_starting_points = []
         for human in self.humans:
             del human

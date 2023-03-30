@@ -202,7 +202,7 @@ class PositionCollisionGoal(Goal):
 
     def delete_visual_aux(self):
         for aux_object_id in self.aux_object_ids:
-            self.engine.remove_aux_object(aux_object_id)
+            self.engine.remove_geom_object(aux_object_id)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()

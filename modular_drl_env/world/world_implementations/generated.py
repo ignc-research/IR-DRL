@@ -125,6 +125,7 @@ class GeneratedWorld(World):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []
+        self.joints_targets = []
         self.ee_starting_points = []
         for object in self.obstacle_objects:
             del object

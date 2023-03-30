@@ -22,6 +22,7 @@ class AvoidObstacle(World):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []
+        self.joints_targets = []
         self.ee_starting_points = []
         for obj in self.obstacle_objects:
             del obj

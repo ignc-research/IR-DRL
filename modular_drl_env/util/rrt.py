@@ -76,21 +76,15 @@ def get_collision_or_out_fn(robot, obstacles_ids, engine):
 
     return collision_or_oob
 
-def get_sample_fn(robot, engine):
+def get_sample_fn(robot, collision_or_out_fn):
     """
     Creates a function for sampling the configuration space of a robot.
     """
-    def out(q):
-        # we rewrite the out function here because checking every sample for both oob and collision would be bad for performance
-        robot.moveto_joints(q, False)
-        pos, _ = engine.get_link_state(robot.object_id, robot.end_effector_link_id)
-        out = robot.world.out_of_bounds(pos)
-        return out
 
     def sample():
         sample = np.random.uniform(low=robot.joints_limits_lower, high=robot.joints_limits_upper, size=len(robot.joints_ids))
         # check if sample is in workspace bounds
-        while out(sample):
+        while collision_or_out_fn(sample):
             sample = np.random.uniform(low=robot.joints_limits_lower, high=robot.joints_limits_upper, size=len(robot.joints_ids))
         return sample
     return sample
@@ -204,7 +198,7 @@ def bi_rrt(q_start, q_goal, robot, engine, obstacles_ids, max_steps, epsilon, go
     connect = get_connect_fn(collision_or_out, epsilon)
 
     # get the sampling function
-    sample = get_sample_fn(robot, engine)
+    sample = get_sample_fn(robot, collision_or_out)
 
     # main algorithm
     for i in range(max_steps):

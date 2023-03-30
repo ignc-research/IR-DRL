@@ -173,6 +173,9 @@ class PybulletEngine(Engine):
     
     def remove_aux_object(self, aux_object_id):
         pyb.removeUserDebugItem(self._aux[aux_object_id])
+
+    def remove_geom_object(self, object_id):
+        pyb.removeBody(self._geometry[object_id])
     
     ##################
     # robot movement #
