@@ -170,7 +170,7 @@ try:
             """
             Sets the joint position targets of all robots specified in robot_indices to their respective values specified in positions.
             """
-            self._robots.set_joint_position_targets(positions, robot_indices)
+            self._robots.set_joint_position_targets(positions, robot_indices, joint_indices)
 
         def set_joint_velocities(
             self,
