@@ -125,11 +125,11 @@ try:
                 prim_path = self._obstacles_world_path + str(i)
 
                 if isinstance(obstacle, Box):
-                    self._create_box(obstacle.args)
+                    self._create_box(**obstacle.args)
                 elif isinstance(obstacle, Sphere):
-                    self._create_sphere(obstacle.args)
+                    self._create_sphere(**obstacle.args)
                 elif isinstance(obstacle, Cylinder):
-                    self._create_cylinder(obstacle.args)
+                    self._create_cylinder(**obstacle.args)
                 else:
                     raise f"Obstacle {type(obstacle)} implemented"
             
