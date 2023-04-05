@@ -1,0 +1,86 @@
+# config that builds the env as Yifan had it
+run:
+  load_model: False  
+  model_path: ""  
+  train:
+    num_envs : 16  
+    timesteps: 15000000 
+    save_freq : 30000
+    save_folder: "./models/weights"  
+    save_name: "PPO_default"
+    recurrent: False
+    ppo_steps: 1024  
+    batch_size: 512
+    gamma: 0.99  
+    tensorboard_folder: "./models/tensorboard_logs"
+    custom_policy:
+      use: False
+      activation_function: "ReLU"  
+      layers:
+        - 128
+        - 128
+        - value_function:
+          - 64
+        - policy_function:
+          - 32
+          - 32
+          - 16   
+      lstm:
+        lstm_hidden_size: 512
+        n_lstm_layers: 2
+        shared_lstm: False
+        enable_critic_lstm: True
+
+  eval:
+    max_episodes: -1  
+    logging: 1 
+    display_delay: 0.00416666666
+    show_world_aux: False
+    show_goal_aux: True
+    show_sensor_aux: False
+
+env:
+  max_steps_per_episode: 1000000000 
+  stat_buffer_size: 25  
+  normalize_observations: False
+  normalize_rewards: False
+  engine:
+    type: "Pybullet"
+    use_physics_sim: True
+    gravity: [0, 0, -9.8]
+    sim_step: 0.00416666666  #0.01666666666 
+    sim_steps_per_env_step: 4
+  robots:
+    - type: "UR5_Gripper" 
+      config:
+        name: "ur5_1"
+        base_position: [0, 0, 0.01]
+        base_orientation: [0, 0, -180]
+        resting_angles: [-180, -45, -90, -135, 90, 0]
+        #resting_angles: [-81.25, -90, -90, 0, 0, 0]
+        control_mode: 2
+        joint_vel_mul: 0.5
+      goal:
+        type: "PositionCollision"
+        config:
+          add_to_logging: True
+          continue_after_success: True
+          reward_success: 10
+          reward_collision: -5
+          reward_distance_mult: -0.01
+          dist_threshold_start: 0.2
+          dist_threshold_end : 0.01
+          dist_threshold_increment_start: 0.01
+          dist_threshold_increment_end: 0.001
+          dist_threshold_overwrite: 0.1
+
+  world:
+    type: "Generated"
+    config:
+      workspace_boundaries: [-2, 2, -2, 2, -1, 5]
+      obstacles:
+      - type: "box"  # tisch
+        position: [0.25, 0.25, -0.5]
+        rotation: [0, 0, 0]
+        params:
+          scale: [0.6, 0.6, 1]
