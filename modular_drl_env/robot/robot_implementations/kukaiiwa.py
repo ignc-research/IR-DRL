@@ -1,6 +1,5 @@
-from typing import Union
+from typing import Union, List
 import numpy as np
-import pybullet as pyb
 from modular_drl_env.robot.robot import Robot
 
 __all__ = [
@@ -10,29 +9,23 @@ __all__ = [
 
 class Kukaiiwa(Robot):
 
-    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool,
-                 base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray],
-                 resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul: float=1, joint_limit_mul: float=1):
-        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation,
-                         resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul, joint_limit_mul)
-        # from urdf file
-        self.joints_limits_lower = np.deg2rad(np.array([-170, -120, -170, -120, -170, -120, -175])) * joint_limit_mul
-        self.joints_limits_upper = np.deg2rad(np.array([170, 120, 170, 120, 170, 120, 175])) * joint_limit_mul
-        self.joints_range = self.joints_limits_upper - self.joints_limits_lower
-
-        self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300., 300.])
-        self.joints_max_velocities = np.deg2rad(np.array([98., 98., 100., 130., 140., 180., 180.]))
+    def __init__(self, name: str,
+                       id_num: int,
+                       world,
+                       sim_step: float,
+                       use_physics_sim: bool,
+                       base_position: Union[list, np.ndarray], 
+                       base_orientation: Union[list, np.ndarray], 
+                       resting_angles: Union[list, np.ndarray], 
+                       control_mode: Union[int, str], 
+                       ik_xyz_delta: float=0.005,
+                       ik_rpy_delta: float=0.005,
+                       joint_velocities_overwrite: Union[float, List]=1,
+                       joint_limits_overwrite: Union[float, List]=1,
+                       controlled_joints: list=[]):
+        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, ik_xyz_delta, ik_rpy_delta, joint_velocities_overwrite, joint_limits_overwrite, controlled_joints)
 
         self.end_effector_link_id = "lbr_iiwa_link_7"
         self.base_link_id = "lbr_iiwa_link_0"
 
         self.urdf_path = "robots/predefined/kuka_iiwa/model.urdf"
-
-    def get_action_space_dims(self):
-        return (7, 6)  # 7 joints
-
-    def build(self):
-        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation, is_robot=True)
-        self.joints_ids = self.engine.get_joints_ids_actuators(self.object_id)
-
-        self.moveto_joints(self.resting_pose_angles, False)

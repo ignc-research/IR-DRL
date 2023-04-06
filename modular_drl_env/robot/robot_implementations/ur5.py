@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 import numpy as np
 from modular_drl_env.robot.robot import Robot
 from modular_drl_env.util.rrt import bi_rrt
@@ -13,52 +13,27 @@ __all__ = [
 
 class UR5(Robot):
 
-    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul: float=1, joint_limit_mul: float=1):
-        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul, joint_limit_mul)
-        self.joints_limits_lower = np.array([-np.pi, -np.pi, -np.pi, -np.pi, -np.pi, -np.pi]) * 2 * joint_limit_mul
-        self.joints_limits_upper = np.array([np.pi, np.pi, np.pi, np.pi, np.pi, np.pi]) * 2 * joint_limit_mul
-        self.joints_range = self.joints_limits_upper - self.joints_limits_lower
-
-        self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300.])
-        self.joints_max_velocities = np.array([10., 10., 10., 10., 10., 10.])
-
+    def __init__(self, name: str,
+                       id_num: int,
+                       world,
+                       sim_step: float,
+                       use_physics_sim: bool,
+                       base_position: Union[list, np.ndarray], 
+                       base_orientation: Union[list, np.ndarray], 
+                       resting_angles: Union[list, np.ndarray], 
+                       control_mode: Union[int, str], 
+                       ik_xyz_delta: float=0.005,
+                       ik_rpy_delta: float=0.005,
+                       joint_velocities_overwrite: Union[float, List]=1,
+                       joint_limits_overwrite: Union[float, List]=1,
+                       controlled_joints: list=[]):
+        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, ik_xyz_delta, ik_rpy_delta, joint_velocities_overwrite, joint_limits_overwrite, controlled_joints)
         self.end_effector_link_id = "ee_link"
         self.base_link_id = "base_link"
 
-        self.urdf_path = "robots/predefined/ur5/urdf/ur5.urdf"
+        self.urdf_path = "robots/predefined/ur5/urdf/ur5.urdf"  
 
-    def get_action_space_dims(self):
-        return (6,6)  # 6 joints
-
-    def build(self):
-
-        self.object_id = self.engine.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation, is_robot=True)
-        self.joints_ids = self.engine.get_joints_ids_actuators(self.object_id)
-
-        self.moveto_joints(self.resting_pose_angles, False)     
-
-
-    def _solve_ik(self, xyz: np.ndarray, quat:Union[np.ndarray, None]):
-        """
-        Solves the UR5's inverse kinematics for the desired pose.
-        Returns the joint angles required.
-        This specific implementation for the UR5 projects the frequent out of bounds
-        solutions back into the allowed joint range by exploiting the
-        periodicity of the 2 pi range.
-
-        :param xyz: Vector containing the desired xyz position of the end effector.
-        :param quat: Vector containing the desired rotation of the end effector.
-        :return: Vector containing the joint angles required to reach the pose.
-        """
-        joints = self.engine.solve_inverse_kinematics(robot_id=self.object_id,
-                                                      end_effector_link_id=self.end_effector_link_id,
-                                                      target_position=xyz,
-                                                      target_orientation=quat)
-        joints = np.float32(joints)
-        #joints = (joints + self.joints_limits_upper) % (self.joints_range) - self.joints_limits_upper  # projects out of bounds angles back to angles within the allowed joint range
-        joints = (joints + np.pi) % (2 * np.pi) - np.pi
-        return joints
-
+# NOTE: potentially broken, will get rewrite anyway
 class UR5_RRT(UR5):
 
     def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], trajectory_tolerance: float, rrt_config: dict):
@@ -81,11 +56,11 @@ class UR5_RRT(UR5):
         if not self.planned_trajectory:
             q_start = self.joints_sensor.joints_angles
             # check if joints are available for the target
-            if len(self.world.joints_targets) >= (self.id + 1) and self.world.joints_targets[self.id] is not None:
-                q_goal = self.world.joints_targets[self.id]
+            if len(self.world.joints_targets) >= (self.mgt_id + 1) and self.world.joints_targets[self.mgt_id] is not None:
+                q_goal = self.world.joints_targets[self.mgt_id]
             else:  # generate the joints from inverse kinematics
-                goal_xyz = self.world.position_targets[self.id]
-                goal_quat = self.world.rotation_targets[self.id] if self.world.rotation_targets else None
+                goal_xyz = self.world.position_targets[self.mgt_id]
+                goal_quat = self.world.rotation_targets[self.mgt_id] if self.world.rotation_targets else None
                 q_goal = self._solve_ik(goal_xyz, goal_quat)
 
             self.planned_trajectory = bi_rrt(q_start=q_start,
@@ -118,10 +93,21 @@ class UR5_RRT(UR5):
         return process_time() - cpu_epoch
     
 class UR5_Gripper(UR5):
-    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul=1, joint_limit_mul=1):
-        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul, joint_limit_mul)
-        self.joints_limits_lower = np.array([-np.pi, -np.pi, -np.pi, -np.pi, -np.pi, -np.pi/4]) * 2 * joint_limit_mul
-        self.joints_limits_upper = np.array([np.pi, np.pi, np.pi, np.pi, np.pi, np.pi/4]) * 2 * joint_limit_mul
+    def __init__(self, name: str,
+                       id_num: int,
+                       world,
+                       sim_step: float,
+                       use_physics_sim: bool,
+                       base_position: Union[list, np.ndarray], 
+                       base_orientation: Union[list, np.ndarray], 
+                       resting_angles: Union[list, np.ndarray], 
+                       control_mode: Union[int, str], 
+                       ik_xyz_delta: float=0.005,
+                       ik_rpy_delta: float=0.005,
+                       joint_velocities_overwrite: Union[float, List]=1,
+                       joint_limits_overwrite: Union[float, List]=1,
+                       controlled_joints: list=[]):
+        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, ik_xyz_delta, ik_rpy_delta, joint_velocities_overwrite, joint_limits_overwrite, controlled_joints)
 
         self.urdf_path = "robots/predefined/ur5/urdf/ur5_with_gripper.urdf"
 

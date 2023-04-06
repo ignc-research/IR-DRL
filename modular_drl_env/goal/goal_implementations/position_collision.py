@@ -3,7 +3,7 @@ import numpy as np
 from modular_drl_env.robot.robot import Robot
 from gym.spaces import Box
 from modular_drl_env.util.quaternion_util import quaternion_similarity
-import pybullet as pyb
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'PositionCollisionGoal',
@@ -108,7 +108,7 @@ class PositionCollisionGoal(Goal):
     def get_observation(self) -> dict:
         # get the data
         self.position = self.robot.position_rotation_sensor.position
-        self.target = self.robot.world.position_targets[self.robot.id]
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
         dif = self.target - self.position
         self.distance = np.linalg.norm(dif)
 
@@ -198,12 +198,12 @@ class PositionCollisionGoal(Goal):
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
-        self.target = self.robot.world.position_targets[self.robot.id]
-        self.aux_object_ids.append(self.engine.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
+        self.aux_object_ids.append(pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
 
     def delete_visual_aux(self):
         for aux_object_id in self.aux_object_ids:
-            self.engine.remove_geom_object(aux_object_id)
+            pyb_u.remove_object(aux_object_id)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
@@ -399,8 +399,8 @@ class PositionRotationCollisionGoal(Goal):
         # get the data
         self.position = self.robot.position_rotation_sensor.position
         self.rotation = self.robot.position_rotation_sensor.rotation
-        self.target_position = self.robot.world.position_targets[self.robot.id]
-        self.target_rotation = self.robot.world.rotation_targets[self.robot.id]
+        self.target_position = self.robot.world.position_targets[self.robot.mgt_id]
+        self.target_rotation = self.robot.world.rotation_targets[self.robot.mgt_id]
         dif = self.target_position - self.position
         self.position_distance = np.linalg.norm(dif)
         #print(self.rotation, self.target_rotation)
@@ -516,8 +516,8 @@ class PositionRotationCollisionGoal(Goal):
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
-        self.target = self.robot.world.position_targets[self.robot.id]
-        self.engine.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False)
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
+        pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()

@@ -165,6 +165,7 @@ class pybullet_util:
         for joint_info in joints_info:
             if joint_info[2] != pyb.JOINT_FIXED:
                 ret.append((cls.gym_env_str_joints_names[pyb_id, joint_info[0]], joint_info[2]))
+        return ret
 
     @classmethod
     def get_base_pos_and_ori(cls, object_id) -> Tuple[np.ndarray, np.ndarray]:
@@ -233,7 +234,7 @@ class pybullet_util:
         Sets control targets for a robot's joints.
         Can either control position, velocity or both. If both are given, position will take precedence.
         """     
-        
+    
         pyb_kwargs = {}
         pyb_kwargs["jointIndices"] = [cls.pybullet_joints_ids[robot_id, joint_id] for joint_id in joint_ids]
         pyb_kwargs["bodyUniqueId"] = cls.pybullet_object_ids[robot_id]
@@ -280,3 +281,20 @@ class pybullet_util:
             residualThreshold=threshold
         )
         return np.float32(joints)
+    
+    ########
+    # misc #
+    ########
+
+    @classmethod
+    def get_joint_dynamics(cls, robot_id: str, joint_id: str) -> Tuple[float, float, float, float]:
+        pyb_robot_id = cls.pybullet_object_ids[robot_id]
+        pyb_joint_id = cls.pybullet_joints_ids[robot_id, joint_id]
+        dyn_info = pyb.getDynamicsInfo(pyb_robot_id, pyb_joint_id)
+        return dyn_info[8], dyn_info[9], dyn_info[10], dyn_info[11]  # lower, upper, force, velocity
+
+    @classmethod
+    def set_joint_dynamics(cls, robot_id: str, joint_id: str, joint_velocity: float, joint_lower_limit: float, joint_upper_limit: float) -> None:
+        pyb_robot_id = cls.pybullet_object_ids[robot_id]
+        pyb_joint_id = cls.pybullet_joints_ids[robot_id, joint_id]
+        pyb.changeDynamics(pyb_robot_id, pyb_joint_id, maxJointVelocity=joint_velocity, jointLowerLimit=joint_lower_limit, jointUpperLimit=joint_upper_limit)

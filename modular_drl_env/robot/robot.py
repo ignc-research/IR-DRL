@@ -1,10 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, List
 import numpy as np
 from modular_drl_env.world.world import World
-from modular_drl_env.engine.engine import get_instance
 from modular_drl_env.util.quaternion_util import quaternion_to_rpy, rpy_to_quaternion
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 from time import process_time
+
+CONTROL_MODES = [
+    "inverse_kinematics",
+    "joint_positions",
+    "joint_velocities"
+]
 
 class Robot(ABC):
     """
@@ -21,22 +27,26 @@ class Robot(ABC):
                        base_position: Union[list, np.ndarray], 
                        base_orientation: Union[list, np.ndarray], 
                        resting_angles: Union[list, np.ndarray], 
-                       control_mode: int, 
-                       xyz_delta: float=0.005,
-                       rpy_delta: float=0.005,
-                       joint_vel_mul: float=1,
-                       joint_limit_mul: float=1):
+                       control_mode: Union[int, str], 
+                       ik_xyz_delta: float=0.005,
+                       ik_rpy_delta: float=0.005,
+                       joint_velocities_overwrite: Union[float, List]=1,
+                       joint_limits_overwrite: Union[float, List]=1,
+                       controlled_joints: list=[]):
         super().__init__()
-
-        # set engine
-        self.engine = get_instance()
 
         # set name
         self.name = name
 
+        # URDF file path, NOTE: this and two variables below are literally the only things that you have to set for your implementation
+        self.urdf_path = None
+        # link ids, these have to be set in your subclass!
+        self.end_effector_link_id = None
+        self.base_link_id = None
+        
         # set id field, this will be given by the world containing this robot
         # it's used by other objects such as goals to access the correct robot's data when it's in some list somewhere
-        self.id = id_num
+        self.mgt_id = id_num
 
         # set world
         self.world = world
@@ -54,27 +64,25 @@ class Robot(ABC):
         self.resting_pose_angles = np.array(resting_angles)
 
         # use physics sim or simply teleport for movement
-        self.use_physics_sim = use_physics_sim
-
-        # link ids, these have to be set in your subclass!
-        self.end_effector_link_id = None
-        self.base_link_id = None
+        self.use_physics_sim = use_physics_sim       
 
         # PyBullet and URDF related variables
         self.urdf_path = None  # set in subclass, should be the relative path to the robot's URDF file
-        self.object_id = None  # PyBullet object id
-        self.joints_ids = []  # array of joint ids, this gets filled at runtime
-        self.joints_limits_lower = []  # this and the two below you have to fill for yourself in the subclass in __init__
-        self.joints_limits_upper = []  # the values are typically found in the urdf, multiply both this and the above with joint_limit_mul
+        self.object_id = None  # str handle for unique identification with our pybullet handler, will be something like robot_0
+        self.joints_ids = []  # array of joint ids, this gets filled by build
+        self.joints_limits_lower = []  # this and the two below are set by the build method
+        self.joints_limits_upper = []  
         self.joints_range = None
-        self.joints_max_velocities = None  # again, fill in from URDF in your subclass
+        self.joints_max_velocities = None  # again, set in build method
         self.joints_max_forces = None  # same as the one above
 
         # control mode
-        #   0: inverse kinematics
-        #   1: joint angles
-        #   2: joint velocities
-        self.control_mode = control_mode
+        if type(control_mode) == str:
+            assert control_mode in CONTROL_MODES, "[ROBOT init] unknown control mode!"
+            self.control_mode = CONTROL_MODES.index(control_mode)
+        else:
+            assert control_mode >= 0 and control_mode < 3, "[ROBOT init] unknown control mode!"
+            self.control_mode = control_mode
 
         # goal associated with the robot
         self.goal = None
@@ -85,14 +93,20 @@ class Robot(ABC):
         self.joints_sensor = None
         self.position_rotation_sensor = None
 
-        # maximum deltas on movements, will be used in Inverse Kinematics control
-        self.xyz_delta = xyz_delta
-        self.rpy_delta = rpy_delta
+        # in inverse kinmematics mode limits the maximum desired movement per step to this
+        # note: independent of this, movements will still be limited by maximum joint velocities and joint position limits
+        self.xyz_delta = ik_xyz_delta
+        self.rpy_delta = ik_rpy_delta
 
-        # multiplier for joint velocities, can be used to make the robot move slower/faster in control mode 2
-        self.joint_vel_mul = joint_vel_mul
+        # if float: a multiplier for all joint velocities
+        # if list: overwrite for max joint velocities, has to overwrite every single one
+        self.joint_velocities_overwrite = joint_velocities_overwrite
+        # same as for the velocities, just for joint positions
+        self.joint_limits_overwrite = joint_limits_overwrite
 
-    @abstractmethod
+        # these are the controlled joints, if this list is empty (default case) then all controllabe joints will be controlled by the agent
+        self.controlled_joints = controlled_joints
+
     def get_action_space_dims(self):
         """
         A simple method that should return a tuple containing as first entry the number action space
@@ -103,15 +117,45 @@ class Robot(ABC):
         also overwrite the moveto_*** or action methods below such that they still work.
         """
         # TODO: deal with joints with two or more degrees of freedom
-        pass
+        return (len(self.controlled_joints), 6)
 
-    @abstractmethod
     def build(self):
         """
         Method that spawns the robot into the simulation, moves its base to the desired position and orientation
         and sets its joints to the resting angles. Also populates the PyBullet variables with information.
         """
-        pass
+        self.object_id = pyb_u.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation, is_robot=True)
+        if self.controlled_joints:
+            self.joints_ids = self.controlled_joints
+        else:
+            self.joints_ids = pyb_u.get_controllable_joint_ids(self.object_id)
+            self.joints_ids = [ele[0] for ele in self.joints_ids]
+        self.moveto_joints(self.resting_pose_angles, False)
+
+        # handle the limit overwrite input
+        self.joint_limits_overwrite = self.joint_limits_overwrite if type(self.joint_limits_overwrite) == list else [self.joint_limits_overwrite for _ in self.joints_ids]
+        self.joint_velocities_overwrite = self.joint_velocities_overwrite if type(self.joint_velocities_overwrite) == list else [self.joint_velocities_overwrite for _ in self.joints_ids]
+
+        # get info about joint limits, forces and max velocities
+        lowers = []
+        uppers = []
+        forces = []
+        velos = []
+        for idx, joint_id in enumerate(self.joints_ids):
+            lower, upper, force, velocity = pyb_u.get_joint_dynamics(self.object_id, joint_id)
+            lowers.append(lower * self.joint_limits_overwrite[idx])
+            uppers.append(upper * self.joint_limits_overwrite[idx])
+            forces.append(force)
+            velos.append(velocity * self.joint_velocities_overwrite[idx])
+        self.joints_limits_lower = np.array(lowers)
+        self.joints_limits_upper = np.array(uppers)
+        self.joints_range = self.joints_limits_upper - self.joints_limits_lower
+        self.joints_max_forces = np.array(forces)
+        self.joints_max_velocities = np.array(velos)
+
+        # modify the internal Pybullet representation to obey our new limits on position and velocity
+        for idx, joint_id in enumerate(self.joints_ids):
+            pyb_u.set_joint_dynamics(self.object_id, joint_id, self.joints_max_velocities[idx], self.joints_limits_lower[idx], self.joints_limits_upper[idx])
 
     def set_joint_sensor(self, joints_sensor):
         """
@@ -185,7 +229,7 @@ class Robot(ABC):
             # if we don't, we run simple algebra to get the new joint angles for this step and then apply them
 
             # transform action (-1 to 1) to joint velocities
-            new_joint_vels = action * self.joints_max_velocities * self.joint_vel_mul
+            new_joint_vels = action * self.joints_max_velocities
             if not self.use_physics_sim:
                 # compute the delta for this sim step
                 joint_delta = new_joint_vels * self.sim_step
@@ -207,7 +251,11 @@ class Robot(ABC):
 
         :param desired_joints_velocities: Vector containing the new joint velocities.
         """
-        self.engine.joints_torque_control_velocities(robot_id=self.object_id, joints_ids=self.joints_ids, target_velocities=desired_joints_velocities, forces=self.joints_max_forces)
+        pyb_u.set_joint_targets(
+            robot_id=self.object_id,
+            joint_ids=self.joints_ids,
+            velocity=desired_joints_velocities,
+            forces=self.joints_max_forces)
 
     def moveto_joints(self, desired_joints_angles: np.ndarray, use_physics_sim: bool):
         """
@@ -225,9 +273,19 @@ class Robot(ABC):
 
         # apply movement
         if use_physics_sim:
-            self.engine.joints_torque_control_angles(robot_id=self.object_id, joints_ids=self.joints_ids, target_angles=desired_joints_angles, forces=self.joints_max_forces)
+            pyb_u.set_joint_targets(
+                robot_id=self.object_id,
+                joint_ids=self.joints_ids,
+                position=desired_joints_angles,
+                forces=self.joints_max_forces,
+                max_velocities=self.joints_max_velocities
+            )
         else:
-            self.engine.set_joints_values(robot_id=self.object_id, joints_ids=self.joints_ids, joints_values=desired_joints_angles)
+            pyb_u.set_joint_states(
+                robot_id=self.object_id,
+                joint_ids=self.joints_ids,
+                position=desired_joints_angles
+            )
 
     def moveto_xyzrpy(self, desired_xyz: np.ndarray, desired_rpy: np.ndarray, use_physics_sim: bool):
         """
@@ -269,11 +327,12 @@ class Robot(ABC):
         :param quat: Vector containing the desired rotation of the end effector.
         :return: Vector containing the joint angles required to reach the pose.
         """
-        joints = self.engine.solve_inverse_kinematics(robot_id=self.object_id,
-                                                      end_effector_link_id=self.end_effector_link_id,
-                                                      target_position=xyz,
-                                                      target_orientation=quat)
-        return np.float32(joints)
+        return pyb_u.solve_inverse_kinematics(
+            robot_id=self.object_id,
+            link_id=self.end_effector_link_id,
+            target_position=xyz,
+            target_orientation=quat
+        )
 
     def move_base(self, desired_base_position: np.ndarray, desired_base_orientation: np.ndarray):
         """
@@ -285,4 +344,4 @@ class Robot(ABC):
 
         self.base_position = desired_base_position
         self.base_orientation = desired_base_orientation
-        self.engine.move_base(self.object_id, desired_base_position.tolist(), desired_base_orientation.tolist())
+        pyb_u.set_base_pos_and_ori(self.object_id, desired_base_position, desired_base_orientation)
