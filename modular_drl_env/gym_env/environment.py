@@ -7,11 +7,13 @@ import os
 import platform
 
 # import abstracts
-from modular_drl_env.engine.engine import Engine
 from modular_drl_env.robot.robot import Robot
 from modular_drl_env.sensor.sensor import Sensor
 from modular_drl_env.goal.goal import Goal
 from modular_drl_env.world.world import World
+
+# import pybullet wrapper
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 # import implementations, new ones hav to be added to the registries to work
 #   worlds
@@ -22,8 +24,6 @@ from modular_drl_env.robot import RobotRegistry
 from modular_drl_env.sensor import SensorRegistry
 #   goals
 from modular_drl_env.goal import GoalRegistry
-#   engine
-from modular_drl_env.engine.engine import initialize_engine, get_instance
 
 class ModularDRLEnv(gym.Env):
 
@@ -36,8 +36,6 @@ class ModularDRLEnv(gym.Env):
         self.normalize_observations = env_config["normalize_observations"]
         # flag for normalizing rewards
         self.normalize_rewards = env_config["normalize_rewards"]
-        # flag for rendering
-        self.display = env_config["display"]
         # flag for rendering auxillary geometry spawned by the scenario
         self.show_auxillary_geometry_world = env_config["show_world_aux"]
         # flag for rendering auxillary geometry spawned by the goals
@@ -70,11 +68,11 @@ class ModularDRLEnv(gym.Env):
         self.cpu_time = 0
         self.cpu_epoch = process_time()
         self.log = []
-        # init and fill the stats with a few entries to make early iterations more robust
-        self.success_stat = [False, False, False, False]
-        self.out_of_bounds_stat = [False, False, False, False]
-        self.timeout_stat = [False, False, False, False]
-        self.collision_stat = [False, False, False, False]
+        # init and fill the stats with a few entries to make early iterations a bit more robust
+        self.success_stat = [False, False]
+        self.out_of_bounds_stat = [False, False]
+        self.timeout_stat = [False, False]
+        self.collision_stat = [False, False]
         self.cumulated_rewards_stat = [0]
         self.goal_metrics = []
         self.reward = 0
@@ -95,16 +93,8 @@ class ModularDRLEnv(gym.Env):
         else:
             self.assets_path = os.path.join(os.sep, *assets_path[:-1])  
         
-        # init engine from config
-        engine_type = env_config["engine"]["type"]
-        engine_config = env_config["engine"].get("config", {})
-        engine_config["use_physics_sim"] = self.use_physics_sim
-        engine_config["sim_step"] = self.sim_step
-        engine_config["assets_path"] = self.assets_path
-        engine_config["gravity"] = env_config["engine"]["gravity"]
-        engine_config["display_mode"] = self.display
-        initialize_engine(engine_type, engine_config)
-        self.engine:Engine = get_instance()
+        # init pybullet from config
+        pyb_u.init(assets_path, env_config["display"], env_config["sim_step"], env_config["gravity"])
 
         # init world from config
         world_type = env_config["world"]["type"]

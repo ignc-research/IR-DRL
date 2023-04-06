@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from modular_drl_env.robot.robot import Robot
-from modular_drl_env.engine.engine import get_instance
 from typing import Tuple
 
 class Goal(ABC):
@@ -10,9 +9,6 @@ class Goal(ABC):
     """
 
     def __init__(self, robot:Robot, normalize_rewards:bool, normalize_observations:bool, train:bool, add_to_observation_space: bool, add_to_logging:bool, max_steps:int, continue_after_success:bool=False):
-
-        # get engine
-        self.engine = get_instance()
 
         # each goal needs to have a robot assigned for which it is valid
         self.robot = robot

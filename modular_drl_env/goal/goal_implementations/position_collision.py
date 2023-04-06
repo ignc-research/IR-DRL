@@ -3,6 +3,7 @@ import numpy as np
 from modular_drl_env.robot.robot import Robot
 from gym.spaces import Box
 from modular_drl_env.util.quaternion_util import quaternion_similarity
+import pybullet as pyb
 
 __all__ = [
     'PositionCollisionGoal',
