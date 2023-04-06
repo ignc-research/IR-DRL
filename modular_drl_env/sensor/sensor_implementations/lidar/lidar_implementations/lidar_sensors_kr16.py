@@ -4,6 +4,7 @@ import pybullet as pyb
 from gym.spaces import Box
 from ..lidar import LidarSensor
 from modular_drl_env.util.quaternion_util import quaternion_to_matrix
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'LidarSensorKR16'
@@ -62,7 +63,7 @@ class LidarSensorKR16(LidarSensor):
         self.rays_ends = []
 
         
-        pos_ee, or_ee = self.engine.get_link_state(self.robot.object_id, "ee_link")
+        pos_ee, or_ee, _, _ = pyb_u.get_link_state(self.robot.object_id, "ee_link")
         frame_ee = np.eye(4)
         frame_ee[:3, :3] = quaternion_to_matrix(or_ee)
         frame_ee[0:3, 3] = pos_ee
@@ -112,7 +113,7 @@ class LidarSensorKR16(LidarSensor):
         # rays around the upper arm of the end effector
         if "upper_arm" in self.ray_setup: 
             interval = -0.48 / self.ray_setup["upper_arm"][1]  # evenly space rays along entire length, arm length of 0.48 found out by testing and does not account for potential urdf mesh scaling
-            pos_ar, or_ar = self.engine.get_link_state(self.robot.object_id, 'link_3')
+            pos_ar, or_ar, _, _ = pyb_u.get_link_state(self.robot.object_id, 'link_3')
             frame_arm = np.eye(4)
             frame_arm[:3, :3] = quaternion_to_matrix(or_ar)
             frame_arm[0:3, 3] = pos_ar
@@ -153,6 +154,6 @@ class LidarSensorKR16(LidarSensor):
 
         for index, result in enumerate(self.results):
             if result[0] == -1:
-                self.aux_visual_objects.append(self.engine.add_aux_line(self.rays_starts[index], self.rays_ends[index], missRayColor))
+                self.aux_lines += pyb_u.draw_lines([self.rays_starts[index]], [self.rays_ends[index]], [missRayColor])
             else:
-                self.aux_visual_objects.append(self.engine.add_aux_line(self.rays_starts[index], self.rays_ends[index], hitRayColor))
+                self.aux_lines += pyb_u.draw_lines([self.rays_starts[index]], [self.rays_ends[index]], [hitRayColor])

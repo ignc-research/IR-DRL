@@ -3,6 +3,7 @@ import numpy as np
 from modular_drl_env.sensor.sensor import Sensor
 from modular_drl_env.robot.robot import Robot
 from time import process_time
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
         'JointsSensor'
@@ -24,7 +25,6 @@ class JointsSensor(Sensor):
         # init data storage
         self.joints_dims = len(self.robot.joints_limits_lower)
         self.joints_angles = None
-        self.joints_angles_prev = None
         self.joints_velocities = None
 
         # whether to add joint velocities to observation space
@@ -42,17 +42,14 @@ class JointsSensor(Sensor):
     def update(self, step) -> dict:
         self.cpu_epoch = process_time()
         if step % self.update_steps == 0:
-            self.joints_angles_prev = self.joints_angles
-            self.joints_angles = self.engine.get_joints_values(self.robot.object_id, self.robot.joints_ids)
-            self.joints_velocities = (self.joints_angles - self.joints_angles_prev) / (self.update_steps * self.sim_step * self.sim_steps_per_env_step)  # most engines can calculate this on their own, but we do it manually to also have it available when we don't use accurate physics
+            self.joints_angles, self.joints_velocities = pyb_u.get_joint_states(self.robot.object_id, self.robot.all_joints_ids)
         self.cpu_time = process_time() - self.cpu_epoch
 
         return self.get_observation()
 
     def reset(self):
         self.cpu_epoch = process_time()
-        self.joints_angles = self.engine.get_joints_values(self.robot.object_id, self.robot.joints_ids)
-        self.joints_angles_prev = self.joints_angles
+        self.joints_angles, _ = pyb_u.get_joint_states(self.robot.object_id, self.robot.all_joints_ids)
         self.joints_velocities = np.zeros(self.joints_dims)
         self.cpu_time = process_time() - self.cpu_epoch
 

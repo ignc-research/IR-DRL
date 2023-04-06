@@ -69,7 +69,8 @@ class Robot(ABC):
         # PyBullet and URDF related variables
         self.urdf_path = None  # set in subclass, should be the relative path to the robot's URDF file
         self.object_id = None  # str handle for unique identification with our pybullet handler, will be something like robot_0
-        self.joints_ids = []  # array of joint ids, this gets filled by build
+        self.controlled_joints_ids = []  # array of controleld actionable joint ids, this gets filled by build
+        self.all_joints_ids = []  # all actionable joint ids
         self.joints_limits_lower = []  # this and the two below are set by the build method
         self.joints_limits_upper = []  
         self.joints_range = None
@@ -125,23 +126,24 @@ class Robot(ABC):
         and sets its joints to the resting angles. Also populates the PyBullet variables with information.
         """
         self.object_id = pyb_u.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation, is_robot=True)
+        self.all_joints_ids = pyb_u.get_controllable_joint_ids(self.object_id)
+        self.all_joints_ids = [ele[0] for ele in self.all_joints_ids]
         if self.controlled_joints:
-            self.joints_ids = self.controlled_joints
+            self.controlled_joints_ids = self.controlled_joints
         else:
-            self.joints_ids = pyb_u.get_controllable_joint_ids(self.object_id)
-            self.joints_ids = [ele[0] for ele in self.joints_ids]
+            self.controlled_joints_ids = self.all_joints_ids
         self.moveto_joints(self.resting_pose_angles, False)
 
         # handle the limit overwrite input
-        self.joint_limits_overwrite = self.joint_limits_overwrite if type(self.joint_limits_overwrite) == list else [self.joint_limits_overwrite for _ in self.joints_ids]
-        self.joint_velocities_overwrite = self.joint_velocities_overwrite if type(self.joint_velocities_overwrite) == list else [self.joint_velocities_overwrite for _ in self.joints_ids]
+        self.joint_limits_overwrite = self.joint_limits_overwrite if type(self.joint_limits_overwrite) == list else [self.joint_limits_overwrite for _ in self.controlled_joints_ids]
+        self.joint_velocities_overwrite = self.joint_velocities_overwrite if type(self.joint_velocities_overwrite) == list else [self.joint_velocities_overwrite for _ in self.controlled_joints_ids]
 
         # get info about joint limits, forces and max velocities
         lowers = []
         uppers = []
         forces = []
         velos = []
-        for idx, joint_id in enumerate(self.joints_ids):
+        for idx, joint_id in enumerate(self.controlled_joints_ids):
             lower, upper, force, velocity = pyb_u.get_joint_dynamics(self.object_id, joint_id)
             lowers.append(lower * self.joint_limits_overwrite[idx])
             uppers.append(upper * self.joint_limits_overwrite[idx])
@@ -154,7 +156,7 @@ class Robot(ABC):
         self.joints_max_velocities = np.array(velos)
 
         # modify the internal Pybullet representation to obey our new limits on position and velocity
-        for idx, joint_id in enumerate(self.joints_ids):
+        for idx, joint_id in enumerate(self.controlled_joints_ids):
             pyb_u.set_joint_dynamics(self.object_id, joint_id, self.joints_max_velocities[idx], self.joints_limits_lower[idx], self.joints_limits_upper[idx])
 
     def set_joint_sensor(self, joints_sensor):
@@ -253,7 +255,7 @@ class Robot(ABC):
         """
         pyb_u.set_joint_targets(
             robot_id=self.object_id,
-            joint_ids=self.joints_ids,
+            joint_ids=self.controlled_joints_ids,
             velocity=desired_joints_velocities,
             forces=self.joints_max_forces)
 
@@ -275,7 +277,7 @@ class Robot(ABC):
         if use_physics_sim:
             pyb_u.set_joint_targets(
                 robot_id=self.object_id,
-                joint_ids=self.joints_ids,
+                joint_ids=self.controlled_joints_ids,
                 position=desired_joints_angles,
                 forces=self.joints_max_forces,
                 max_velocities=self.joints_max_velocities
@@ -283,7 +285,7 @@ class Robot(ABC):
         else:
             pyb_u.set_joint_states(
                 robot_id=self.object_id,
-                joint_ids=self.joints_ids,
+                joint_ids=self.controlled_joints_ids,
                 position=desired_joints_angles
             )
 

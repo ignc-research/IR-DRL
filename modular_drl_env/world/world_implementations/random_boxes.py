@@ -4,6 +4,7 @@ from numpy.random import shuffle
 from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.shapes import Box
 import pybullet_data as pyb_d
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'RandomBoxesWorld'
@@ -44,10 +45,10 @@ class RandomBoxesWorld(World):
 
     def build(self, success_rate: float):
         # table
-        self.objects_ids.append(self.engine.load_urdf(pyb_d.getDataPath() + "/table/table.urdf", np.array([0, 0, -1.1]), np.array([0, 0, 0, 1]), [1.75, 1.75, 1.75]))
+        self.objects_ids.append(pyb_u.load_urdf(pyb_d.getDataPath() + "/table/table.urdf", np.array([0, 0, -1.1]), np.array([0, 0, 0, 1]), [1.75, 1.75, 1.75]))
 
         # add ground plate
-        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -1.11])))
+        self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -1.11])))
 
         rand_number = int(np.round(self.previous_success_rate * self.max_num_obstacles))
 
@@ -58,7 +59,7 @@ class RandomBoxesWorld(World):
             #                             high=np.array([self.x_max, self.y_max, self.z_max]), size=(3,))
 
             min_dist = self.obstacle_min_dist
-            robot_start = self.robots_in_world[0].base_position
+            robot_start = self.robots[0].base_position
             x = np.random.choice(np.array([np.random.uniform(self.x_min, robot_start[0] - min_dist), np.random.uniform(robot_start[0] + min_dist, self.x_max)]))
             y = np.random.choice(np.array([np.random.uniform(self.y_min, robot_start[0] - min_dist), np.random.uniform(robot_start[0] + min_dist, self.y_max)]))
             z = np.random.uniform(self.z_min, self.z_max)
@@ -80,7 +81,7 @@ class RandomBoxesWorld(World):
             self.objects_ids.append(plate.build())
 
         # generate starting points and targets
-        robots_with_starting_points = [robot for robot in self.robots_in_world if robot.goal is not None]
+        robots_with_starting_points = [robot for robot in self.robots if robot.goal is not None]
         val = self._create_ee_starting_points(robots_with_starting_points, factor=success_rate**3)
         if not val:
             return
@@ -94,7 +95,7 @@ class RandomBoxesWorld(World):
             pos_robot = self.ee_starting_points[0][0]
             pos_goal = self.position_targets[0]
             collision = True
-            self.robots_in_world[0].moveto_joints(self.joints_targets[0], False)
+            self.robots[0].moveto_joints(self.joints_targets[0], False)
             # generate random obstacle somewhere where it doesnt bother the rest of the scene
             length = np.random.uniform(low=self.box_l_min, high=self.box_l_max) * 0.5
             width = np.random.uniform(low=self.box_w_min, high=self.box_w_max) * 0.5
@@ -119,15 +120,19 @@ class RandomBoxesWorld(World):
                 # set obstacle_pos as linear combi of base without normal_vec
                 obstacle_pos = dist_obstacle + b * np.random.uniform(0, 0.15) + c * np.random.uniform(0, 0.15)
                 # move obstacle between start and goal pos
-                self.engine.move_base(obstacle_plate.object_id, obstacle_pos, random_quat)
+                pyb_u.set_base_pos_and_ori(obstacle_plate.object_id, obstacle_pos, random_quat)
 
                 # check collision
-                collision = self.perform_collision_check()
-                if collision:
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                collision = pyb_u.collision
+                if pyb_u.collision:
                     continue
                 else:
-                    self.robots_in_world[0].moveto_joints(self.ee_starting_points[0][2], False)
-                    collision = self.perform_collision_check()
+                    self.robots[0].moveto_joints(self.ee_starting_points[0][2], False)
+                    pyb_u.perform_collision_check()
+                    pyb_u.get_collisions()
+                    collision = pyb_u.collision
 
 
             #TODO: move robot to goal, spawn plate, then check if there is collision, if yes: spawn new plate, if no append plate
@@ -135,7 +140,7 @@ class RandomBoxesWorld(World):
 
            
         # move robots to starting position
-        for idx, robot in enumerate(self.robots_in_world):
+        for idx, robot in enumerate(self.robots):
             if self.ee_starting_points[idx][0] is None:
                 continue
             else:

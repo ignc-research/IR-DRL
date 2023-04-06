@@ -16,10 +16,17 @@ class pybullet_util:
     # these will map pybullet's int joint ids to their actual names in the source URDF
     pybullet_joints_ids = {}
     gym_env_str_joints_names = {}
+    # bools to check the current collision state
+    collision: bool = False  # bool for whether there is a collision at all
+    collisions: List[Tuple(str, str)] = []  # list of tuples of colliding objects
 
     ##########
     # basics #
     ##########
+
+    @classmethod
+    def to_pb(cls, object_id: str) -> int:
+        return cls.pybullet_object_ids[object_id]
 
     @staticmethod
     def init(assets_path: str, display_mode: bool, sim_step: float, gravity: List) -> None:
@@ -59,7 +66,8 @@ class pybullet_util:
         ret = []
         for tup in pyb_cols:
             ret.append((cls.gym_env_str_names[tup[1]], cls.gym_env_str_names[tup[2]]))
-        return ret
+        cls.collisions = ret
+        cls.collision = True if ret else False
     
     ############
     # geometry #

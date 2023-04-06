@@ -201,10 +201,6 @@ class PositionCollisionGoal(Goal):
         self.target = self.robot.world.position_targets[self.robot.mgt_id]
         self.aux_object_ids.append(pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
 
-    def delete_visual_aux(self):
-        for aux_object_id in self.aux_object_ids:
-            pyb_u.remove_object(aux_object_id)
-
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
 
@@ -517,7 +513,7 @@ class PositionRotationCollisionGoal(Goal):
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
         self.target = self.robot.world.position_targets[self.robot.mgt_id]
-        pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False)
+        self.aux_object_ids.append(pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()

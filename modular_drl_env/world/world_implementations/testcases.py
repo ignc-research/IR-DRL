@@ -2,6 +2,7 @@ from modular_drl_env.world.world import World
 import numpy as np
 from random import choice
 from modular_drl_env.world.obstacles.shapes import Box
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'TestcasesWorld'
@@ -39,7 +40,7 @@ class TestcasesWorld(World):
 
     def build(self, success_rate: float):
         # add ground plate
-        ground_plate = self.engine.add_ground_plane(np.array([0, 0, -0.01]))
+        ground_plate = pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
         self.objects_ids.append(ground_plate)
         if self.current_test_mode == 1:
             self._build_test_1()
@@ -48,7 +49,7 @@ class TestcasesWorld(World):
         elif self.current_test_mode == 3:
             self._build_test_3()
 
-        self.robots_in_world[0].moveto_joints(self.robot_start_joint_angles[self.current_test_mode - 1], False)
+        self.robots[0].moveto_joints(self.robot_start_joint_angles[self.current_test_mode - 1], False)
             
     def reset(self, success_rate):
         if self.test_mode == 0:
@@ -68,13 +69,13 @@ class TestcasesWorld(World):
         if self.current_test_mode == 3:
             if self.test3_phase == 0:
                 # this is only works if the first robot is the one performing the test as we require for this class
-                dist_threshold = self.robots_in_world[0].goal.distance_threshold  # warning: this will crash if the goal has no such thing as a distance threshold
-                ee_pos = self.robots_in_world[0].position_rotation_sensor.position
+                dist_threshold = self.robots[0].goal.distance_threshold  # warning: this will crash if the goal has no such thing as a distance threshold
+                ee_pos = self.robots[0].position_rotation_sensor.position
                 dist = np.linalg.norm(ee_pos - self.position_target_3_1)
                 if dist <= dist_threshold * 1.5:
                     # overwrite current with new target
                     self.position_targets = [self.position_target_3_2]
-                    for robot in self.robots_in_world[1:]:
+                    for robot in self.robots[1:]:
                         self.position_targets.append([])
                     self.test3_phase = 1
     

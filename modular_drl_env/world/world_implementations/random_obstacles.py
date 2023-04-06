@@ -2,6 +2,7 @@ from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.shapes import Box, Sphere
 import numpy as np
 from random import choice, shuffle
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'RandomObstacleWorld'
@@ -62,7 +63,7 @@ class RandomObstacleWorld(World):
 
     def build(self, success_rate: float):
         # add ground plate
-        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
+        self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -0.01])))
 
         # determine random number of obstacles, if needed
         if self.randomize_number_of_obstacles:
@@ -120,11 +121,11 @@ class RandomObstacleWorld(World):
                 self.objects_ids.append(sphere.build())
 
         # generate starting points and targets
-        robots_with_starting_points = [robot for robot in self.robots_in_world if robot.goal is not None]
+        robots_with_starting_points = [robot for robot in self.robots if robot.goal is not None]
         #self._create_ee_starting_points(robots_with_starting_points)
         val = False
         while not val:
-            for robot in self.robots_in_world:
+            for robot in self.robots:
                 rando = np.random.rand(3)
                 x = (self.x_min + self.x_max) / 2 + 0.5 * (rando[0] - 0.5) * (self.x_max - self.x_min)
                 y = (self.y_min + self.y_max) / 2 + 0.5 * (rando[1] - 0.5) * (self.y_max - self.y_min)
@@ -135,8 +136,9 @@ class RandomObstacleWorld(World):
                 robot.moveto_xyzrpy(np.array([x,y,z]), standard_rot, False)
                 robot.joints_sensor.reset()
                 self.ee_starting_points.append((np.array([x,y,z]), standard_rot, robot.joints_sensor.joints_angles))
-            self.perform_collision_check()
-            if not self.collision:
+            pyb_u.perform_collision_check()
+            pyb_u.get_collisions()
+            if not pyb_u.collision:
                 val = True
                 continue
             self.ee_starting_points = []
@@ -144,7 +146,7 @@ class RandomObstacleWorld(World):
         self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=min_dist)
 
         # move robots to starting position
-        for idx, robot in enumerate(self.robots_in_world):
+        for idx, robot in enumerate(self.robots):
             if self.ee_starting_points[idx][0] is None:
                 continue
             else:

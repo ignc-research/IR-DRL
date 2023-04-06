@@ -4,6 +4,7 @@ from modular_drl_env.sensor.sensor import Sensor
 from modular_drl_env.robot.robot import Robot
 from modular_drl_env.util.quaternion_util import quaternion_to_rpy
 from time import time
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
         'PositionRotationSensor'
@@ -52,7 +53,7 @@ class PositionRotationSensor(Sensor):
         self.cpu_epoch = time()
         if step % self.update_steps == 0:
             self.position_prev = self.position
-            self.position, self.rotation = self.engine.get_link_state(self.robot.object_id, self.link_id)
+            self.position, self.rotation, _, _ = pyb_u.get_link_state(self.robot.object_id, self.link_id)
             if not self.quaternion:
                 self.rotation = quaternion_to_rpy(self.rotation)
             self.position_velocity = (self.position - self.position_prev) / (self.update_steps * self.sim_step * self.sim_steps_per_env_step)
@@ -62,7 +63,7 @@ class PositionRotationSensor(Sensor):
 
     def reset(self):
         self.cpu_epoch = time()
-        self.position, self.rotation = self.engine.get_link_state(self.robot.object_id, self.link_id)
+        self.position, self.rotation, _, _ = pyb_u.get_link_state(self.robot.object_id, self.link_id)
         self.position_prev = self.position
         if not self.quaternion:
             self.rotation = quaternion_to_rpy(self.rotation)

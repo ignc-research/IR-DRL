@@ -98,12 +98,12 @@ class GeneratedWorld(World):
             self.objects_ids.append(obstacle.object_id)
 
         # generate targets and starting positions
-        robots_with_starting_points = [robot for robot in self.robots_in_world if robot.goal is not None]
+        robots_with_starting_points = [robot for robot in self.robots if robot.goal is not None]
         if self.start_override:
             for idx in range(len(self.start_override["position"])):
                 pos = self.start_override["position"][idx]
                 rot = self.start_override["rotation"][idx]
-                self.robots_in_world[idx].moveto_xyzquat(pos, rot, False)
+                self.robots[idx].moveto_xyzquat(pos, rot, False)
         # elif self.start_override is None:
         #     for robot in self.robots_in_world:
         #         robot.moveto_joints(robot.resting_pose_angles, False)
@@ -114,7 +114,7 @@ class GeneratedWorld(World):
         self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=0.01)
 
         # move robots to starting position
-        for idx, robot in enumerate(self.robots_in_world):
+        for idx, robot in enumerate(self.robots):
             if self.ee_starting_points[idx][0] is None:
                 continue
             else:

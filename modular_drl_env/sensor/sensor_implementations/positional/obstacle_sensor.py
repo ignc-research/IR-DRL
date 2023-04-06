@@ -4,6 +4,7 @@ import numpy as np
 from modular_drl_env.sensor.sensor import Sensor
 from modular_drl_env.robot.robot import Robot
 from time import process_time
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     "ObstacleSensor"
@@ -53,14 +54,14 @@ class ObstacleSensor(Sensor):
         self.cpu_epoch = process_time()
         if step % self.update_steps == 0:
             # move probe to current link position
-            self.link_position, _ = self.engine.get_link_state(self.robot.object_id, self.reference_link_id)
-            self.engine.move_base(self.probe, self.link_position, np.array([0, 0, 0, 1]))
+            self.link_position, _, _, _ = pyb_u.get_link_state(self.robot.object_id, self.reference_link_id)
+            pyb_u.set_base_pos_and_ori(self.probe, self.link_position, np.array([0, 0, 0, 1]))
 
             self.output_vector = self.default_observation
             self.data_raw = self._run_obstacle_detection()
             new_data = self._process(self.data_raw)
             self.output_vector[:len(new_data)] = new_data
-            self.engine.move_base(self.probe, self.default_position, np.array([0, 0, 0, 1]))
+            pyb_u.set_base_pos_and_ori(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
 
         return self.get_observation()
@@ -69,14 +70,14 @@ class ObstacleSensor(Sensor):
         self.cpu_epoch = process_time()
 
         # create probe at link location
-        self.link_position, _ = self.engine.get_link_state(self.robot.object_id, self.reference_link_id)
-        self.probe = self.engine.create_sphere(self.link_position, 0, 0.001, color = [0.5, 0.5, 0.5, 0.0001], collision=True)
+        self.link_position, _, _, _ = pyb_u.get_link_state(self.robot.object_id, self.reference_link_id)
+        self.probe = pyb_u.create_sphere(self.link_position, 0, 0.001, color = [0.5, 0.5, 0.5, 0.0001], collision=True)
 
         self.output_vector = self.default_observation
         self.data_raw = self._run_obstacle_detection()
         new_data = self._process(self.data_raw)
         self.output_vector[:len(new_data)] = new_data
-        self.engine.move_base(self.probe, self.default_position, np.array([0, 0, 0, 1]))
+        pyb_u.set_base_pos_and_ori(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
         self.aux_visual_objects = []
 
@@ -102,16 +103,16 @@ class ObstacleSensor(Sensor):
 
         res = []
         # get nearest robots
-        for robot in self.robot.world.robots_in_world:
+        for robot in self.robot.world.robots:
             if robot.object_id != self.robot.object_id:
-                closestPoints = pyb.getClosestPoints(self.engine._geometry[self.probe], self.engine._robots[robot.object_id], self.max_distance)  # TODO: fix the object IDs once engine is fully compatible with this
+                closestPoints = pyb.getClosestPoints(pyb_u.to_pb(self.probe), pyb_u.to_pb(robot.object_id), self.max_distance)
                 if not closestPoints:
                     continue
                 min_val = min(closestPoints, key=lambda x: x[8])  # index 8 is the distance in the object returned by pybullet
                 res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8]]))  # start, end, distance
         # get nearest obstacles
         for obstacle_id in self.robot.world.objects_ids:
-            closestPoints = pyb.getClosestPoints(self.engine._geometry[self.probe], self.engine._geometry[obstacle_id], self.max_distance)  # TODO: same as above
+            closestPoints = pyb.getClosestPoints(pyb_u.to_pb(self.probe), pyb_u.to_pb(obstacle_id), self.max_distance)
             if not closestPoints:
                 continue
             min_val = min(closestPoints, key=lambda x: x[8])
@@ -143,6 +144,6 @@ class ObstacleSensor(Sensor):
 
         line_starts = [self.data_raw[i][0:3] for i in range(len(self.data_raw))]
         line_ends = [self.data_raw[i][3:6] for i in range(len(self.data_raw))]
+        colors = [[0, 0, 1] for _ in range(len(self.data_raw))]
 
-        for i in range(len(line_starts)):
-            self.aux_visual_objects.append(self.engine.add_aux_line(line_starts[i], line_ends[i], [0, 0, 1]))
+        self.aux_lines += pyb_u.draw_lines(line_starts, line_ends, colors)

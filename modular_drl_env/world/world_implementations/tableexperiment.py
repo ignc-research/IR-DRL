@@ -5,6 +5,7 @@ from modular_drl_env.world.obstacles.human import Human
 from modular_drl_env.world.obstacles.shapes import Box
 import pybullet_data as pyb_d
 from random import choice
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'TableExperiment'
@@ -34,10 +35,6 @@ class TableExperiment(World):
         # INFO: if multiple robot base positions are given, we will assume that the first one is the main one for the experiment
         # also, we will always assume that the robot base is set up at 0,0,z
         # this will make generating obstacles easier
-
-        # guard against usage with engines other than pybullet
-        if self.engine.engine_type != "Pybullet":
-            raise Exception("The table experiment cannot be used with engines other than Pybullet!")
 
         self.num_obstacles = num_obstacles
         self.num_humans = num_humans
@@ -75,9 +72,9 @@ class TableExperiment(World):
         
     def build(self, success_rate: float):
         # ground plate
-        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
+        self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -0.01])))
         # table
-        self.objects_ids.append(self.engine.load_urdf(pyb_d.getDataPath()+"/table/table.urdf", np.array([0, 0, 0]), np.array([0, 0, 0, 1]), scale=[1.75, 1.75, 1.75]))
+        self.objects_ids.append(pyb_u.load_urdf(pyb_d.getDataPath()+"/table/table.urdf", np.array([0, 0, 0]), np.array([0, 0, 0, 1]), scale=1.75))
         # humans
         for i in range(self.num_humans):
             human = Human(self.human_positions[i], self.human_rotations[i], self.human_trajectories[i], self.sim_step, 0.5, 1.5)
@@ -98,7 +95,7 @@ class TableExperiment(World):
             # if there are no given obstacle positions, randomly generate some
             if not self.obstacle_positions:
                 # first get the base position of the main robot, whcih we'll assume to be the first one
-                base_position = self.robots_in_world[0].base_position
+                base_position = self.robots[0].base_position
                 # now we generate a position for the obstacle at random but while making sure that it doesn't spawn in a certain perimeter around the base
                 while True:
                     position = np.random.uniform(low=self.table_bounds_low, high=self.table_bounds_high, size=(3,))
@@ -114,10 +111,10 @@ class TableExperiment(World):
                     for i in range(trajectory_length):
                         while True:
                             # this creates positions for the trajectory that don't cross over the robot's own position
-                            diff = position - self.robots_in_world[0].base_position
+                            diff = position - self.robots[0].base_position
                             diff_norm = np.linalg.norm(diff)
-                            point1 = self.robots_in_world[0].base_position + diff * (0.01 / diff_norm)
-                            point2 = 2 * diff + self.robots_in_world[0].base_position
+                            point1 = self.robots[0].base_position + diff * (0.01 / diff_norm)
+                            point2 = 2 * diff + self.robots[0].base_position
                             low = np.minimum(point1, point2)
                             high = np.maximum(point1, point2)
                             high[2] = 1.7
@@ -143,12 +140,12 @@ class TableExperiment(World):
             self.obstacle_objects.append(obs)    
 
         # generate starting points and targets
-        self._create_ee_starting_points(self.robots_in_world[0:1])
+        self._create_ee_starting_points(self.robots[0:1])
         min_dist = min((self.x_max - self.x_min) / 6, (self.y_max - self.y_min) / 6, (self.z_max - self.z_min) / 6)
-        self._create_position_and_rotation_targets(self.robots_in_world[0:1], min_dist=min_dist)
+        self._create_position_and_rotation_targets(self.robots[0:1], min_dist=min_dist)
 
         # move robots to starting position
-        for idx, robot in enumerate(self.robots_in_world):
+        for idx, robot in enumerate(self.robots):
             if self.ee_starting_points[idx][0] is None:
                 continue
             else:
@@ -189,7 +186,7 @@ class TableExperiment(World):
             if self.human_reactive[idx]:
                 near = False or self.human_ee_was_near[idx]
                 if not near:  # check if end effector is near
-                    for robot in self.robots_in_world:
+                    for robot in self.robots:
                         if np.linalg.norm(robot.position_rotation_sensor.position - human.position) <= self.near_threshold:
                             near = True
                             self.human_ee_was_near[idx] = True
@@ -226,7 +223,7 @@ class TableExperiment(World):
         else:
             while True:
                 target = np.random.uniform(low=self.target_bounds_low, high=self.target_bounds_high, size=(3,))
-                if np.linalg.norm(target - self.robots_in_world[0].base_position) > 0.15:
+                if np.linalg.norm(target - self.robots[0].base_position) > 0.15:
                     break
             self.position_targets = [target]
             return [target]

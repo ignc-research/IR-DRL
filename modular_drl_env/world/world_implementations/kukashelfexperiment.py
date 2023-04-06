@@ -5,6 +5,7 @@ from modular_drl_env.world.obstacles.shapes import Box
 from modular_drl_env.world.obstacles.shelf.shelf import ShelfObstacle
 from random import choice, sample
 from modular_drl_env.util.quaternion_util import rotate_vector
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'KukaShelfExperiment'
@@ -61,7 +62,7 @@ class KukaShelfExperiment(World):
 
     def build(self, success_rate: float):
         # ground plate
-        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
+        self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -0.01])))
 
         # build shelves
         for shelf in self.shelves:
@@ -100,12 +101,12 @@ class KukaShelfExperiment(World):
                 self.objects_ids.append(box.build())
 
         # starting points
-        for robot in self.robots_in_world:
+        for robot in self.robots:
             robot.moveto_joints(robot.resting_pose_angles, False)
         # create targets
         targets = []
         taken_shelf_pos = []
-        for robot in self.robots_in_world:
+        for robot in self.robots:
             shelf = choice(self.shelf_list)
             shelf_pos = shelf["position"]
             shelf_rot = shelf["rotation"]

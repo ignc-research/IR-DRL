@@ -1,14 +1,11 @@
 from abc import ABC, abstractmethod
-from modular_drl_env.engine.engine import get_instance
 from typing import Union
 import numpy as np
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 class Obstacle(ABC):
 
     def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float) -> None:
-        
-        # set engine
-        self.engine = get_instance()
 
         # current and initial position
         self.position = np.array(position)
@@ -54,7 +51,7 @@ class Obstacle(ABC):
                 move_step = self.move_step if diff_norm > self.move_step else diff_norm # ensures that we don't jump over the target destination
                 step = diff * (move_step / diff_norm)
                 self.position = self.position + step
-                self.engine.move_base(object_id=self.object_id, position=self.position, orientation=self.orientation)
+                pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=self.position, orientation=self.orientation)
         else:  # looping trajectory
             goal = self.trajectory[self.trajectory_idx + 1]
             diff = goal - self.position
@@ -68,4 +65,4 @@ class Obstacle(ABC):
                 move_step = self.move_step if diff_norm > self.move_step else diff_norm # ensures that we don't jump over the target destination
                 step = diff * (move_step / diff_norm)  
                 self.position = self.position + step
-                self.engine.move_base(object_id=self.object_id, position=self.position, orientation=self.orientation)
+                pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=self.position, orientation=self.orientation)

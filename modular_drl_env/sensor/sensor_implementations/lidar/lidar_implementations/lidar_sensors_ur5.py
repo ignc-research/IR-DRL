@@ -2,10 +2,9 @@ from modular_drl_env.robot.robot import Robot
 import numpy as np
 import pybullet as pyb
 from gym.spaces import Box
-from time import time
-from abc import abstractmethod
 from ..lidar import LidarSensor
 from modular_drl_env.util.quaternion_util import quaternion_to_matrix
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 
 __all__ = [
@@ -72,7 +71,7 @@ class LidarSensorUR5(LidarSensor):
         # get the local frames, then use a local definition of the rays to translate them into the global coordinate system
         # end effector forwards ray:
         if "ee_forward" in self.ray_setup:
-            pos_ee, or_ee = self.engine.get_link_state(self.robot.object_id, 'ee_link')
+            pos_ee, or_ee, _, _ = pyb_u.get_link_state(self.robot.object_id, 'ee_link')
             frame_ee = np.eye(4)
             frame_ee[:3, :3] = quaternion_to_matrix(or_ee)
             frame_ee[0:3, 3] = pos_ee
@@ -82,7 +81,7 @@ class LidarSensorUR5(LidarSensor):
 
         # wrist 3 rays (half circle)
         if "wrist3_circle" in self.ray_setup:
-            pos_w3, or_w3 = self.engine.get_link_state(self.robot.object_id, 'wrist_3_link')
+            pos_w3, or_w3, _, _ = pyb_u.get_link_state(self.robot.object_id, 'wrist_3_link')
             frame_wrist3 = np.eye(4)
             frame_wrist3[:3, :3] = quaternion_to_matrix(or_w3)
             frame_wrist3[0:3, 3] = pos_w3
@@ -95,7 +94,7 @@ class LidarSensorUR5(LidarSensor):
         
         # wrist 2 rays (half circle)
         if "wrist2_circle" in self.ray_setup:
-            pos_w2, or_w2 = self.engine.get_link_state(self.robot.object_id, 'wrist_2_link')
+            pos_w2, or_w2, _, _ = pyb_u.get_link_state(self.robot.object_id, 'wrist_2_link')
             frame_wrist2 = np.eye(4)
             frame_wrist2[:3, :3] = quaternion_to_matrix(or_w2)
             frame_wrist2[0:3, 3] = pos_w2
@@ -111,7 +110,7 @@ class LidarSensorUR5(LidarSensor):
 
         # wrist 1 rays (half circle)
         if "wrist1_circle" in self.ray_setup:
-            pos_w1, or_w1 = self.engine.get_link_state(self.robot.object_id, 'wrist_1_link')
+            pos_w1, or_w1, _, _ = pyb_u.get_link_state(self.robot.object_id, 'wrist_1_link')
             frame_wrist1 = np.eye(4)
             frame_wrist1[:3, :3] = quaternion_to_matrix(or_w1)
             frame_wrist1[0:3, 3] = pos_w1
@@ -124,7 +123,7 @@ class LidarSensorUR5(LidarSensor):
 
         # arm 3 rays (full circle)
         if "upper_arm" in self.ray_setup:
-            pos_fa, or_fa = self.engine.get_link_state(self.robot.object_id, 'forearm_link')
+            pos_fa, or_fa, _, _ = pyb_u.get_link_state(self.robot.object_id, 'forearm_link')
             frame_arm3 = np.eye(4)
             frame_arm3[:3, :3] = quaternion_to_matrix(or_fa)
             frame_arm3[0:3, 3] = pos_fa
@@ -137,7 +136,7 @@ class LidarSensorUR5(LidarSensor):
         
         # arm 3 rays (full circle)
         if "lower_arm" in self.ray_setup:
-            pos_fa, or_fa = self.engine.get_link_state(self.robot.object_id, 'upper_arm_link')
+            pos_fa, or_fa, _, _ = pyb_u.get_link_state(self.robot.object_id, 'upper_arm_link')
             frame_arm3 = np.eye(4)
             frame_arm3[:3, :3] = quaternion_to_matrix(or_fa)
             frame_arm3[0:3, 3] = pos_fa
@@ -179,9 +178,9 @@ class LidarSensorUR5(LidarSensor):
 
         for index, result in enumerate(self.results):
             if result[0] == -1:
-                self.aux_visual_objects.append(self.engine.add_aux_line(self.rays_starts[index], self.rays_ends[index], missRayColor))
+                self.aux_lines += pyb_u.draw_lines([self.rays_starts[index]], [self.rays_ends[index]], [missRayColor])
             else:
-                self.aux_visual_objects.append(self.engine.add_aux_line(self.rays_starts[index], self.rays_ends[index], hitRayColor))
+                self.aux_lines += pyb_u.draw_lines([self.rays_starts[index]], [self.rays_ends[index]], [hitRayColor])
 
 
 class LidarSensorUR5_Explainable(LidarSensor):

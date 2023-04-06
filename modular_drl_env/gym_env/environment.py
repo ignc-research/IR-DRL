@@ -172,8 +172,9 @@ class ModularDRLEnv(gym.Env):
             self.world.build(np.average(self.success_stat))
             
             # check collision
-            self.world.perform_collision_check()
-            if not self.world.collision:
+            pyb_u.perform_collision_check()
+            pyb_u.get_collisions()
+            if not pyb_u.collision:
                 break
             else:
                 reset_count += 1
@@ -251,8 +252,9 @@ class ModularDRLEnv(gym.Env):
         for sensor in self.sensors:
             sensor.update(self.steps_current_episode)
 
-        # update the collision model
-        self.world.perform_collision_check()
+        # update the collision model if necessary
+        if not self.use_physics_sim:
+            pyb_u.perform_collision_check()
 
         # calculate reward and get termination conditions
         rewards = []
