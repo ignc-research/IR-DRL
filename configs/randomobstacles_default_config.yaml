@@ -47,7 +47,7 @@ env:
   use_physics_sim: True
   gravity: [0, 0, -9.8]
   sim_step: 0.00416666666 
-  sim_step_steps_per_env_step: 1 
+  sim_steps_per_env_step: 1 
   robots:
     - type: "UR5" 
       config:
@@ -56,8 +56,6 @@ env:
         base_orientation: [0, 0, 0]
         resting_angles: [0, 90, -30, -120, -80, 90]
         control_mode: 0
-        xyz_delta: 0.005
-        rpy_delta: 0.005
       sensors:
         - type: "LidarSensorUR5"
           config:

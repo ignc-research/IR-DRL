@@ -232,7 +232,7 @@ class World(ABC):
                     oob_or_too_close = True
                     break
                 # check if position is too close to starting position
-                if np.linalg.norm(robot.position_rotation_sensor.position - self.ee_starting_points[robot.id][0]) < min_dist:
+                if np.linalg.norm(robot.position_rotation_sensor.position - self.ee_starting_points[robot.mgt_id][0]) < min_dist:
                     oob_or_too_close = True
                     break
                 if np.linalg.norm(robot.position_rotation_sensor.position - robot.base_position) < base_dist:

@@ -130,7 +130,7 @@ class PositionCollisionGoal(Goal):
         reward = 0
 
         self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
-        self.collided = self.robot.world.collision
+        self.collided = pyb_u.collision
 
         shaking = 0
         if len(self.past_distances) >= 10:

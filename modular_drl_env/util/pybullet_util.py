@@ -18,7 +18,7 @@ class pybullet_util:
     gym_env_str_joints_names = {}
     # bools to check the current collision state
     collision: bool = False  # bool for whether there is a collision at all
-    collisions: List[Tuple(str, str)] = []  # list of tuples of colliding objects
+    collisions: List[Tuple[str, str]] = []  # list of tuples of colliding objects
 
     ##########
     # basics #
@@ -82,6 +82,9 @@ class pybullet_util:
 
     @classmethod
     def load_urdf(cls, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1, is_robot: bool=False, fixed_base: bool=True) -> str:
+        """
+        Loads a URDF file and returns its string id.
+        """
         pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale)
         
         if is_robot:
@@ -104,6 +107,9 @@ class pybullet_util:
     
     @classmethod
     def create_box(cls, position: np.ndarray, orientation: np.ndarray, mass: float, halfExtents: List[float]=[1, 1, 1], color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
+        """
+        Creates a box and returns its string id.
+        """
         name = "box_" + str(len(cls.pybullet_object_ids))
         pyb_id = pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents, rgbaColor=color),
@@ -116,6 +122,9 @@ class pybullet_util:
     
     @classmethod
     def create_sphere(cls, position: np.ndarray, mass: float, radius: float, color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
+        """
+        Creates a sphere and returns its string id.
+        """
         name = "sphere_" + str(len(cls.pybullet_object_ids))
         pyb_id = pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=radius, rgbaColor=color),
@@ -127,6 +136,9 @@ class pybullet_util:
     
     @classmethod
     def create_cylinder(cls, position: np.ndarray, orientation: np.ndarray, mass: float, radius: float, height:float, color: List[float]=[0.5, 0.5, 0.5, 1], collision: bool=True) -> str:
+        """
+        Creates a cylinder and returns its string id.
+        """
         name = "geom_" + str(len(cls.pybullet_object_ids))
         pyb_id = pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height, rgbaColor=color),
@@ -139,6 +151,9 @@ class pybullet_util:
     
     @classmethod
     def remove_object(cls, object_id: str) -> None:
+        """
+        Removes an object from the simulation via its string id.
+        """
         pyb.removeBody(cls.pybullet_object_ids[object_id])
         # del cls._pybullet_object_ids[object_id]   # leave this commented out! 
         # we will actually not delete the entry from the dic to prevent the case where, if we spawn something else afterwards,
@@ -164,7 +179,7 @@ class pybullet_util:
     @classmethod
     def get_controllable_joint_ids(cls, robot_id: str) -> List[Tuple[str, int]]:
         """
-        Returns a list of tuples with string name of joint and joint type.
+        Returns a list of tuples with string name of joint and joint type for all non-fixed joints.
         """
         pyb_id = cls.pybullet_object_ids[robot_id]
 
@@ -177,6 +192,9 @@ class pybullet_util:
 
     @classmethod
     def get_base_pos_and_ori(cls, object_id) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Returns base position and orientation for input object.
+        """
         pos, ori = pyb.getBasePositionAndOrientation(cls.pybullet_object_ids[object_id])
         return np.array(pos), np.array(ori)
 
@@ -188,6 +206,9 @@ class pybullet_util:
 
     @classmethod
     def get_base_vel(cls, object_id) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Returns velocity and angular velocity for input object.
+        """
         vel, ang_vel = pyb.getBaseVelocity(cls.pybullet_object_ids[object_id])
         return np.array(vel), np.array(ang_vel)
     
@@ -199,6 +220,9 @@ class pybullet_util:
 
     @classmethod
     def get_joint_state(cls, robot_id: str, joint_id: str) -> Tuple[float, float]:
+        """
+        Returns position and velocity of input joint.
+        """
         pyb_robot_id = cls.pybullet_object_ids[robot_id]
         pyb_joint_id = cls.pybullet_joints_ids[robot_id, joint_id]
         pos, vel, _, _ = pyb.getJointState(pyb_robot_id, pyb_joint_id)
@@ -206,6 +230,9 @@ class pybullet_util:
     
     @classmethod
     def get_joint_states(cls, robot_id: str, joint_ids: List[str]) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Returns two lists in the order input joint ids: joint positions and velocities.
+        """
         pyb_robot_id = cls.pybullet_object_ids[robot_id]
         pyb_joint_ids = [cls.pybullet_joints_ids[robot_id, joint_id] for joint_id in joint_ids]
         pyb_ret = pyb.getJointStates(pyb_robot_id, pyb_joint_ids)
@@ -228,7 +255,7 @@ class pybullet_util:
         else:
             pybullet_argument_formating_vel = [[0] for _ in position]
 
-        pyb.resetJointStateMultiDof(pyb_robot_id, pyb_joint_ids, pybullet_argument_formating, pybullet_argument_formating_vel)
+        pyb.resetJointStatesMultiDof(pyb_robot_id, pyb_joint_ids, pybullet_argument_formating, pybullet_argument_formating_vel)
 
     @classmethod
     def set_joint_targets(cls, 
@@ -250,14 +277,16 @@ class pybullet_util:
             pyb_kwargs["targetVelocities"] = velocity
             pyb_kwargs["controlMode"] = pyb.VELOCITY_CONTROL
         if position is not None:
-            pyb_kwargs["targetPositions"] = position
+            pyb_kwargs["targetPositions"] = [[ele] for ele in position]
             pyb_kwargs["controlMode"] = pyb.POSITION_CONTROL  # overwrites the velocity control mode
         if forces is not None:
-            pyb_kwargs["forces"] = forces
+            pyb_kwargs["forces"] = [[ele] for ele in forces]
         if max_velocities is not None:
             pyb_kwargs["maxVelocities"] = max_velocities
+        # the [ele] for ele stuff is because the format needs nested lists for the multi dof joints
+        # for some reason, the multi dof array method offers more options (max velocities eg) than the normal one
 
-        pyb.setJointMotorControlArray(**pyb_kwargs)
+        pyb.setJointMotorControlMultiDofArray(**pyb_kwargs)
 
     @classmethod
     def get_link_state(cls, robot_id: str, link_id: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -271,6 +300,9 @@ class pybullet_util:
     
     @classmethod
     def get_link_states(cls, robot_id: str, link_ids: List[str]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Reports positions, orientations, velocities and angular velocities of given links.
+        """
         pyb_robot_id = cls.pybullet_object_ids[robot_id]
         pyb_link_ids = [cls.pybullet_link_ids[robot_id, link_id] for link_id in link_ids]
         link_states_pyb = pyb.getLinkStates(pyb_robot_id, pyb_link_ids, 1, 1)
@@ -296,9 +328,12 @@ class pybullet_util:
 
     @classmethod
     def get_joint_dynamics(cls, robot_id: str, joint_id: str) -> Tuple[float, float, float, float]:
+        """
+        Returns lower limit, upper limit, force limit and max velocity for given joint.
+        """
         pyb_robot_id = cls.pybullet_object_ids[robot_id]
         pyb_joint_id = cls.pybullet_joints_ids[robot_id, joint_id]
-        dyn_info = pyb.getDynamicsInfo(pyb_robot_id, pyb_joint_id)
+        dyn_info = pyb.getJointInfo(pyb_robot_id, pyb_joint_id)
         return dyn_info[8], dyn_info[9], dyn_info[10], dyn_info[11]  # lower, upper, force, velocity
 
     @classmethod

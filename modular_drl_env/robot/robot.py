@@ -118,9 +118,9 @@ class Robot(ABC):
         also overwrite the moveto_*** or action methods below such that they still work.
         """
         # TODO: deal with joints with two or more degrees of freedom
-        return (len(self.controlled_joints), 6)
+        return (len(self.controlled_joints_ids), 6)
 
-    def build(self):
+    def build(self) -> None:
         """
         Method that spawns the robot into the simulation, moves its base to the desired position and orientation
         and sets its joints to the resting angles. Also populates the PyBullet variables with information.
@@ -132,7 +132,6 @@ class Robot(ABC):
             self.controlled_joints_ids = self.controlled_joints
         else:
             self.controlled_joints_ids = self.all_joints_ids
-        self.moveto_joints(self.resting_pose_angles, False)
 
         # handle the limit overwrite input
         self.joint_limits_overwrite = self.joint_limits_overwrite if type(self.joint_limits_overwrite) == list else [self.joint_limits_overwrite for _ in self.controlled_joints_ids]
@@ -158,6 +157,8 @@ class Robot(ABC):
         # modify the internal Pybullet representation to obey our new limits on position and velocity
         for idx, joint_id in enumerate(self.controlled_joints_ids):
             pyb_u.set_joint_dynamics(self.object_id, joint_id, self.joints_max_velocities[idx], self.joints_limits_lower[idx], self.joints_limits_upper[idx])
+
+        self.moveto_joints(self.resting_pose_angles, False)
 
     def set_joint_sensor(self, joints_sensor):
         """

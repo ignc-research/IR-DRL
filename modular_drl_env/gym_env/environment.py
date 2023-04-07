@@ -94,7 +94,7 @@ class ModularDRLEnv(gym.Env):
             self.assets_path = os.path.join(os.sep, *assets_path[:-1])  
         
         # init pybullet from config
-        pyb_u.init(assets_path, env_config["display"], env_config["sim_step"], env_config["gravity"])
+        pyb_u.init(self.assets_path, env_config["display"], env_config["sim_step"], env_config["gravity"])
 
         # init world from config
         self._world_setup(env_config)
@@ -282,7 +282,7 @@ class ModularDRLEnv(gym.Env):
             action_offset += self.action_space_dims[idx]
 
         # determine overall env termination condition
-        collision = self.world.collision
+        collision = pyb_u.collision
         is_success = np.all(successes)  # all goals must be succesful for the entire env to be
         done = np.any(dones) or collision or is_success  # one done out of all goals/robots suffices for the entire env to be done or anything collided or everything is successful
         timeout = np.any(timeouts)
@@ -491,6 +491,7 @@ class ModularDRLEnv(gym.Env):
             id_counter += 1
             robot:Robot = RobotRegistry.get(robo_type)(**robo_config)
             self.robots.append(robot)
+            robot.build()
 
             # create the two mandatory sensors
             if "report_joint_velocities" in robo_entry:
