@@ -137,9 +137,9 @@ class ModularDRLEnv(gym.Env):
             else:
                 jv = False
             joint_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
-                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot, "add_joint_velocities": jv}
+                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "sim_steps_per_env_step": self.sim_steps_per_env_step, "robot": robot, "add_joint_velocities": jv}
             posrot_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
-                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "robot": robot,
+                                 "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "sim_steps_per_env_step": self.sim_steps_per_env_step, "robot": robot,
                                  "link_id": robot.end_effector_link_id, "quaternion": True}
             new_rob_joints_sensor = SensorRegistry.get("Joints")(**joint_sens_config)
             new_rob_posrot_sensor = SensorRegistry.get("PositionRotation")(**posrot_sens_config)
@@ -156,6 +156,7 @@ class ModularDRLEnv(gym.Env):
                     sensor_config["sim_step"] = self.sim_step
                     sensor_config["robot"] = robot
                     sensor_config["normalize"] = self.normalize_observations
+                    sensor_config["sim_steps_per_env_step"] = self.sim_steps_per_env_step
                     # deal with robot bound sensors that refer to other robots
                     if "target_robot" in sensor_config:
                         # go through the list of existing robots
@@ -187,6 +188,7 @@ class ModularDRLEnv(gym.Env):
                 sensor_config = sensor_entry["config"]
                 sensor_config["sim_step"] = self.sim_step
                 sensor_config["normalize"] = self.normalize_observations
+                sensor_config["sim_steps_per_env_step"] = self.sim_steps_per_env_step
                 new_sensor:Sensor = SensorRegistry.get(sensor_type)(**sensor_config)
                 self.sensors.append(new_sensor)
 
@@ -256,7 +258,7 @@ class ModularDRLEnv(gym.Env):
                 robot.build()
 
             # spawn world objects, create starting points and targets for robots, move them to starting position
-            self.world.build()
+            self.world.build(np.average(self.success_stat))
             
             # check collision
             self.world.perform_collision_check()
@@ -286,7 +288,6 @@ class ModularDRLEnv(gym.Env):
                 goal.build_visual_aux()
         if self.show_auxillary_geometry_sensors:
             for sensor in self.sensors:
-                sensor.delete_visual_aux()
                 sensor.build_visual_aux()
 
         # perform one engine step to initialize all physics data

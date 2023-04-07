@@ -24,7 +24,8 @@ class Robot(ABC):
                        control_mode: int, 
                        xyz_delta: float=0.005,
                        rpy_delta: float=0.005,
-                       joint_vel_mul: float=1):
+                       joint_vel_mul: float=1,
+                       joint_limit_mul: float=1):
         super().__init__()
 
         # set engine
@@ -64,7 +65,7 @@ class Robot(ABC):
         self.object_id = None  # PyBullet object id
         self.joints_ids = []  # array of joint ids, this gets filled at runtime
         self.joints_limits_lower = []  # this and the two below you have to fill for yourself in the subclass in __init__
-        self.joints_limits_upper = []  # the values are typically found in the urdf
+        self.joints_limits_upper = []  # the values are typically found in the urdf, multiply both this and the above with joint_limit_mul
         self.joints_range = None
         self.joints_max_velocities = None  # again, fill in from URDF in your subclass
         self.joints_max_forces = None  # same as the one above

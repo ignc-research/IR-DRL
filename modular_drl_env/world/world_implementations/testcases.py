@@ -37,7 +37,7 @@ class TestcasesWorld(World):
 
         self.obstacle_objects = []
 
-    def build(self):
+    def build(self, success_rate: float):
         # add ground plate
         ground_plate = self.engine.add_ground_plane(np.array([0, 0, -0.01]))
         self.objects_ids.append(ground_plate)

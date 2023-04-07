@@ -18,8 +18,8 @@ class LidarSensorUR5(LidarSensor):
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, ray_setup: dict, indicator: bool = True):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, indicator)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, ray_setup: dict, indicator: bool = True):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step, robot, indicator_buckets, indicator)
 
         # dict which governs which robot links get lidar rays and how many
         # possible keys:
@@ -50,7 +50,7 @@ class LidarSensorUR5(LidarSensor):
                 self.lidar_indicator_shape += self.ray_setup[key][0]
 
         # because a dict can be ordered arbitrarily, we need to record how the code below puts lidar results in the output ...
-        self.output_order = ["ee_forward", "wrist3_circle", "wrist2_circle", "wrist1_circle", "upper_arm"]
+        self.output_order = ["ee_forward", "wrist3_circle", "wrist2_circle", "wrist1_circle", "upper_arm", "lower_arm"]
         # and then keep only those that were activated by the user, this way we can process the results from the PyBullet call in the right order
         self.output_order = [ele for ele in self.output_order if ele in self.ray_setup]
 
@@ -100,8 +100,8 @@ class LidarSensorUR5(LidarSensor):
             frame_wrist2[:3, :3] = quaternion_to_matrix(or_w2)
             frame_wrist2[0:3, 3] = pos_w2
 
-            for angle in np.linspace(-np.pi/2, np.pi/2, self.ray_setup["wrist3_circle"][0]):
-                for i in range(self.ray_setup["wrist3_circle"][1]):
+            for angle in np.linspace(-np.pi/2, np.pi/2, self.ray_setup["wrist2_circle"][0]):
+                for i in range(self.ray_setup["wrist2_circle"][1]):
                     # TODO: this does not seem to work for all orientations of the UR5 robot
                     # at some angles, the rays of this wrist will all point towards the inside
                     # this doesn't happen in the default experiments, but might become acute if other experiments use different poses
@@ -116,8 +116,8 @@ class LidarSensorUR5(LidarSensor):
             frame_wrist1[:3, :3] = quaternion_to_matrix(or_w1)
             frame_wrist1[0:3, 3] = pos_w1
 
-            for angle in np.linspace(-np.pi/2, np.pi/2, self.ray_setup["wrist3_circle"][0]):
-                for i in range(self.ray_setup["wrist3_circle"][1]):
+            for angle in np.linspace(-np.pi/2, np.pi/2, self.ray_setup["wrist1_circle"][0]):
+                for i in range(self.ray_setup["wrist1_circle"][1]):
                     interval = 0.01
                     self.rays_starts.append(np.matmul(frame_wrist1, np.array([0.0, i * interval - 0.03, 0.0, 1]).T)[0:3].tolist())
                     self.rays_ends.append(np.matmul(frame_wrist1, np.array([self.ray_end * np.sin(angle), i * interval - 0.03, self.ray_end * np.cos(angle), 1]).T)[0:3].tolist())
@@ -132,6 +132,19 @@ class LidarSensorUR5(LidarSensor):
             for angle in np.linspace(-np.pi, np.pi - 2 * np.pi / self.ray_setup["upper_arm"][0], self.ray_setup["upper_arm"][0]):
                 for i in range(self.ray_setup["upper_arm"][1]):
                     interval = 0.26 / self.ray_setup["upper_arm"][1]  # evenly space rays along entire length, arm length of 0.26 found out by testing and does not account for potential urdf mesh scaling
+                    self.rays_starts.append(np.matmul(frame_arm3, np.array([0.0, 0.0, i * interval + 0.1, 1]).T)[0:3].tolist())
+                    self.rays_ends.append(np.matmul(frame_arm3, np.array([self.ray_end * np.sin(angle), -self.ray_end * np.cos(angle), i * interval + 0.1, 1]).T)[0:3].tolist())
+        
+        # arm 3 rays (full circle)
+        if "lower_arm" in self.ray_setup:
+            pos_fa, or_fa = self.engine.get_link_state(self.robot.object_id, 'upper_arm_link')
+            frame_arm3 = np.eye(4)
+            frame_arm3[:3, :3] = quaternion_to_matrix(or_fa)
+            frame_arm3[0:3, 3] = pos_fa
+
+            for angle in np.linspace(-np.pi, np.pi - 2 * np.pi / self.ray_setup["lower_arm"][0], self.ray_setup["lower_arm"][0]):
+                for i in range(self.ray_setup["lower_arm"][1]):
+                    interval = 0.26 / self.ray_setup["lower_arm"][1]  # evenly space rays along entire length, arm length of 0.26 found out by testing and does not account for potential urdf mesh scaling
                     self.rays_starts.append(np.matmul(frame_arm3, np.array([0.0, 0.0, i * interval + 0.1, 1]).T)[0:3].tolist())
                     self.rays_ends.append(np.matmul(frame_arm3, np.array([self.ray_end * np.sin(angle), -self.ray_end * np.cos(angle), i * interval + 0.1, 1]).T)[0:3].tolist())
 
@@ -176,8 +189,8 @@ class LidarSensorUR5_Explainable(LidarSensor):
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, robot, indicator_buckets, render, indicator)
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, num_rays_side: int, num_rays_circle_directions: int, render: bool = False, indicator: bool = True):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step, robot, indicator_buckets, render, indicator)
         # lidar setup attributes
         self.ray_start = ray_start  # offset of the ray start from the mesh center
         self.ray_end = ray_end  # end of the ray, meaning ray length = ray_end - ray_start

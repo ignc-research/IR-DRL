@@ -72,11 +72,13 @@ class World(ABC):
         self.collision = self.engine.perform_collision_check(self.robots_in_world, self.objects_ids)
 
     @abstractmethod
-    def build(self):
+    def build(self, success_rate: float):
         """
         This method should build all the components that make up the world simulation aside from the robot.
         This includes URDF files as well as objects created by self.engineullet code.
         This method should also generate valid targets for all robots that need them, valid starting points and it should also move them there to start the episode.
+        Additionally, this method receives the success rate of the gym env as a value between 0 and 1. You could use this to
+        set certain parameters, e.g. to the make world become more complex as the agent's success rate increases.
 
         All object ids loaded in by this method must be added to the self.object_ids list! Otherwise they will be ignored in collision detection.
         If you use our Obstacle objects, add them (the objects themselves, not just their self.engineullet ids) to self.obstacle_objects. You will want to have in them in a list anyway and doing it via this variable ensures compatability with our self.engineullet recorder.
@@ -84,7 +86,7 @@ class World(ABC):
         pass
 
     @abstractmethod
-    def reset(self, success_rate):
+    def reset(self, success_rate: float):
         """
         This method should reset all lists, arrays, variables etc. that handle the world to such a state that a new episode can be run.
         Meaning that after this method is done, build() can be called again.
@@ -139,12 +141,14 @@ class World(ABC):
         """
         pass
 
-    def _create_ee_starting_points(self, robots, custom_joints_limits=[]) -> None:
+    def _create_ee_starting_points(self, robots, custom_joints_limits=[], factor=-1, base_dist=7.5e-2) -> None:
         """
         This is a helper method to generate valid starting points for all robots in the env. You can use this within your build method to generate starting positions at random.
         The robots parameter is a list of all robots that should be touched by this method.
         The custom joints_limits parameter is a list of tuples, where entry one is custom lower limits and entry two is custom upper limits.
         If used at all (i.e. its not an empty list) it must be of the same length as robots. If you don't want custom limits for a robot, set one or both of respective tuple entries to None.
+        Factor is a float between 0 and 1 that can be used to steer the generation of random starting angles, see below in the code for what it does.
+        Base dist is a float that determines a sphere around the robot base in which no positions can be spawned in.
         """
         counter = 0
         val = False
@@ -153,6 +157,7 @@ class World(ABC):
             counter += 1
             # first generate random pose for each robot and set it
             oob = False
+            too_close_to_base = False
             for idx, robot in enumerate(robots):
                 joint_dim = robot.get_action_space_dims()[0]
                 if custom_joints_limits:
@@ -163,7 +168,14 @@ class World(ABC):
                 else:
                     lower_limits = robot.joints_limits_lower
                     upper_limits = robot.joints_limits_upper
-                random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
+                if factor == -1:
+                    random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
+                else:
+                    random_joints = (1 - factor) * robot.resting_pose_angles + factor * np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
+                    upper_limit_mask = random_joints > upper_limits
+                    lower_limit_mask = random_joints < lower_limits
+                    random_joints[upper_limit_mask] = upper_limits[upper_limit_mask]
+                    random_joints[lower_limit_mask] = lower_limits[lower_limit_mask]
                 joints.append(random_joints)
                 robot.moveto_joints(random_joints, False)
 
@@ -175,8 +187,11 @@ class World(ABC):
                 if self.out_of_bounds(robot.position_rotation_sensor.position):
                     oob = True
                     break
+                if np.linalg.norm(robot.position_rotation_sensor.position - robot.base_position) < base_dist:
+                    too_close_to_base = True
+                    break
             # if out of bounds, start over
-            if oob:
+            if oob or too_close_to_base:
                 continue
             # now check if there's a collision
             self.perform_collision_check()
@@ -195,11 +210,9 @@ class World(ABC):
                     counter += 1
                 else:  # other robots (e.g. camera arm robot)
                     self.ee_starting_points.append((None, None, None))    
-            return
-        else:  # counter too high
-            raise Exception("Tried 10000 times to create valid starting positions for the robot(s) without success, maybe check your obstacle generation code.") 
+        return val
 
-    def _create_position_and_rotation_targets(self, robots, min_dist=0, custom_joints_limits=[]) -> None:
+    def _create_position_and_rotation_targets(self, robots, min_dist=0, custom_joints_limits=[], base_dist=7.5e-2) -> None:
         """
         This is a helper method to generate valid targets for your robots with goals at random. You can use this in your build method to generate targets.
         The min_dist parameter will enforce a minimum cartesian distance to the respective robots starting point.
@@ -211,6 +224,7 @@ class World(ABC):
             counter += 1
             # first generate random pose for each robot and set it
             oob_or_too_close = False
+            too_close_to_base = False
             for idx, robot in enumerate(robots):
                 joint_dim = robot.get_action_space_dims()[0]
                 if custom_joints_limits:
@@ -237,8 +251,11 @@ class World(ABC):
                 if np.linalg.norm(robot.position_rotation_sensor.position - self.ee_starting_points[robot.id][0]) < min_dist:
                     oob_or_too_close = True
                     break
+                if np.linalg.norm(robot.position_rotation_sensor.position - robot.base_position) < base_dist:
+                    too_close_to_base = True
+                    break
             # if out of bounds or too close, start over
-            if oob_or_too_close:
+            if oob_or_too_close or too_close_to_base:
                 continue
             # now check if there's a collision
             self.perform_collision_check()
@@ -253,27 +270,16 @@ class World(ABC):
                     pos = robot.position_rotation_sensor.position
                     rot = robot.position_rotation_sensor.rotation
                     joints = robot.joints_sensor.joints_angles
-                    if robot.goal.needs_a_position:
-                        self.position_targets.append(pos)
-                    else:
-                        self.position_targets.append(None)
-                    if robot.goal.needs_a_rotation:
-                        self.rotation_targets.append(rot)
-                    else:
-                        self.rotation_targets.append(None)
-                    if robot.goal.needs_a_joints_position:
-                        self.joints_targets.append(joints)
-                    else:
-                        self.joints_targets.append(None)
+                    self.position_targets.append(pos)
+                    self.rotation_targets.append(rot)
+                    self.joints_targets.append(joints)
                     # reset robot back to starting position
                     robot.moveto_joints(self.ee_starting_points[idx][2], False)
                 else:  # other robots (e.g. camera arm robot)
                     self.position_targets.append(None)
                     self.rotation_targets.append(None)   
                     self.joints_targets.append(None)
-            return
-        else:  # counter too high
-            raise Exception("Tried 10000 times to create valid targets for the robot(s) without success, maybe check your obstacle generation code.") 
+        return val
 
     def out_of_bounds(self, position: np.ndarray) -> bool:
         """

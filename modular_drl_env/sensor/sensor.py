@@ -8,7 +8,7 @@ class Sensor(ABC):
     See the joint or position sensor for examples.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int):
         
         super().__init__()
         
@@ -27,8 +27,9 @@ class Sensor(ABC):
         # useful to set to false if you need the sensor data for your model but don't want it in the logs
         self.add_to_logging = add_to_logging
 
-        # time that passes per sim(=env) step
+        # time that passes per sim step
         self.sim_step = sim_step
+        self.sim_steps_per_env_step = sim_steps_per_env_step
 
         # use these two variables to determine relative CPU (aka real-world) time, useful for performance measuring
         self.cpu_time = 0

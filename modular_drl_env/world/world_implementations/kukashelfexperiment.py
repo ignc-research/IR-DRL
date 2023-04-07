@@ -59,7 +59,7 @@ class KukaShelfExperiment(World):
             shelf = ShelfObstacle(shelf_entry["position"], shelf_entry["rotation"], [], 0, self.env_id, self.shelf_params)
             self.shelves.append(shelf)
 
-    def build(self):
+    def build(self, success_rate: float):
         # ground plate
         self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
 
@@ -130,6 +130,7 @@ class KukaShelfExperiment(World):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []
+        self.joints_targets = []
         self.ee_starting_points = []
         for human in self.humans:
             del human

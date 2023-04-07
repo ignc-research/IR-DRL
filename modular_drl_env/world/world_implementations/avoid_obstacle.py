@@ -2,7 +2,6 @@ import numpy as np
 
 from modular_drl_env.world.obstacles.shapes import Sphere
 from modular_drl_env.world.world import World
-import pybullet as pyb
 import pybullet_data as pyb_d
 
 __all__ = [
@@ -23,6 +22,7 @@ class AvoidObstacle(World):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []
+        self.joints_targets = []
         self.ee_starting_points = []
         for obj in self.obstacle_objects:
             del obj
@@ -34,13 +34,12 @@ class AvoidObstacle(World):
             obstacle.trajectory = [obstacle.trajectory[0], self.robots_in_world[0].position_rotation_sensor.position]
             obstacle.move()
 
-    def build(self):
+    def build(self, success_rate: float):
         # add ground plate
         self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
 
         # table
-        self.objects_ids.append(
-            pyb.loadURDF(pyb_d.getDataPath() + "/table/table.urdf", useFixedBase=True, globalScaling=1.75))
+        self.objects_ids.append(self.engine.load_urdf(pyb_d.getDataPath() + "/table/table.urdf", np.array([0, 0, 0]), np.array([0, 0, 0, 1]), [1.75, 1.75, 1.75]))
 
         # generate starting points and targets
         robots_with_starting_points = [robot for robot in self.robots_in_world if robot.goal is not None]

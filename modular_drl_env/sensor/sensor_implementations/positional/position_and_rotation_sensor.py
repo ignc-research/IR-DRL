@@ -11,9 +11,9 @@ __all__ = [
 
 class PositionRotationSensor(Sensor):
 
-    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, link_id: int, quaternion: bool=True):
+    def __init__(self, normalize: bool, add_to_observation_space:bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int, robot: Robot, link_id: int, quaternion: bool=True):
 
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step)
 
         # WARNING: this position sensor will not return the position as part of the observation space
         # because absolute position is not useful for the model
@@ -55,7 +55,7 @@ class PositionRotationSensor(Sensor):
             self.position, self.rotation = self.engine.get_link_state(self.robot.object_id, self.link_id)
             if not self.quaternion:
                 self.rotation = quaternion_to_rpy(self.rotation)
-            self.position_velocity = (self.position - self.position_prev) / self.sim_step
+            self.position_velocity = (self.position - self.position_prev) / (self.update_steps * self.sim_step * self.sim_steps_per_env_step)
         self.cpu_time = time() - self.cpu_epoch
 
         return self.get_observation()

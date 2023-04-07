@@ -73,7 +73,7 @@ class TableExperiment(World):
         # wether num obstacles will be overwritten automatically depending on env success rate, might be useful for training
         self.obstacle_training_schedule = obstacle_training_schedule
         
-    def build(self):
+    def build(self, success_rate: float):
         # ground plate
         self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
         # table
@@ -158,6 +158,7 @@ class TableExperiment(World):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []
+        self.joints_targets = []
         self.ee_starting_points = []
         for human in self.humans:
             del human

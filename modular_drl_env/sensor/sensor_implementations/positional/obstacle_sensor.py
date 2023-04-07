@@ -15,9 +15,9 @@ class ObstacleSensor(Sensor):
     To make the measurements consistent, it will spawn a small invisible and non-colliding sphere at a probe location, which it will then use to measure the distances.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, robot: Robot, num_obstacles: int, max_distance: float, reference_link_id: int):
+    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int, robot: Robot, num_obstacles: int, max_distance: float, reference_link_id: int):
         
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step)
 
         # set associated robot
         self.robot = robot
@@ -70,7 +70,7 @@ class ObstacleSensor(Sensor):
 
         # create probe at link location
         self.link_position, _ = self.engine.get_link_state(self.robot.object_id, self.reference_link_id)
-        self.probe = self.engine.create_sphere(self.link_position, 0.001, 0, [0.5, 0.5, 0.5, 0.0001], True)
+        self.probe = self.engine.create_sphere(self.link_position, 0, 0.001, color = [0.5, 0.5, 0.5, 0.0001], collision=True)
 
         self.output_vector = self.default_observation
         self.data_raw = self._run_obstacle_detection()
@@ -78,6 +78,7 @@ class ObstacleSensor(Sensor):
         self.output_vector[:len(new_data)] = new_data
         self.engine.move_base(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
+        self.aux_visual_objects = []
 
     def get_observation(self) -> dict:
         if self.normalize:
@@ -103,14 +104,14 @@ class ObstacleSensor(Sensor):
         # get nearest robots
         for robot in self.robot.world.robots_in_world:
             if robot.object_id != self.robot.object_id:
-                closestPoints = pyb.getClosestPoints(self.probe, robot.object_id, self.max_distance)
+                closestPoints = pyb.getClosestPoints(self.engine._geometry[self.probe], self.engine._robots[robot.object_id], self.max_distance)  # TODO: fix the object IDs once engine is fully compatible with this
                 if not closestPoints:
                     continue
                 min_val = min(closestPoints, key=lambda x: x[8])  # index 8 is the distance in the object returned by pybullet
                 res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8]]))  # start, end, distance
         # get nearest obstacles
         for obstacle_id in self.robot.world.objects_ids:
-            closestPoints = pyb.getClosestPoints(self.probe, obstacle_id, self.max_distance)
+            closestPoints = pyb.getClosestPoints(self.engine._geometry[self.probe], self.engine._geometry[obstacle_id], self.max_distance)  # TODO: same as above
             if not closestPoints:
                 continue
             min_val = min(closestPoints, key=lambda x: x[8])
@@ -139,10 +140,9 @@ class ObstacleSensor(Sensor):
         return logging_dict
 
     def build_visual_aux(self):
-        position = np.array(pyb.getLinkState(self.robot.object_id, self.reference_link_id)[4])
 
         line_starts = [self.data_raw[i][0:3] for i in range(len(self.data_raw))]
         line_ends = [self.data_raw[i][3:6] for i in range(len(self.data_raw))]
 
         for i in range(len(line_starts)):
-            self.aux_visual_objects.append(pyb.addUserDebugLine(line_starts[i], line_ends[i], [0, 0, 1]))
+            self.aux_visual_objects.append(self.engine.add_aux_line(line_starts[i], line_ends[i], [0, 0, 1]))

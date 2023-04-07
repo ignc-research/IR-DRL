@@ -192,7 +192,8 @@ class PositionCollisionGoal(Goal):
             if self.distance_threshold < self.distance_threshold_end:
                 self.distance_threshold = self.distance_threshold_end
 
-        return [("distance_threshold", self.distance_threshold, True, True)]
+        return [("distance_threshold", self.distance_threshold, True, True),
+                ('shaking', self.shaking, False, True)]
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
@@ -201,7 +202,7 @@ class PositionCollisionGoal(Goal):
 
     def delete_visual_aux(self):
         for aux_object_id in self.aux_object_ids:
-            self.engine.remove_aux_object(aux_object_id)
+            self.engine.remove_geom_object(aux_object_id)
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
@@ -244,7 +245,7 @@ class PositionCollisionBetterSmoothingGoal(PositionCollisionGoal):
         reward += shaking * self.reward_smoothness_mult
         
         self.last_velocities.append(current_velocity)
-        if len(self.last_velocities) > 5:
+        if len(self.last_velocities) > 1:
             self.last_velocities.pop(0)
 
         self.is_success = False
@@ -261,7 +262,7 @@ class PositionCollisionBetterSmoothingGoal(PositionCollisionGoal):
         elif step > self.max_steps:
             self.done = True
             self.timeout = True
-            reward += self.reward_collision / 10
+            reward += self.reward_collision / 2
         else:
             self.done = False
             reward += self.reward_distance_mult * self.distance
@@ -457,7 +458,7 @@ class PositionRotationCollisionGoal(Goal):
         elif step > self.max_steps:
             self.done = True
             self.timeout = True
-            reward += self.reward_collision / 10
+            reward += self.reward_collision / 2
         else:
             self.done = False
             reward += self.reward_distance_mult * self.position_distance
@@ -509,7 +510,8 @@ class PositionRotationCollisionGoal(Goal):
                 self.rotation_threshold = self.rotation_threshold_end
 
         return [("distance_threshold", self.distance_threshold, True, True),
-                ("rotation_threshold", self.rotation_threshold, True, True)]
+                ("rotation_threshold", self.rotation_threshold, True, True),
+                ('shaking', self.shaking, False, True)]
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target

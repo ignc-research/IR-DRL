@@ -38,10 +38,6 @@ run:
     show_world_aux: True
     show_goal_aux: True
     show_sensor_aux: False
-    pybullet_recorder:
-      use: False
-      save_path: "demo"
-      scale: 1
 
 env:
   max_steps_per_episode: 1024
@@ -72,7 +68,7 @@ env:
             add_to_logging: True
             num_obstacles: 1
             max_distance: 10
-            reference_link_id: 7
+            reference_link_id: "ee_link"
       goal:
         type: "PositionCollision"
         config:

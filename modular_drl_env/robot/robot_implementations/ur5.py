@@ -13,10 +13,10 @@ __all__ = [
 
 class UR5(Robot):
 
-    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul: float=1):
-        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul)
-        self.joints_limits_lower = np.array([-np.pi, -np.pi, -np.pi, -np.pi, -np.pi, -np.pi]) * 2
-        self.joints_limits_upper = np.array([np.pi, np.pi, np.pi, np.pi, np.pi, np.pi]) * 2
+    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul: float=1, joint_limit_mul: float=1):
+        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul, joint_limit_mul)
+        self.joints_limits_lower = np.array([-np.pi, -np.pi, -np.pi, -np.pi, -np.pi, -np.pi]) * 2 * joint_limit_mul
+        self.joints_limits_upper = np.array([np.pi, np.pi, np.pi, np.pi, np.pi, np.pi]) * 2 * joint_limit_mul
         self.joints_range = self.joints_limits_upper - self.joints_limits_lower
 
         self.joints_max_forces = np.array([300., 300., 300., 300., 300., 300.])
@@ -91,6 +91,7 @@ class UR5_RRT(UR5):
             self.planned_trajectory = bi_rrt(q_start=q_start,
                                              q_goal=q_goal,
                                              robot=self,
+                                             engine=self.engine,
                                              obstacles_ids=self.world.objects_ids,
                                              max_steps=self.rrt_config["max_steps"],
                                              epsilon=self.rrt_config["epsilon"],
@@ -117,8 +118,10 @@ class UR5_RRT(UR5):
         return process_time() - cpu_epoch
     
 class UR5_Gripper(UR5):
-    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul=1):
-        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul)
+    def __init__(self, name: str, id_num: int, world, sim_step: float, use_physics_sim: bool, base_position: Union[list, np.ndarray], base_orientation: Union[list, np.ndarray], resting_angles: Union[list, np.ndarray], control_mode: int, xyz_delta: float=0.005, rpy_delta: float=0.005, joint_vel_mul=1, joint_limit_mul=1):
+        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, xyz_delta, rpy_delta, joint_vel_mul, joint_limit_mul)
+        self.joints_limits_lower = np.array([-np.pi, -np.pi, -np.pi, -np.pi, -np.pi, -np.pi/4]) * 2 * joint_limit_mul
+        self.joints_limits_upper = np.array([np.pi, np.pi, np.pi, np.pi, np.pi, np.pi/4]) * 2 * joint_limit_mul
 
         self.urdf_path = "robots/predefined/ur5/urdf/ur5_with_gripper.urdf"
 

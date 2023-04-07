@@ -60,7 +60,7 @@ class RandomObstacleWorld(World):
         self.randomize_number_of_obstacles = randomize_number_of_obstacles
 
 
-    def build(self):
+    def build(self, success_rate: float):
         # add ground plate
         self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
 
@@ -154,6 +154,7 @@ class RandomObstacleWorld(World):
         self.objects_ids = []
         self.position_targets = []
         self.rotation_targets = []
+        self.joints_targets = []
         self.ee_starting_points = []
         for object in self.obstacle_objects:
             del object

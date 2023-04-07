@@ -19,8 +19,8 @@ class CameraBase(Sensor):
 
     def __init__(self, position: List = None, target: List = None, camera_args: dict = None, orientation: List = None,\
             debug : Dict[str, bool] = None, name : str = 'default', \
-            normalize: bool = False, add_to_observation_space: bool = True, add_to_logging: bool = False, sim_step: float = 0, update_steps: int = 0):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps)
+            normalize: bool = False, add_to_observation_space: bool = True, add_to_logging: bool = False, sim_step: float = 0, update_steps: int = 1, sim_steps_per_env_step: int = 1):
+        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step)
         self.pos = position if position is not None else [0,0,0]
         self.target = target if target is not None else [0,0,0]
         self.camera_args : dict
