@@ -1,7 +1,7 @@
 from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.shapes import Box, Sphere
 import numpy as np
-from random import choice, shuffle
+from random import choice, shuffle, sample
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
@@ -18,67 +18,96 @@ class RandomObstacleWorld(World):
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
                        env_id: int,
+                       assets_path: str,
                        num_static_obstacles: int=3, 
                        num_moving_obstacles: int=1,
                        box_measurements: list=[0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125],
                        sphere_measurements: list=[0.005, 0.02],
                        moving_obstacles_vels: list=[0.5, 2],
-                       moving_obstacles_directions: list=[],
                        moving_obstacles_trajectory_length: list=[0.05, 0.75],
                        randomize_number_of_obstacles: bool=True,
-                       num_pre_generated_obstacles: int=40
+                       pre_generated_obstacles_mult: int=8
                        ):
-        """
-        The world config contains the following parameters:
-        :param workspace_boundaries: List of 6 floats containing the bounds of the workspace in the following order: xmin, xmax, ymin, ymax, zmin, zmax
-        :param num_static_obstacles: int number that is the amount of static obstacles in the world
-        :param num_moving_obstacles: int number that is the amount of moving obstacles in the world
-        :param sim_step: float for the time per sim step
-        :param box_measurements: List of 6 floats that gives the minimum and maximum dimensions of box shapes in the following order: lmin, lmax, wmin, wmax, hmin, hmax
-        :param sphere_measurements: List of 2 floats that gives the minimum and maximum radius of sphere shapes
-        :param moving_obstacles_vels: List of 2 floats that gives the minimum and maximum velocity dynamic obstacles can move with
-        :param moving_obstacles_directions: List of numpy arrays that contain directions in 3D space among which obstacles can move. If none are given directions are generated in random fashion.
-        :param moving_obstacles_trajectory_length: List of 2 floats that contains the minimum and maximum trajectory length of dynamic obstacles.
-        :param randomize_number_of_obstacles: Bool that determines if the given number of obstacles is always spawned or just an upper limit for a random choice.
-        """
-        # TODO: add random rotations for the plates
 
-        super().__init__(workspace_boundaries, sim_step, env_id)
+        super().__init__(workspace_boundaries, sim_step, env_id, assets_path)
 
+        # num obstacles in each category
         self.num_static_obstacles = num_static_obstacles
         self.num_moving_obstacles = num_moving_obstacles
 
+        # obstacle mesaurements
         self.box_l_min, self.box_l_max, self.box_w_min, self.box_w_max, self.box_h_min, self.box_h_max = box_measurements
         self.sphere_r_min, self.sphere_r_max = sphere_measurements
 
+        # obstacle velocities
         self.vel_min, self.vel_max = moving_obstacles_vels
 
-        self.allowed_directions = [np.array(direction) for direction in moving_obstacles_directions]
-
+        # trajectory lenghts
         self.trajectory_length_min, self.trajectory_length_max = moving_obstacles_trajectory_length
 
-        self.obstacle_objects = []  # list to access the obstacle python objects
-
+        # bool for whether we will randomize
         self.randomize_number_of_obstacles = randomize_number_of_obstacles
 
-        self.num_pre_generated_obstacles = num_pre_generated_obstacles
+        # the number of pre-generated obstacles per original obstacle
+        # e.g. if num_static_obstacles is 3 and this is 5, then we will generate 3*5=15 variations before training starts that will be swapped out at each episode start
+        # this avoids costly object spawning during training
+        self.pre_generated_obstacles_mult = pre_generated_obstacles_mult
 
+        # location to move geometry that is not needed in episode to
         self.obstacle_storage_location = np.array([0, 0, -10])
+
+        # helper list
+        self.active_obstacles = []
+        self.moving_obstacles = []
 
     def set_up(self):
         # add ground plate
         self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -0.01])))
 
         # pre-generate all the obstacles we're going to use
-        for i in range(self.num_pre_generated_obstacles):
+        for i in range(self.num_static_obstacles + self.num_moving_obstacles):
+            for _ in range(self.pre_generated_obstacles_mult):
+                offset = np.random.uniform(low=-5, high=5, size=(3,))
+                if i < self.num_moving_obstacles:
+                    # generate a velocity
+                    move_step = np.random.uniform(low=self.vel_min, high=self.vel_max) * self.sim_step                   
+                    # generate trajectory
+                    trajectory = [np.array([0, 0, 0])]
+                    for i in range(np.random.randint(low=1, high=4)):
+                        direction = np.random.uniform(low=-1, high=1, size=(3,))
+                        trajectory_length = np.random.uniform(low=self.trajectory_length_min, high=self.trajectory_length_max)
+                        direction = (trajectory_length / np.linalg.norm(direction)) * direction
+                        trajectory.append(direction)
+                else:
+                    move_step = 0
+                    trajectory = []
+                # box
+                if np.random.random() > 0.3:
+                    length = np.random.uniform(low=self.box_l_min, high=self.box_l_max)
+                    width = np.random.uniform(low=self.box_w_min, high=self.box_w_max)
+                    height = np.random.uniform(low=self.box_h_min, high=self.box_h_max)
+
+                    dims = [length, width, height]
+                    obst = Box(self.obstacle_storage_location + offset, np.random.normal(size=(4,)), trajectory, move_step, dims)
+                # sphere
+                else:
+                    radius = np.random.uniform(low=self.sphere_r_min, high=self.sphere_r_max)
+                    obst = Sphere(self.obstacle_storage_location + offset, trajectory, move_step, radius)
+                self.obstacle_objects.append(obst)
+                self.objects_ids.append(obst.build())
+
+    def reset(self, success_rate: float):
+        self.position_targets = []
+        self.rotation_targets = []
+        self.joints_targets = []
+        self.ee_starting_points = []
+        # move currently used obstacles into storage
+        for obst in self.active_obstacles:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
-            
+            obst.move_base(self.obstacle_storage_location + offset)
+        self.active_obstacles = []
 
-    def build(self, success_rate: float):
-        # add ground plate
-        self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -0.01])))
-
-        # determine random number of obstacles, if needed
+        # get number of obstacles for this run
         if self.randomize_number_of_obstacles:
             if self.num_moving_obstacles + self.num_static_obstacles > 0:
                 rand_number = choice(range(self.num_moving_obstacles + self.num_static_obstacles)) + 1
@@ -87,55 +116,15 @@ class RandomObstacleWorld(World):
         else:
             rand_number = self.num_moving_obstacles + self.num_static_obstacles
 
-        # add the obstacles
-        for i in range(rand_number):
-            # generate a random position in the workspace
+        # sample from pre-generated obstacles and move into position
+        for obst in sample(self.obstacle_objects, rand_number):
+            # generate random position
             position = np.random.uniform(low=np.array([self.x_min, self.y_min, self.z_min]), high=np.array([self.x_max, self.y_max, self.z_max]), size=(3,))
-            
-            # moving obstacles
-            if i < self.num_moving_obstacles:
-                # generate a velocity
-                move_step = np.random.uniform(low=self.vel_min, high=self.vel_max) * self.sim_step
-                # generate a trajectory length
-                trajectory_length = np.random.uniform(low=self.trajectory_length_min, high=self.trajectory_length_max)
-                # get the direction from __init__ or, if none are given, generate one at random
-                if self.allowed_directions:
-                    direction = self.allowed_directions[i]
-                else:
-                    direction = np.random.uniform(low=-1, high=1, size=(3,))
-                direction = (trajectory_length / np.linalg.norm(direction)) * direction
-                goal_for_movement = direction + position
-                trajectory = [position, goal_for_movement]  # loop between two points
-            # static ones
-            else:
-                move_step = 0
-                trajectory = []
-                      
-            # chance for plates 70%, for spheres 30%
-            if np.random.random() > 0.3: 
-                # plate
-                # generate random size
-                length = np.random.uniform(low=self.box_l_min, high=self.box_l_max)
-                width = np.random.uniform(low=self.box_w_min, high=self.box_w_max)
-                height = np.random.uniform(low=self.box_h_min, high=self.box_h_max)
+            obst.move_base(position)
+            self.active_obstacles.append(obst)
 
-                # randomly assign lwh to xyz
-                dims = [length, width, height]
-                shuffle(dims)
-                plate = Box(position, [0, 0, 0, 1], trajectory, move_step, dims)
-                self.obstacle_objects.append(plate)
-                self.objects_ids.append(plate.build())
-            else:
-                # sphere
-                # generate random size
-                radius = np.random.uniform(low=self.sphere_r_min, high=self.sphere_r_max)
-                sphere = Sphere(position, [0, 0, 0, 1], trajectory, move_step, radius)
-                self.obstacle_objects.append(sphere)
-                self.objects_ids.append(sphere.build())
-
-        # generate starting points and targets
+        # generate robot starting positions and targets
         robots_with_starting_points = [robot for robot in self.robots if robot.goal is not None]
-        #self._create_ee_starting_points(robots_with_starting_points)
         val = False
         while not val:
             for robot in self.robots:
@@ -157,7 +146,7 @@ class RandomObstacleWorld(World):
             self.ee_starting_points = []
         min_dist = min((self.x_max - self.x_min) / 2, (self.y_max - self.y_min) / 2, (self.z_max - self.z_min) / 2)
         self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=min_dist)
-
+        
         # move robots to starting position
         for idx, robot in enumerate(self.robots):
             if self.ee_starting_points[idx][0] is None:
@@ -165,18 +154,7 @@ class RandomObstacleWorld(World):
             else:
                 robot.moveto_joints(self.ee_starting_points[idx][2], False)
 
-    def reset(self, success_rate):
-        self.objects_ids = []
-        self.position_targets = []
-        self.rotation_targets = []
-        self.joints_targets = []
-        self.ee_starting_points = []
-        for object in self.obstacle_objects:
-            del object
-        self.obstacle_objects = []
-        self.aux_object_ids = []
-
     def update(self):
 
-        for obstacle in self.obstacle_objects:
-            obstacle.move()
+        for obstacle in self.active_obstacles:
+            obstacle.move_traj()

@@ -5,8 +5,8 @@ from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 class Sphere(Obstacle):
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, radius: float, color: list=[0.75,0.75,0.75,1]) -> None:
-        super().__init__(position, rotation, trajectory, move_step)
+    def __init__(self, position: Union[list, np.ndarray], trajectory: list, move_step: float, radius: float, color: list=[0.75,0.75,0.75,1]) -> None:
+        super().__init__(position, np.array([0, 0, 0, 1]), trajectory, move_step)
 
         self.radius = radius
         self.color = color

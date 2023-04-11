@@ -95,4 +95,4 @@ class KukaShelfExperiment(World):
     
     def update(self):
         for obstacle in self.obstacle_objects:
-            obstacle.move()
+            obstacle.move_traj()

@@ -16,7 +16,7 @@ class Obstacle(ABC):
         # pybullet object id, gets set through build method
         self.object_id = None
 
-        # (potential) trajectory
+        # (potential) trajectory, measured relative to position orig
         # if this has no element, the obstacle will not move
         # if this has one element, the obstalce will move towards it and stay there
         # for two or more elements the obstacle will loop between the two or more points
@@ -34,7 +34,7 @@ class Obstacle(ABC):
         """
         return 0
 
-    def move(self):
+    def move_traj(self):
         """
         Moves the obstacle along the trajectory with constant velocity.
         """
@@ -42,7 +42,7 @@ class Obstacle(ABC):
             pass  # empty trajectory, do nothing
         elif len(self.trajectory) == 1:
             # move towards the one goal
-            goal = self.trajectory[0]
+            goal = self.trajectory[0] + self.position_orig
             diff = goal - self.position
             diff_norm = np.linalg.norm(diff)
             if diff_norm <= self.closeness_threshold:
@@ -53,7 +53,7 @@ class Obstacle(ABC):
                 self.position = self.position + step
                 pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=self.position, orientation=self.orientation)
         else:  # looping trajectory
-            goal = self.trajectory[self.trajectory_idx + 1]
+            goal = self.trajectory[self.trajectory_idx + 1] + self.position_orig
             diff = goal - self.position
             diff_norm = np.linalg.norm(diff)
             if diff_norm <= self.closeness_threshold:
@@ -66,3 +66,8 @@ class Obstacle(ABC):
                 step = diff * (move_step / diff_norm)  
                 self.position = self.position + step
                 pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=self.position, orientation=self.orientation)
+
+    def move_base(self, new_base_position):
+        pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=new_base_position, orientation=self.orientation_orig)
+        self.position_orig = new_base_position
+        self.position = new_base_position

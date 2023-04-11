@@ -39,7 +39,7 @@ class Human(Obstacle):
         self.object_id = name
         return name
 
-    def move(self):
+    def move_traj(self):
         if not self.trajectory:
             pass  # empty trajectory, do nothing
         elif len(self.trajectory) == 1:
