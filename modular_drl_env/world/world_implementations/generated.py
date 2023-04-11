@@ -1,5 +1,5 @@
 from modular_drl_env.world.world import World
-from modular_drl_env.world.obstacles.shapes import Box, Sphere
+from modular_drl_env.world.obstacles.shapes import Box, Sphere, Cylinder
 from modular_drl_env.world.obstacles.human import Human
 import numpy as np
 import yaml
@@ -76,9 +76,11 @@ class GeneratedWorld(World):
         elif obstacle_name == "box":
             self.obstacle_objects.append(Box(position, rotation, trajectory, self.sim_step * vel, **obstacle["params"]))
         elif obstacle_name == "sphere":
-            self.obstacle_objects.append(Sphere(position, rotation, trajectory, vel * self.sim_step, **obstacle_name["params"]))
-        else:
-            urdfs = findUrdfs(obstacle_name)
+            self.obstacle_objects.append(Sphere(position, rotation, trajectory, vel * self.sim_step, **obstacle["params"]))
+        elif obstacle_name == "cylinder":
+            self.obstacle_objects.append(Cylinder(position, rotation, trajectory, vel * self.sim_step, **obstacle["params"]))
+        elif obstacle_name == "basic":
+            urdfs = findUrdfs(obstacle["urdf"])
             if len(urdfs) > 0:
                 urdf_name = urdfs[0]
             else:

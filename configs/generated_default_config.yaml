@@ -61,20 +61,16 @@ env:
         xyz_delta: 0.005
         rpy_delta: 0.005
       sensors:
-        - type: "LidarSensorUR5"
+        - type: "LiDAR"
           config:
+            position: [0, 0, 0]
+            rotation: [0, 0, 0]
             update_steps: 1
             add_to_observation_space: True
             add_to_logging: True
             indicator_buckets: 6
             ray_start: 0
             ray_end: 0.3
-            ray_setup:
-              ee_forward: [1, 1]
-              wrist3_circle: [10, 10]
-              wrist2_circle: [10, 10]
-              wrist1_circle: [10, 10]
-              upper_arm: [10, 10]
             indicator: True
       goal:
         type: "PositionCollision"
@@ -121,7 +117,7 @@ env:
       - type: "human"
         position: [5, 5, 0]
         rotation: [0, 0, 0]
-        scale: 1
+        scale: [1, 1, 1]
         params:
           move:
             - [-2.5, 0.5, 1.4]

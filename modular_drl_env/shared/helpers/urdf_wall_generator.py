@@ -1,6 +1,7 @@
 class UrdfWallGenerator:
-    def __init__(self) -> None:
+    def __init__(self, color=[.5, .5, .5, 1]) -> None:
         self.segments = []
+        self.color = color
 
     def add_wall(self, w, h, d, pos_x, pos_y, pos_z):
         self.segments.append({
@@ -34,7 +35,7 @@ class UrdfWallGenerator:
                             <box size="{segment["w"]} {segment["h"]} {segment["d"]}"/>
                         </geometry>
                         <material name="white">
-                            <color rgba="1 1 1 1"/>
+                            <color rgba="{" ".join(str(x) for x in self.color)}"/>
                         </material>
                     </visual>
                     <collision>
