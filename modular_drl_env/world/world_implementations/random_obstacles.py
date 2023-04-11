@@ -62,7 +62,7 @@ class RandomObstacleWorld(World):
 
     def set_up(self):
         # add ground plate
-        self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -0.01])))
+        pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
 
         # pre-generate all the obstacles we're going to use
         for i in range(self.num_static_obstacles + self.num_moving_obstacles):
@@ -94,7 +94,7 @@ class RandomObstacleWorld(World):
                     radius = np.random.uniform(low=self.sphere_r_min, high=self.sphere_r_max)
                     obst = Sphere(self.obstacle_storage_location + offset, trajectory, move_step, radius)
                 self.obstacle_objects.append(obst)
-                self.objects_ids.append(obst.build())
+                obst.build()
 
     def reset(self, success_rate: float):
         self.position_targets = []

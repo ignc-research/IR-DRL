@@ -48,19 +48,18 @@ class KukaShelfExperiment(World):
                 raise Exception("Shelf Experiment does not support rotation or joint position goals.")
 
         # ground plane
-        self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -0.01])))
+        pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
 
         # generate an appropriate URDF
-        generator = ShelfGenerator(self.shelf_params)
         urdf_name = self.assets_path + "/runtime/shelf_" + str(self.env_id) + ".urdf"
-        with open(urdf_name, "w") as outfile:
-            outfile.write(generator.generate())
+        generator = ShelfGenerator(self.shelf_params)
+        generator.generate_to_file(urdf_name)
         
         # instantiante as obstacle as many times as needed
         for shelf_entry in self.shelf_list:
             shelf = URDFObject(shelf_entry["position"], shelf_entry["rotation"], [], 0, urdf_name)
             self.obstacle_objects.append(shelf)
-            self.objects_ids.append(shelf.build())
+            shelf.build()
 
         # TODO: add obstacles and humans again
 

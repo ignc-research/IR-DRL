@@ -23,7 +23,7 @@ class PositionCollisionGoal(Goal):
                        train: bool,
                        add_to_logging: bool,
                        max_steps: int,
-                       continue_after_success:bool, 
+                       continue_after_success: bool, 
                        reward_success=10, 
                        reward_collision=-10,
                        reward_distance_mult=-0.01,
@@ -31,8 +31,9 @@ class PositionCollisionGoal(Goal):
                        dist_threshold_end=1e-2,
                        dist_threshold_increment_start=1e-2,
                        dist_threshold_increment_end=1e-3,
-                       dist_threshold_overwrite:float=None,
-                       dist_threshold_change:float=0.8):
+                       dist_threshold_overwrite: float=None,
+                       dist_threshold_change: float=0.8,
+                       better_compatability_obs_space: bool=True):
         super().__init__(robot, normalize_rewards, normalize_observations, train, True, add_to_logging, max_steps, continue_after_success)
 
         # set output name for observation space
@@ -91,14 +92,23 @@ class PositionCollisionGoal(Goal):
         # performance metric name
         self.metric_names = ["distance_threshold"]
 
+        # see get obs space element
+        self.better_compatability_obs_space = better_compatability_obs_space
+
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
             ret = dict()
             if self.normalize_observations:
                 ret[self.output_name ] = Box(low=-1, high=1, shape=(4,), dtype=np.float32)
             else:
-                high = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min, 1], dtype=np.float32)
-                low = np.array([-self.robot.world.x_max + self.robot.world.x_min, -self.robot.world.y_max + self.robot.world.y_min, -self.robot.world.z_max + self.robot.world.z_min, 0], dtype=np.float32)
+                if self.better_compatability_obs_space:
+                    # set borders to arbitrarily high value to make model usable in other contexts
+                    # stable baselines enforces that the obs space boundaries are always the same which obviously sucks if you want to try your agent elsewhere with different workspace boundaries
+                    high = np.array([50, 50, 50, 1], dtype=np.float32)
+                    low = np.array([-50, -50, -50, 0], dtype=np.float32)
+                else:
+                    high = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min, 1], dtype=np.float32)
+                    low = np.array([-self.robot.world.x_max + self.robot.world.x_min, -self.robot.world.y_max + self.robot.world.y_min, -self.robot.world.z_max + self.robot.world.z_min, 0], dtype=np.float32)
                 ret[self.output_name ] = Box(low=low, high=high, shape=(4,), dtype=np.float32)
 
             return ret
@@ -229,7 +239,7 @@ class PositionCollisionBetterSmoothingGoal(PositionCollisionGoal):
         reward = 0
 
         self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
-        self.collided = self.robot.world.collision
+        self.collided = pyb_u.collision
 
         shaking = 0
         current_velocity = self.robot.joints_sensor.joints_velocities
@@ -428,7 +438,7 @@ class PositionRotationCollisionGoal(Goal):
         reward = 0
 
         self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
-        self.collided = self.robot.world.collision
+        self.collided = pyb_u.collision
 
         shaking = 0
         if len(self.past_position_distances) >= 10:

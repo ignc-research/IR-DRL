@@ -11,8 +11,6 @@ class World(ABC):
 
     def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int, assets_path: str):
 
-        # list that will contain all  object ids with collision managed by this world simulation
-        self.objects_ids = []
         # list that will contain all purely visual object ids like spheres and cubes without collision
         self.aux_objects = []
         # same, but for lines
@@ -65,7 +63,7 @@ class World(ABC):
               while leaving the rest of the pre-generated stuff in some inaccessible location
               (this will save massive amounts of performance, however if necessary you can also delete old and spawn new geometry in reset)
               (look at random_obstacles for an example of how to do it)
-            - further, you MUST use the obstacle class for spawning stuff and put all obstacles into the self.obstacle_objects list and their object ids into self.object_ids
+            - further, you MUST use the obstacle class for spawning stuff and put all obstacles into the self.obstacle_objects list
         - generate valid goal targets for all robots that need them, e.g. xyz target coordinates, target rotations or target joint configurations
         """
         pass

@@ -44,12 +44,10 @@ env:
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
-  engine:
-    type: "Pybullet"
-    use_physics_sim: True
-    gravity: [0, 0, -9.8]
-    sim_step: 0.00416666666 
-    sim_steps_per_env_step: 1 
+  use_physics_sim: True
+  gravity: [0, 0, -9.8]
+  sim_step: 0.00416666666 
+  sim_steps_per_env_step: 1 
   robots:
     - type: "UR5" 
       config:
@@ -58,8 +56,6 @@ env:
         base_orientation: [0, 0, 0]
         resting_angles: [-180, -45, -90, -135, 90, 0]
         control_mode: 0
-        xyz_delta: 0.005
-        rpy_delta: 0.005
       sensors:
         - type: "LiDAR"
           config:
@@ -103,7 +99,7 @@ env:
       - type: "shelf"
         position: [-1.25, 1.5, 0]
         rotation: [90, 0, 0]
-        scale: [1, 1, 1]
+        scale: 1
         params:
           rows: 5
           cols: 5
@@ -117,7 +113,7 @@ env:
       - type: "human"
         position: [5, 5, 0]
         rotation: [0, 0, 0]
-        scale: [1, 1, 1]
+        scale: 1
         params:
           move:
             - [-2.5, 0.5, 1.4]

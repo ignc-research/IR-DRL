@@ -42,7 +42,7 @@ class MazeGenerator:
         m.solver = BacktrackingSolver()
         m.generate_monte_carlo(100, 10, difficulty)
 
-        urdf = UrdfWallGenerator(self.params.get("color"))
+        urdf = UrdfWallGenerator(self.params.get("color", [0.5, 0.5, 0.5, 1]))
         for row_idx, row in enumerate(m.grid):
             for cell_idx, cell in enumerate(row):
                 curr_x = xy_offset + cell_idx * element_size
@@ -70,3 +70,7 @@ class MazeGenerator:
         self.solution = m.solutions[0]
 
         return urdf.get_urdf()
+    
+    def generate_to_file(self, output_path):
+        with open(output_path, "w") as outfile:
+            outfile.write(self.generate())
