@@ -38,22 +38,17 @@ run:
     show_world_aux: True
     show_goal_aux: True
     show_sensor_aux: False
-    pybullet_recorder:
-      use: False
-      save_path: "demo"
-      scale: 1
 
 env:
   max_steps_per_episode: 1024   
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
-  engine:
-    type: "Pybullet"
-    use_physics_sim: True
-    gravity: [0, 0, -9.8]
-    sim_step: 0.00416666666 
-    sim_steps_per_env_step: 1 
+  type: "Pybullet"
+  use_physics_sim: True
+  gravity: [0, 0, -9.8]
+  sim_step: 0.00416666666 
+  sim_steps_per_env_step: 1 
   robots:
     - type: "UR5" 
       config:
@@ -62,8 +57,6 @@ env:
         base_orientation: [0, 0, 0]
         resting_angles: [-180, -45, -90, -135, 90, 0]
         control_mode: 0
-        xyz_delta: 0.005
-        rpy_delta: 0.005
       sensors:
         - type: "LidarSensorUR5"
           config:
@@ -92,27 +85,11 @@ env:
           dist_threshold_end : 0.01
           dist_threshold_increment_start: 0.01
           dist_threshold_increment_end: 0.001
-          dist_threshold_overwrite: "None"
+          dist_threshold_overwrite:
 
   world:
     type: "TableExperiment"
     config:
       workspace_boundaries: [-2, 2, -2, 2, 0, 5]
       num_obstacles: 5
-      obstacle_velocities: []
-      num_humans: 2
-      human_positions: 
-        - [0, 0, 0]
-        - [1.6, 0, 1.4]
-      human_rotations: 
-        - [0, 0, 0]
-        - [0, 0, 90]
-      human_trajectories: 
-        - [[-2, 2, 1.4], [2, 2, 1.5]]
-        - []
-      human_reactive: [False, True]
-      ee_starts: []
-      targets: []
-      obstacle_positions: []
-      obstacle_trajectories: []
       obstacle_training_schedule: False

@@ -33,7 +33,7 @@ class TestcasesWorld(World):
         self.position_target_3_1 = np.array([0, 0.4, 0.25])
         self.position_target_3_2 = np.array([-0.25 , 0.4, 0.25])
 
-        self.active_objects = []
+        self.active_obstacles = []
 
         self.position_nowhere = np.array([0, 0, -10])
 
@@ -64,7 +64,11 @@ class TestcasesWorld(World):
 
         self.test3_phase = 0
 
-        self.active_objects = []
+
+        for obst in self.active_obstacles:
+            offset = np.random.uniform(low=-5, high=5, size=(3,))
+            obst.move_base(self.position_nowhere + offset)
+        self.active_obstacles = []
         self.position_targets = []
         # first move everything into storage
         for obst in self.obstacle_objects:
@@ -72,23 +76,23 @@ class TestcasesWorld(World):
 
         if self.current_test_mode == 1:
             self.obst1.move_base(np.array([0, 0.4, 0.3]))
-            self.active_objects.append(self.obst1)
+            self.active_obstacles.append(self.obst1)
             self.position_targets = [self.position_target_1]
         elif self.current_test_mode == 2:
             self.obst2.move_base(np.array([-0.3, 0.4, 0.3]))
-            self.active_objects.append(self.obst2)
+            self.active_obstacles.append(self.obst2)
             self.position_targets = [self.position_target_2]
         elif self.current_test_mode == 3:
             self.obst3a.move_base(np.array([-0.1, 0.4, 0.26]))
             self.obst3b.move_base(np.array([0.1, 0.4, 0.26]))
-            self.active_objects.append(self.obst3a)
-            self.active_objects.append(self.obst3b)
+            self.active_obstacles.append(self.obst3a)
+            self.active_obstacles.append(self.obst3b)
             self.position_targets = [self.position_target_3_1]
 
         self.robots[0].moveto_joints(self.robot_start_joint_angles[self.current_test_mode - 1], False)
 
     def update(self):
-        for obstacle in self.active_objects:
+        for obstacle in self.active_obstacles:
             obstacle.move_traj()
         if self.current_test_mode == 3:
             if self.test3_phase == 0:
