@@ -147,38 +147,9 @@ class ModularDRLEnv(gym.Env):
         if self.max_episodes == -1:  # if we have a finite amount of episodes, we want the log to hold everything, otherwise flush it for the next one
             self.log = []  
 
-        # build the world and robots
-        # this is put into a loop that will only break if the generation process results in a collision free setup
-        # the code will abort if even after several attempts no valid starting setup is found
-        # TODO: maybe find a smarter way to do this
-        reset_count = 0
         # toggle pybullet rendering off
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
-        while True:
-            if reset_count > 1000:
-                raise Exception("Could not find collision-free starting setup after 1000 tries. Maybe check your world generation code.")
-
-            # reset the engine, deletes everything
-            pyb_u.reset()
-
-            # reset world attributes
-            self.world.reset(np.average(self.success_stat))
-
-            # spawn robots in world
-            for robot in self.robots:
-                robot.build()
-
-            # spawn world objects, create starting points and targets for robots, move them to starting position
-            self.world.build(np.average(self.success_stat))
-            
-            # check collision
-            pyb_u.perform_collision_check()
-            pyb_u.get_collisions()
-            if not pyb_u.collision:
-                break
-            else:
-                reset_count += 1
-        # toggle rendering back on
+        self.world.reset(np.average(self.success_stat))
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         # set all robots to active
@@ -194,14 +165,15 @@ class ModularDRLEnv(gym.Env):
             self.goal_metrics += goal.on_env_reset(np.average(self.success_stat))
 
         # render non-essential visual stuff
-        if self.show_auxillary_geometry_world:
-            self.world.build_visual_aux()
-        if self.show_auxillary_geometry_goal:
-            for goal in self.goals:
-                goal.build_visual_aux()
-        if self.show_auxillary_geometry_sensors:
-            for sensor in self.sensors:
-                sensor.build_visual_aux()
+        if not self.train:
+            if self.show_auxillary_geometry_goal:
+                for goal in self.goals:
+                    goal.delete_visual_aux()
+                    goal.build_visual_aux()
+            if self.show_auxillary_geometry_sensors:
+                for sensor in self.sensors:
+                    sensor.delete_visual_aux()
+                    sensor.build_visual_aux()
 
         return self._get_obs()
 
@@ -255,6 +227,8 @@ class ModularDRLEnv(gym.Env):
         # update the collision model if necessary
         if not self.use_physics_sim:
             pyb_u.perform_collision_check()
+        # run our collision handling
+        pyb_u.get_collisions()
 
         # calculate reward and get termination conditions
         rewards = []
@@ -473,10 +447,14 @@ class ModularDRLEnv(gym.Env):
     def _world_setup(self, env_config):
         world_type = env_config["world"]["type"]
         world_config = env_config["world"]["config"]
+        world_config["assets_path"] = self.assets_path
         world_config["env_id"] = self.env_id
         world_config["sim_step"] = self.sim_step
         
         self.world:World = WorldRegistry.get(world_type)(**world_config)
+        self.world.set_up()
+        if self.show_auxillary_geometry_world:
+            self.world.build_visual_aux()
 
     def _robot_setup(self, env_config):
         id_counter = 0

@@ -25,7 +25,8 @@ class RandomObstacleWorld(World):
                        moving_obstacles_vels: list=[0.5, 2],
                        moving_obstacles_directions: list=[],
                        moving_obstacles_trajectory_length: list=[0.05, 0.75],
-                       randomize_number_of_obstacles: bool=True
+                       randomize_number_of_obstacles: bool=True,
+                       num_pre_generated_obstacles: int=40
                        ):
         """
         The world config contains the following parameters:
@@ -60,6 +61,18 @@ class RandomObstacleWorld(World):
 
         self.randomize_number_of_obstacles = randomize_number_of_obstacles
 
+        self.num_pre_generated_obstacles = num_pre_generated_obstacles
+
+        self.obstacle_storage_location = np.array([0, 0, -10])
+
+    def set_up(self):
+        # add ground plate
+        self.objects_ids.append(pyb_u.add_ground_plane(np.array([0, 0, -0.01])))
+
+        # pre-generate all the obstacles we're going to use
+        for i in range(self.num_pre_generated_obstacles):
+            offset = np.random.uniform(low=-5, high=5, size=(3,))
+            
 
     def build(self, success_rate: float):
         # add ground plate

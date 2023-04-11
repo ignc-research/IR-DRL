@@ -16,9 +16,13 @@ class pybullet_util:
     # these will map pybullet's int joint ids to their actual names in the source URDF
     pybullet_joints_ids = {}
     gym_env_str_joints_names = {}
-    # bools to check the current collision state
-    collision: bool = False  # bool for whether there is a collision at all
+    # current collision state
+    collision = False  # bool for whether there is a collision at all involving a robot
     collisions: List[Tuple[str, str]] = []  # list of tuples of colliding objects
+    # counter to keep our numbered ids safely unique even if we delete something
+    spawn_counter = 0
+    # list of pybullet ids for all objects that are robots for convenient access
+    robot_pyb_ids = []
 
     ##########
     # basics #
@@ -46,6 +50,8 @@ class pybullet_util:
         cls.gym_env_str_link_names = {}
         cls.pybullet_joints_ids = {}
         cls.gym_env_str_joints_names = {}
+        cls.spawn_counter = 0
+        cls.robot_pyb_ids = []
         pyb.resetSimulation()
 
     @staticmethod
@@ -67,7 +73,12 @@ class pybullet_util:
         for tup in pyb_cols:
             ret.append((cls.gym_env_str_names[tup[1]], cls.gym_env_str_names[tup[2]]))
         cls.collisions = ret
-        cls.collision = True if ret else False
+        # check if there is a collision involving robots
+        cls.collision = False
+        for tup in pyb_cols:
+            if tup[1] in cls.robot_pyb_ids or tup[2] in cls.robot_pyb_ids:
+                cls.collision = True
+                break
     
     ############
     # geometry #
@@ -77,7 +88,8 @@ class pybullet_util:
     def add_ground_plane(cls, position: np.ndarray) -> str:
         pyb_id = pyb.loadURDF("workspace/plane.urdf", position.tolist())
         cls.gym_env_str_names[pyb_id] = "defaultGroundPlane"
-        cls.pybullet_object_ids["defaultGroundPlane"] = pyb.loadURDF("workspace/plane.urdf", position.tolist())
+        cls.pybullet_object_ids["defaultGroundPlane"] = pyb_id
+        cls.spawn_counter += 1
         return "defaultGroundPlane"
 
     @classmethod
@@ -88,7 +100,7 @@ class pybullet_util:
         pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale)
         
         if is_robot:
-            name = "object_" + str(len(cls.pybullet_object_ids)) 
+            name = "robot_" + str(cls.spawn_counter) 
             joints_info = [pyb.getJointInfo(pyb_id, i) for i in range(pyb.getNumJoints(pyb_id))]
             for joint_info in joints_info:
                 link_name, link_pyb_id = joint_info[12].decode('UTF-8'), joint_info[0]
@@ -97,11 +109,13 @@ class pybullet_util:
                 cls.gym_env_str_link_names[(pyb_id, link_pyb_id)] = link_name
                 cls.pybullet_joints_ids[(name, joint_name)] = joint_pyb_id
                 cls.gym_env_str_joints_names[(pyb_id, joint_pyb_id)] = joint_name
+            cls.robot_pyb_ids.append(pyb_id)
         else:
-            name = "mesh_" + str(len(cls.pybullet_object_ids)) 
+            name = "mesh_" + str(cls.spawn_counter)
 
         cls.pybullet_object_ids[name] = pyb_id
         cls.gym_env_str_names[pyb_id] = name
+        cls.spawn_counter += 1
 
         return name
     
@@ -110,7 +124,7 @@ class pybullet_util:
         """
         Creates a box and returns its string id.
         """
-        name = "box_" + str(len(cls.pybullet_object_ids))
+        name = "box_" + str(cls.spawn_counter)
         pyb_id = pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents, rgbaColor=color),
                                     baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_BOX, halfExtents=halfExtents) if collision else -1,
@@ -118,6 +132,7 @@ class pybullet_util:
                                     baseOrientation=orientation.tolist())
         cls.pybullet_object_ids[name] = pyb_id
         cls.gym_env_str_names[pyb_id] = name
+        cls.spawn_counter += 1
         return name
     
     @classmethod
@@ -125,13 +140,14 @@ class pybullet_util:
         """
         Creates a sphere and returns its string id.
         """
-        name = "sphere_" + str(len(cls.pybullet_object_ids))
+        name = "sphere_" + str(cls.spawn_counter)
         pyb_id = pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_SPHERE, radius=radius, rgbaColor=color),
                                     baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_SPHERE, radius=radius) if collision else -1,
                                     basePosition=position.tolist())
         cls.pybullet_object_ids[name] = pyb_id
         cls.gym_env_str_names[pyb_id] = name
+        cls.spawn_counter += 1
         return name
     
     @classmethod
@@ -139,7 +155,7 @@ class pybullet_util:
         """
         Creates a cylinder and returns its string id.
         """
-        name = "geom_" + str(len(cls.pybullet_object_ids))
+        name = "geom_" + str(cls.spawn_counter)
         pyb_id = pyb.createMultiBody(baseMass=mass,
                                     baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height, rgbaColor=color),
                                     baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height) if collision else -1,
@@ -147,6 +163,7 @@ class pybullet_util:
                                     baseOrientation=orientation.tolist())
         cls.pybullet_object_ids[name] = pyb_id
         cls.gym_env_str_names[pyb_id] = name
+        cls.spawn_counter += 1
         return name
     
     @classmethod
@@ -154,10 +171,12 @@ class pybullet_util:
         """
         Removes an object from the simulation via its string id.
         """
-        pyb.removeBody(cls.pybullet_object_ids[object_id])
-        # del cls._pybullet_object_ids[object_id]   # leave this commented out! 
-        # we will actually not delete the entry from the dic to prevent the case where, if we spawn something else afterwards,
-        # it could potentially lead to double ids, given that we count up for each new object
+        pyb_id = cls.pybullet_object_ids[object_id]
+        pyb.removeBody(pyb_id)
+        del cls.pybullet_object_ids[object_id]
+        del cls.gym_env_str_names[pyb_id]
+        if pyb_id in cls.robot_pyb_ids:
+            cls.robot_pyb_ids.remove(pyb_id)
 
     @staticmethod
     def draw_lines(starts: List[List[float]], ends: List[List[float]], colors: List[List[float]]) -> List[int]:
@@ -263,8 +282,7 @@ class pybullet_util:
                           joint_ids: str, 
                           position: np.ndarray[float]=None, 
                           velocity: np.ndarray[float]=None,
-                          forces: np.ndarray[float]=None,
-                          max_velocities: np.ndarray[float]=None) -> None:   
+                          forces: np.ndarray[float]=None) -> None:   
         """
         Sets control targets for a robot's joints.
         Can either control position, velocity or both. If both are given, position will take precedence.
@@ -277,16 +295,12 @@ class pybullet_util:
             pyb_kwargs["targetVelocities"] = velocity
             pyb_kwargs["controlMode"] = pyb.VELOCITY_CONTROL
         if position is not None:
-            pyb_kwargs["targetPositions"] = [[ele] for ele in position]
+            pyb_kwargs["targetPositions"] = position
             pyb_kwargs["controlMode"] = pyb.POSITION_CONTROL  # overwrites the velocity control mode
         if forces is not None:
-            pyb_kwargs["forces"] = [[ele] for ele in forces]
-        if max_velocities is not None:
-            pyb_kwargs["maxVelocities"] = max_velocities
-        # the [ele] for ele stuff is because the format needs nested lists for the multi dof joints
-        # for some reason, the multi dof array method offers more options (max velocities eg) than the normal one
+            pyb_kwargs["forces"] = forces
 
-        pyb.setJointMotorControlMultiDofArray(**pyb_kwargs)
+        pyb.setJointMotorControlArray(**pyb_kwargs)
 
     @classmethod
     def get_link_state(cls, robot_id: str, link_id: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

@@ -280,8 +280,7 @@ class Robot(ABC):
                 robot_id=self.object_id,
                 joint_ids=self.controlled_joints_ids,
                 position=desired_joints_angles,
-                forces=self.joints_max_forces,
-                max_velocities=self.joints_max_velocities
+                forces=self.joints_max_forces
             )
         else:
             pyb_u.set_joint_states(

@@ -9,12 +9,12 @@ class World(ABC):
     See the random obstacles world for examples.
     """
 
-    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int):
+    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int, assets_path: str):
 
         # list that will contain all  object ids with collision managed by this world simulation
         self.objects_ids = []
         # list that will contain all purely visual object ids like spheres and cubes without collision
-        self.aux_object_ids = []
+        self.aux_objects = []
         # same, but for lines
         self.aux_lines = []
         # list that will contain all obstacle objects used in this world
@@ -22,6 +22,9 @@ class World(ABC):
 
         # set sim step
         self.sim_step = sim_step
+
+        # str that contains the asset path in case the world needs access to those resources
+        self.assets_path = assets_path
 
         # set env id, this is a number that differentiates multiple envs running in parallel in training, necessary for file related stuff
         self.env_id = env_id
@@ -41,11 +44,6 @@ class World(ABC):
         # list of robots, gets filled by register method down below
         self.robots = []  # all robots in world
 
-        # flags such that the automated processes elsewhere can recognize what sort of goals this world can support
-        # set these yourself if they apply in a subclass
-        self.gives_a_position = False
-        self.gives_a_rotation = False
-
     def register_robots(self, robots):
         """
         This method receives a list of robot objects from the outside and sorts the robots therein into a list that is important for other methods.
@@ -58,38 +56,43 @@ class World(ABC):
             id_counter += 1
 
     @abstractmethod
-    def build(self, success_rate: float):
+    def set_up(self):
         """
-        This method should build all the components that make up the world simulation aside from the robot.
-        This includes URDF files as well as objects created by code.
-        This method should also generate valid targets for all robots that need them, valid starting points and it should also move them there to start the episode.
-        Additionally, this method receives the success rate of the gym env as a value between 0 and 1. You could use this to
-        set certain parameters, e.g. to the make world become more complex as the agent's success rate increases.
-
-        All object ids loaded in by this method must be added to the self.object_ids list! Otherwise they will be ignored in collision detection.
-        If you use our Obstacle objects, add them (the objects themselves, not just their object ids) to self.obstacle_objects.
+        This method should:
+        - build all the components that make up the 3D scene aside from the robots, including meshes, geometric shapes like boxes or other things
+            - it should ideally do this in a way that no other geometry needs to be spawned ever again, e.g. if you want a scenario where randomized geometry is spawned on every episode start
+              generate enough random variations in this method and then use the reset method (see below) to move a share of the pre-generated geometry to its position on episode start
+              while leaving the rest of the pre-generated stuff in some inaccessible location
+              (this will save massive amounts of performance, however if necessary you can also delete old and spawn new geometry in reset)
+              (look at random_obstacles for an example of how to do it)
+            - further, you MUST use the obstacle class for spawning stuff and put all obstacles into the self.obstacle_objects list and their object ids into self.object_ids
+        - generate valid goal targets for all robots that need them, e.g. xyz target coordinates, target rotations or target joint configurations
         """
         pass
 
     @abstractmethod
     def reset(self, success_rate: float):
         """
-        This method should reset all lists, arrays, variables etc. that handle the world to such a state that a new episode can be run.
-        Meaning that after this method is done, build() can be called again.
-        Don't reset the simulation itself, that will be handled by the gym env.
-        Additionally, this method receives the success rate of the gym env as a value between 0 and 1. You could use this to
-        set certain parameters, e.g. to the make world become more complex as the agent's success rate increases.
+        This method should:
+        - set up the scene such that a new episode can start
+            - if some change to the geometry of the scene is necessary, then ideally (see set_up method comments) any such change should rely on pre-generated geometry,
+              e.g. by existing moving obstacles to new places or using pre-generated ones that were put in some storage location
+            - if absolutely necessary, it's okay to spawn new or delete old geometry, but this should be kept to a minimum to avoid performance impacts
+            - ideally, whatever set up, movement and spawning you do perform should lead to a valid starting position of everything, i.e. meaning that there are no immediate collisions and all robots' goals are achievable 
+        - move robots into their starting positions
+        - generate valid targets as needed by the robots' goals
+        - use, if wanted, the success rate in some way
+            - this is a number between 0 and 1 that expresses the average rate of success of a number of past episodes, you could use it to progressively make the scenario harder for the robot for example
         """
         pass
 
     def build_visual_aux(self):
         """
-        This method should add objects that are not necessary to the purpose of the world and useful only for visual quality.
-        By default, this method will mark the workspace boundaries, but you can extend it in your subclasses as you need.
-        Visual objects related to a goal should be implemented by that goal.
-        (This is because the world should be usable with all sorts of goals, even those that need different visualizations for their goals,
-        e.g. a target sphere vs. a target cube)
-        Objects built here should NOT be added to self.object_ids but to self.aux_object_ids. Dont forget to reset self.aux_object_ids in your reset methods.
+        This method should:
+        - add objects that are not necessary for the purpose of scenario and useful only visualizing some aspect of it for the user
+        - add any such objects to the self.aux_lines if it's lines or self.aux_objects if it's anything else (pybullet handles these differently)
+        By default, this method will draw the workspace boundaries, you can overwrite with additional or entirely new functionality in your subclass.
+        Note: this method will only be called once, so stuff done here will last for the entire runtime.
         """
         line_starts = [
             [self.x_min, self.y_min, self.z_min],
@@ -121,7 +124,7 @@ class World(ABC):
         ]
         colors = [[1, 1, 1] for _ in line_starts]
 
-        self.aux_object_ids += pyb_u.draw_lines(line_starts, line_ends, colors)
+        self.aux_lines += pyb_u.draw_lines(line_starts, line_ends, colors)
     
     @abstractmethod
     def update(self):
