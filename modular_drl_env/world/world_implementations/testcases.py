@@ -14,9 +14,9 @@ class TestcasesWorld(World):
     Note: this class assumes that the first robot mentioned in the config is the one doing the experiment!
     """
 
-    def __init__(self, sim_step:float, env_id:int, test_mode: int):
+    def __init__(self, sim_step:float, env_id:int, assets_path: str, test_mode: int):
         #super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.4], sim_step, env_id)
-        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, env_id)
+        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, env_id, assets_path)
 
         self.test_mode = test_mode # 0: random, 1: one plate, 2: moving obstacle, 3: two plates
         self.current_test_mode = 0  # for random
@@ -33,39 +33,63 @@ class TestcasesWorld(World):
         self.position_target_3_1 = np.array([0, 0.4, 0.25])
         self.position_target_3_2 = np.array([-0.25 , 0.4, 0.25])
 
-        # moving obstacle for test case 2
-        self.moving_plate = None
+        self.active_objects = []
 
-        self.obstacle_objects = []
+        self.position_nowhere = np.array([0, 0, -10])
 
-    def build(self, success_rate: float):
+    def set_up(self):
         # add ground plate
-        ground_plate = pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
-        self.objects_ids.append(ground_plate)
-        if self.current_test_mode == 1:
-            self._build_test_1()
-        elif self.current_test_mode == 2:
-            self._build_test_2()
-        elif self.current_test_mode == 3:
-            self._build_test_3()
+        pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
+        
+        # set up testcase geometry
+        self.obst1 = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
+        self.obst1.build()
+        self.obst2 = Box(self.position_nowhere, [0, 0, 0, 1], [np.array([0, 0, 0]), np.array([0, 0.4, 0])], 0.0015, [0.05,0.05,0.002])
+        self.obst2.build()
+        self.obst3a = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
+        self.obst3a.build()
+        self.obst3b = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
+        self.obst3b.build()
 
-        self.robots[0].moveto_joints(self.robot_start_joint_angles[self.current_test_mode - 1], False)
-            
+        self.obstacle_objects.append(self.obst1)
+        self.obstacle_objects.append(self.obst2)
+        self.obstacle_objects.append(self.obst3a)
+        self.obstacle_objects.append(self.obst3b)
+
     def reset(self, success_rate):
         if self.test_mode == 0:
             self.current_test_mode = choice([1, 2, 3])
         else:
             self.current_test_mode = self.test_mode
-        self.objects_ids = []
-        self.ee_starting_points = []
-        self.moving_plate = None
-        self.aux_object_ids = []
+
         self.test3_phase = 0
-        self.obstacle_objects = []
+
+        self.active_objects = []
+        self.position_targets = []
+        # first move everything into storage
+        for obst in self.obstacle_objects:
+            obst.move_base(self.position_nowhere)
+
+        if self.current_test_mode == 1:
+            self.obst1.move_base(np.array([0, 0.4, 0.3]))
+            self.active_objects.append(self.obst1)
+            self.position_targets = [self.position_target_1]
+        elif self.current_test_mode == 2:
+            self.obst2.move_base(np.array([-0.3, 0.4, 0.3]))
+            self.active_objects.append(self.obst2)
+            self.position_targets = [self.position_target_2]
+        elif self.current_test_mode == 3:
+            self.obst3a.move_base(np.array([-0.1, 0.4, 0.26]))
+            self.obst3b.move_base(np.array([0.1, 0.4, 0.26]))
+            self.active_objects.append(self.obst3a)
+            self.active_objects.append(self.obst3b)
+            self.position_targets = [self.position_target_3_1]
+
+        self.robots[0].moveto_joints(self.robot_start_joint_angles[self.current_test_mode - 1], False)
 
     def update(self):
-        for obstacle in self.obstacle_objects:
-            obstacle.move()
+        for obstacle in self.active_objects:
+            obstacle.move_traj()
         if self.current_test_mode == 3:
             if self.test3_phase == 0:
                 # this is only works if the first robot is the one performing the test as we require for this class
@@ -78,27 +102,3 @@ class TestcasesWorld(World):
                     for robot in self.robots[1:]:
                         self.position_targets.append([])
                     self.test3_phase = 1
-    
-    def _build_test_1(self):
-        obst = Box(np.array([0.0,0.4,0.3]), [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
-        self.obstacle_objects.append(obst)
-        self.objects_ids.append(obst.build())
-        self.position_targets = [self.position_target_1]
-
-    def _build_test_2(self):
-        obst = Box([-0.3, 0.4, 0.3], [0, 0, 0, 1], [np.array([-0.3, 0.4, 0.3]), np.array([-0.3, 0.8, 0.3])], 0.0015, [0.05,0.05,0.002])
-        self.obstacle_objects.append(obst)
-        self.objects_ids.append(obst.build())
-        self.position_targets = [self.position_target_2]
-
-    def _build_test_3(self):
-        obst1 = Box([-0.1,0.4,0.26], [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
-        obst2 = Box([0.1,0.4,0.26], [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
-        self.obstacle_objects.append(obst1)
-        self.obstacle_objects.append(obst2)
-        self.objects_ids.append(obst1.build())
-        self.objects_ids.append(obst2.build())
-        self.position_targets = [self.position_target_3_1]
-
-    def create_rotation_target(self) -> list:
-        return None  # not needed here for now

@@ -44,12 +44,10 @@ env:
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
-  engine:
-    type: "Pybullet"
-    use_physics_sim: True
-    gravity: [0, 0, -9.8]
-    sim_step: 0.00416666666 
-    sim_steps_per_env_step: 1 
+  use_physics_sim: True
+  gravity: [0, 0, -9.8]
+  sim_step: 0.00416666666 
+  sim_steps_per_env_step: 1 
   robots:
     - type: "UR5" 
       config:
@@ -58,8 +56,6 @@ env:
         base_orientation: [0, 0, 0]
         resting_angles: [0, 90, -30, -120, -80, 90]
         control_mode: 0
-        xyz_delta: 0.005
-        rpy_delta: 0.005
       sensors:
         - type: "LidarSensorUR5"
           config:
@@ -88,7 +84,7 @@ env:
           dist_threshold_end : 0.01
           dist_threshold_increment_start: 0.01
           dist_threshold_increment_end: 0.001
-          dist_threshold_overwrite: "None"
+          dist_threshold_overwrite:
 
   world:
     type: "Testcases"
