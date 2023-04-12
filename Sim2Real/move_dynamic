@@ -1,0 +1,357 @@
+#!/usr/bin/env python
+
+# Notes Karim: ask confirmation wurde rausgenommen for purposes of geschwindigkeit. function is still there just not used at the moment. 
+# if needed it can be reintegratet in the move_simple function
+
+
+import sys
+import yaml 
+import time
+import random
+import rospy
+import actionlib
+import numpy as np
+from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
+from trajectory_msgs.msg import JointTrajectoryPoint
+from controller_manager_msgs.srv import SwitchControllerRequest, SwitchController
+from controller_manager_msgs.srv import LoadControllerRequest, LoadController
+from controller_manager_msgs.srv import ListControllers, ListControllersRequest
+import geometry_msgs.msg as geometry_msgs
+from cartesian_control_msgs.msg import (
+    FollowCartesianTrajectoryAction,
+    FollowCartesianTrajectoryGoal,
+    CartesianTrajectoryPoint,
+)
+from tf2_msgs.msg import TFMessage
+from sensor_msgs.msg import JointState
+from listener_node import listener_node_one
+
+
+#TODO: calibration.yaml as object and print /aktuelle Position vom Endeffektor xyz rpy am wichtigsten
+#TODO: find out joint winkel and save them as object
+#TODO: log joint time 
+#TODO: Stop function ()
+
+# Compatibility for python2 and python3
+if sys.version_info[0] < 3:
+    input = raw_input
+
+# If your robot description is created with a tf_prefix, those would have to be adapted
+JOINT_NAMES = [
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
+    "elbow_joint",
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint",
+]
+
+# All of those controllers can be used to execute joint-based trajectories.
+# The scaled versions should be preferred over the non-scaled versions.
+JOINT_TRAJECTORY_CONTROLLERS = [
+    "scaled_pos_joint_traj_controller",
+    "scaled_vel_joint_traj_controller",
+    "pos_joint_traj_controller",
+    "vel_joint_traj_controller",
+    "forward_joint_traj_controller",
+]
+
+# All of those controllers can be used to execute Cartesian trajectories.
+# The scaled versions should be preferred over the non-scaled versions.
+CARTESIAN_TRAJECTORY_CONTROLLERS = [
+    "pose_based_cartesian_traj_controller",
+    "joint_based_cartesian_traj_controller",
+    "forward_cartesian_traj_controller",
+]
+
+# We'll have to make sure that none of these controllers are running, as they will
+# be conflicting with the joint trajectory controllers
+CONFLICTING_CONTROLLERS = ["joint_group_vel_controller", "twist_controller"]
+
+
+
+class TrajectoryClient:
+    """Small trajectory client to test a joint trajectory"""
+
+  
+
+    def __init__(self):
+        rospy.init_node("test_move")
+
+        timeout = rospy.Duration(5)
+        self.switch_srv = rospy.ServiceProxy(
+            "controller_manager/switch_controller", SwitchController
+        )
+        self.load_srv = rospy.ServiceProxy("controller_manager/load_controller", LoadController)
+        self.list_srv = rospy.ServiceProxy("controller_manager/list_controllers", ListControllers)
+        try:
+            self.switch_srv.wait_for_service(timeout.to_sec())
+        except rospy.exceptions.ROSException as err:
+            rospy.logerr("Could not reach controller switch service. Msg: {}".format(err))
+            sys.exit(-1)
+
+        self.joint_trajectory_controller = JOINT_TRAJECTORY_CONTROLLERS[0]
+        self.cartesian_trajectory_controller = CARTESIAN_TRAJECTORY_CONTROLLERS[0]
+
+    def send_joint_trajectory(self):
+        """Creates a trajectory and sends it using the selected action server"""
+
+        # make sure the correct controller is loaded and activated
+        self.switch_controller(self.joint_trajectory_controller)
+        trajectory_client = actionlib.SimpleActionClient(
+            "{}/follow_joint_trajectory".format(self.joint_trajectory_controller),
+            FollowJointTrajectoryAction,
+        )
+
+        # Wait for action server to be ready
+        timeout = rospy.Duration(5)
+        if not trajectory_client.wait_for_server(timeout):
+            rospy.logerr("Could not reach controller action server.")
+            sys.exit(-1)
+
+        # Create and fill trajectory goal
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory.joint_names = JOINT_NAMES
+    
+        position= [[0, -1.57, -1.57, 0, 0, 0]]
+        #Diese beiden nachfolgenden Befehle muessen ausgefuehrt werden, sonst wird die position liste nicht akzeptiert, da nicht anerkannt wird, dass sie float ist
+        print("----")
+        print(position)
+        position = [[float(i) for i in sublist] for sublist in position]
+        print(position)
+        position = [i for sublist in position for i in sublist]
+        print(position)
+        duration = [3.0]
+        #TODO: minimum finden
+
+        while True: 
+            #erste bereits vorgegebene Bewegung ausfuhren
+            self.move_simple(position,duration)
+
+                #rospy.loginfo("Trajectory execution finished in state {}".format(result.error_code))
+            #zweite Bewegung ausfuhren
+            con = input("Another move?: y/n ")
+            if con.lower() != "y":
+                break
+            else: 
+                position = self.generate_waypoint()
+                print("The position is: " + str(position) + " do you want to moveit it?")
+                duration = [2.0]
+                #listener aufruf
+                self.move_simple(position,duration) 
+                #listener endstatus abrufen
+                
+                #self.get_joint_position()
+                ##delay einbauen 
+
+                
+
+    
+    ###############################################################################################
+    #                                                                                             #
+    # methods below are optional. All of them are useful, but not all are necesseraly needed,     #
+    # depending on the given usecase                                                                   #
+    #                                                                                             #
+    ###############################################################################################
+
+  ###### self written easier for dynamic waypoint purposes#####
+
+    def move_simple(self, position, duration):
+        """Creates a trajectory and sends it using the selected action server"""
+        #Limits: 
+        # base_joint_angle: -355 - 355 
+        # shoulder: -180 - 0
+        # 
+        # make sure the correct controller is loaded and activated
+        #self.switch_controller(self.joint_trajectory_controller)
+        trajectory_client = actionlib.SimpleActionClient(
+            "{}/follow_joint_trajectory".format(self.joint_trajectory_controller),
+            FollowJointTrajectoryAction,
+        )
+
+        # Wait for action server to be ready
+        timeout = rospy.Duration(5)
+        if not trajectory_client.wait_for_server(timeout):
+            rospy.logerr("Could not reach controller action server.")
+            sys.exit(-1)
+
+        # Create and fill trajectory goal
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory.joint_names = JOINT_NAMES
+
+        # The following list are arbitrary positions
+        # Change to your own needs if desired
+        point = JointTrajectoryPoint()
+        point.positions = position
+        point.time_from_start = rospy.Duration(duration[0])
+        goal.trajectory.points.append(point)
+
+        rospy.loginfo("Executing trajectory using the {}".format(self.joint_trajectory_controller))
+
+        trajectory_client.send_goal(goal)
+        #trajectory_client.wait_for_result()
+
+        #result = trajectory_client.get_result()
+        #rospy.loginfo("Trajectory execution finished in state {}".format(result.error_code))
+
+
+
+
+    def read_position(self):
+        path = 'src/waypointdata'
+        file_name = 'waypoints.yaml'
+        waypoint_list = []
+
+        # read the waypoints from the yaml file
+        with open(path+file_name, 'r') as f:
+            waypoint_list = yaml.safe_load(f)
+        for i, waypoint in enumerate(waypoint_list):
+            # save each waypoint as waypoint_i
+            with open(path+'waypoint_{}.yaml'.format(i), 'w') as f:
+                yaml.dump(waypoint, f, default_flow_style=False)
+        # return the newest waypoint in the form of [[x,y,z,0,0,0]]
+        return (waypoint_list[-1])
+
+    def get_joint_position(hz):
+        def callback(data):
+            print(data.transforms[0].transform.translation)
+
+        def listener():
+            rospy.init_node('listener', anonymous=True)
+            print("subscribed")
+            rospy.Subscriber("/tf", TFMessage, callback)
+            rate = rospy.Rate(hz)
+            while not rospy.is_shutdown():
+                rate.sleep()
+
+        listener()
+
+    def generate_waypoint(self):
+        #file_path = '/home/marktschreier/Desktop/Real-Life-Deployment/waypointdata/waypoints.yaml'
+        #file_path = 'src/waypointdata/waypoints.yaml'
+        #duration_path = 'src/waypointdata/duration.yaml'
+        waypoint_list = []
+        duration_list=[]
+        x = round((-2 + (random.random()*2))*100)/100
+        y = round((-2 + (random.random()*2))*100)/100
+        z = round((-2 + (random.random()*2))*100)/100
+        #waypoint = np.random.uniform(low=-np.pi, high=np.pi, size=(6,))
+        #inp = input("Put in 6 joints angles in degrees, separated by spaces: \n")
+        #waypoint = [float(ele) * np.pi/180 for ele in inp.split(" ")]
+        
+        waypoint = [x,y,z,0,0,0]
+        print(waypoint)
+        waypoint_list.append(waypoint)
+        duration_list.append(10.0)
+        #with open(file_path,'w') as f:
+           # yaml.dump(waypoint_list,f,default_flow_style=False)
+           # with open(duration_path,'w') as f:
+            #    yaml.dump(duration_list,f,default_flow_style=False)
+        return waypoint
+  
+    ########## end #########
+
+    def ask_confirmation(self, waypoint_list):
+        """Ask the user for confirmation. This function is obviously not necessary, but makes sense
+        in a testing script when you know nothing about the user's setup."""
+        rospy.logwarn("The robot will move to the following waypoints: \n{}".format(waypoint_list))
+        confirmed = False
+        valid = False
+        while not valid:
+            input_str = input(
+                "Please confirm that the robot path is clear of obstacles.\n"
+                "Keep the EM-Stop available at all times. You are executing\n"
+                "the motion at your own risk. Please type 'y' to proceed or 'n' to abort: "
+            )
+            valid = input_str in ["y", "n"]
+            if not valid:
+                rospy.loginfo("Please confirm by entering 'y' or abort by entering 'n'")
+            else:
+                confirmed = input_str == "y"
+        if not confirmed:
+            rospy.loginfo("Exiting as requested by user.")
+            sys.exit(0)
+
+    def choose_controller(self):
+        """Ask the user to select the desired controller from the available list."""
+        rospy.loginfo("Available trajectory controllers:")
+        for (index, name) in enumerate(JOINT_TRAJECTORY_CONTROLLERS):
+            rospy.loginfo("{} (joint-based): {}".format(index, name))
+        for (index, name) in enumerate(CARTESIAN_TRAJECTORY_CONTROLLERS):
+            rospy.loginfo("{} (Cartesian): {}".format(index + len(JOINT_TRAJECTORY_CONTROLLERS), name))
+        choice = -1
+        while choice < 0:
+            input_str = input(
+                "Please choose a controller by entering its number (Enter '0' if "
+                "you are unsure / don't care): "
+            )
+            try:
+                choice = int(input_str)
+                if choice < 0 or choice >= len(JOINT_TRAJECTORY_CONTROLLERS) + len(
+                    CARTESIAN_TRAJECTORY_CONTROLLERS
+                ):
+                    rospy.loginfo(
+                        "{} not inside the list of options. "
+                        "Please enter a valid index from the list above.".format(choice)
+                    )
+                    choice = -1
+            except ValueError:
+                rospy.loginfo("Input is not a valid number. Please try again.")
+        if choice < len(JOINT_TRAJECTORY_CONTROLLERS):
+            self.joint_trajectory_controller = JOINT_TRAJECTORY_CONTROLLERS[choice]
+            return "joint_based"
+
+        self.cartesian_trajectory_controller = CARTESIAN_TRAJECTORY_CONTROLLERS[
+            choice - len(JOINT_TRAJECTORY_CONTROLLERS)
+        ]
+        return "cartesian"
+
+    def switch_controller(self, target_controller):
+        """Activates the desired controller and stops all others from the predefined list above"""
+        other_controllers = (
+            JOINT_TRAJECTORY_CONTROLLERS
+            + CARTESIAN_TRAJECTORY_CONTROLLERS
+            + CONFLICTING_CONTROLLERS
+        )
+
+        other_controllers.remove(target_controller)
+
+        srv = ListControllersRequest()
+        response = self.list_srv(srv)
+        for controller in response.controller:
+            if controller.name == target_controller and controller.state == "running":
+                return
+
+        srv = LoadControllerRequest()
+        srv.name = target_controller
+        self.load_srv(srv)
+
+        srv = SwitchControllerRequest()
+        srv.stop_controllers = other_controllers
+        srv.start_controllers = [target_controller]
+        srv.strictness = SwitchControllerRequest.BEST_EFFORT
+        self.switch_srv(srv)
+
+
+
+
+if __name__ == "__main__":
+    #listener = listener_node_one(action_rate=100, control_rate=10)
+    #rospy.Subscriber("/tf", TFMessage, listener.cbGetPos)
+    #rospy.Subscriber("/joint_states", JointState, listener.cbGetJoints)
+    client = TrajectoryClient()
+
+    #print(listener.cbGetPos)
+    # The controller choice is obviously not required to move the robot. It is a part of this demo
+    # script in order to show all available trajectory controllers.
+    trajectory_type = client.choose_controller()
+    if trajectory_type == "joint_based":
+        client.send_joint_trajectory()
+    elif trajectory_type == "cartesian":
+        client.send_cartesian_trajectory()
+    else:
+        raise ValueError(
+            "I only understand types 'joint_based' and 'cartesian', but got '{}'".format(
+                trajectory_type
+            )
+        )

@@ -71,7 +71,7 @@ class listener_node_one:
         self.camera_transform_to_pyb_origin[:3, 2] = np.array([0, -1, 0])        # vektor für Kamera z achse in pybullet
         self.camera_transform_to_pyb_origin[:3, 3] = np.array([0.25, 1.72, 0.4]) #realwerte für camera position aus listener.py nach kalibrieren 
         self.voxel_size = 0.035 # 0.035
-        self.robot_voxel_safe_distance = 0.2
+        self.robot_voxel_safe_distance = 0.1
 
         self.trajectory_client = actionlib.SimpleActionClient(
             "scaled_pos_joint_traj_controller/follow_joint_trajectory",

@@ -94,6 +94,7 @@ class listener_node_one:
         self.camera_transform_to_pyb_origin[:3, 3] = np.array(self.config['camera_transform_to_pyb_origin'])
         self.voxel_size = self.config['voxel_size']
         self.robot_voxel_safe_distance = self.config['robot_voxel_safe_distance']
+        self.robot_voxel_cluster_distance = 0.2 #TODO:
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
         self.voxel_cluster_threshold = 50
          
@@ -389,25 +390,9 @@ class listener_node_one:
             self.durations = [self.dist_threshold * (1/v) for _ in self.actions]
             
             
-            #print(self.durations)
-            # for idx, waypoint in enumerate(self.actions):
-            #     point = JointTrajectoryPoint()
-            #     point.positions = waypoint
-            #     point.time_from_start = rospy.Duration(sum(self.durations[:idx+1]))
-            #     goal.trajectory.points.append(point)
-            # print("This is actions")
-            # act = self.actions[self.real_step % self.actions.shape[0]]
-            # for act in self.actions:
-                # print("act :", act)
-            # print("#"*20)
-            # print("real_step :", self.real_step,"sim_step :", self.sim_step,  "act :", act)
-            # print("sim_step", self.sim_step)
-            # print("real_step", self.real_step)
-            #Clear cb action
-            # self.trajectory_client.send_goal(goal)       
+              
             duration = 2*self.dist_threshold * (1/v)
-            # act = self.actions.pop(0)
-            # act = self.actions[i]
+         
             if self.sim_step < 0:
                 return
             elif self.sim_step > self.real_step:
@@ -519,11 +504,14 @@ class listener_node_one:
 
         if not self.camera_calibration:
             not_delete_mask = np.zeros(shape=(voxel_centers.shape[0],), dtype=bool)
+            cluster_mask = np.zeros(shape=(voxel_centers.shape[0],), dtype=bool)
             for idx, point in enumerate(voxel_centers):
                 pyb.resetBasePositionAndOrientation(self.env.engine._geometry[self.probe_voxel.object_id], point.tolist(), [0,0,0,1])
                 #checks if point is in close distance of the robot
                 query = pyb.getClosestPoints(self.env.engine._geometry[self.probe_voxel.object_id], self.env.engine._robots[self.virtual_robot.object_id], self.robot_voxel_safe_distance)      
-                not_delete_mask[idx] = False if query else True
+                query2 = pyb.getClosestPoints(self.env.engine._geometry[self.probe_voxel.object_id], self.env.engine._robots[self.virtual_robot.object_id], self.robot_voxel_safe_distance + 0.5)
+                not_delete_mask[idx] = False if query  else True
+                #cluster_mask[idx] = True if not query and query2 else False #TODO: Voxel vorgang nur dann ausführen, 
             voxel_centers = voxel_centers[not_delete_mask]
         
         # get voxel_clusters

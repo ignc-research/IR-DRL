@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
 #TODO: 
-# 1. Training anpassen, sodass jede Startposition möglich ist
-# 2. Gelegentlich tritt anomalie auf, wo nur eine action übergeben wird (nicht reproduzierbar)
-# 3. Save camera user input in yaml file and load directly from there (Done)
+# Clean Code (X) 
+# In der Config einstellen, ob gevoxelt wird oder nicht () 
 
 import rospy
 from sensor_msgs.msg import JointState
@@ -23,16 +22,16 @@ from stable_baselines3 import PPO
 import open3d as o3d
 from time import sleep
 import yaml
-
 from collections import deque
+from scipy.spatial import cKDTree
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 
 import pybullet as pyb
 
-#
-#TODO: env einführen
-# config schreiben in der wir den UR5 definieren
-# world generator 
-# trajectory aus step herausziehen und übergeben an UR5
+
 
 JOINT_NAMES = [
     "shoulder_pan_joint",
@@ -51,7 +50,7 @@ JOINT_NAMES = [
 class listener_node_one:
     def __init__(self, action_rate, control_rate, num_voxels, point_cloud_static):
         # yaml config file
-        self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/config.yaml'
+        self.config_path = 'config_data/config.yaml'
         self.config = self.load_config(self.config_path)
         
 
@@ -68,10 +67,7 @@ class listener_node_one:
         self.joints = None
         self.goal = None
         self.q_goal = None
-        # self.max_drl_steps = 5 #240 # maximale steps um mind. eine rrt Lösung zu finden
-        #self.drl_horizon = 5
         self.drl_horizon = self.config['drl_horizon']
-        #self.max_inference_steps = 5000 #240 # maximale steps um mind. eine rrt Lösung zu finden
         self.max_inference_steps = self.config['max_inference_steps']
         self.running_inference = False  # flag for interference between DRL and symsinc to prevent both from running parallel
         self.point_cloud_static = point_cloud_static
@@ -81,13 +77,15 @@ class listener_node_one:
         self.control_mode = True   # True=pos, False=joints
         self.startup = True
         self.drl_success = False
-        #self.dist_threshold = 2e-2
         self.dist_threshold = self.config['dist_threshold']
+        #DRL inference
         self.inference_steps = 0
         self.inference_done = False
         self.camera_calibration = False
-
+        
         # cbGetPointcloud
+        #if enable_PC is False the pointcloud doesnt get loaded into the simulation
+        self.enable_PC = True
         self.points_raw = None
 
         # cbPointcloudToPybullet
@@ -97,14 +95,14 @@ class listener_node_one:
         self.camera_transform_to_pyb_origin[:3, 2] = np.array([0, -1, 0])        # vektor für Kamera z achse in pybullet
         #self.camera_transform_to_pyb_origin[:3, 3] = np.array([0.25, 1.72, 0.4]) #realwerte für camera position aus listener.py nach kalibrieren 
         self.camera_transform_to_pyb_origin[:3, 3] = np.array(self.config['camera_transform_to_pyb_origin'])
-        #self.voxel_size = 0.035 # 0.035
         self.voxel_size = self.config['voxel_size']
-        #self.robot_voxel_safe_distance = 0.1
         self.robot_voxel_safe_distance = self.config['robot_voxel_safe_distance']
-
+        self.robot_voxel_cluster_distance = 0.2 #TODO:
+        self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
+        self.voxel_cluster_threshold = 50
          
 
-        
+        #activate scaled_pos_joint_traj controller 
         self.trajectory_client = actionlib.SimpleActionClient(
             "scaled_pos_joint_traj_controller/follow_joint_trajectory",
             FollowJointTrajectoryAction,
@@ -116,7 +114,7 @@ class listener_node_one:
 
         
         # custom sim2real config parsen
-        _, env_config = parse_config("/home/moga/catkin_ws/src/Universal_Robots_ROS_Driver/ur_robot_driver/scripts/randomboxes_Karim.yaml", False)
+        _, env_config = parse_config("/home/moga/catkin_ws/src/Universal_Robots_ROS_Driver/ur_robot_driver/scripts/remote_model.yaml", False)
         env_config["env_id"] = 0
         # mit der config env starten
         self.env = ModularDRLEnv(env_config)
@@ -128,7 +126,7 @@ class listener_node_one:
         # initialize probe_voxel and obstacle_voxels
         self.initialize_voxels()
 
-        self.model = PPO.load("/home/moga/catkin_ws/src/Universal_Robots_ROS_Driver/ur_robot_driver/scripts/model5")
+        self.model = PPO.load("models/model2.zip")
         # self.model = PPO.load("./src/Universal_Robots_ROS_Driver/ur_robot_driver/scripts/model")
 
         print("[Listener] Moving robot into resting pose")
@@ -137,37 +135,38 @@ class listener_node_one:
         goal.trajectory.joint_names = JOINT_NAMES
         duration = rospy.Duration(3)  
         point = JointTrajectoryPoint()
-        #point.positions = [i*np.pi/180 for i in [-81.25, -90, -90, 0, 0, 0]]
+        #start-Position of robot
         point.positions = [i*np.pi/180 for i in [-180, -45, -90, -135, 90, 0]]
         point.time_from_start = duration
         goal.trajectory.points.append(point)
         self.trajectory_client.send_goal(goal) 
         self.trajectory_client.wait_for_result()
-        sleep(1)
+        sleep_dur = 0.5
+        sleep(sleep_dur)
 
         # init ros stuff
         print("[Listener] Started ee position callback")
         rospy.Subscriber("/tf", TFMessage, self.cbGetPos)
-        sleep(1)
+        sleep(sleep_dur)
         print("[Listener] Started callback for joint angles")
         rospy.Subscriber("/joint_states", JointState, self.cbGetJoints)
-        sleep(1)
+        sleep(sleep_dur)
         print("[Listener] Started callback for raw pointcloud data")
         rospy.Subscriber("/camera/depth/color/points", PointCloud2, self.cbGetPointcloud)
-        sleep(1)
+        sleep(sleep_dur)
         print("[Listener] Started callback for DRL inference")
         rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbAction)
-        sleep(1)
+        sleep(sleep_dur)
         # rospy.Timer(rospy.Duration(secs=1/200), self.cbAction)
         #rospy.Timer(rospy.Duration(secs=1/100), self.cbSimSync) # sync der Simulation mit dem echten Roboter so schnell wie möglich
         print("[Listener] Started callback for pointcloud voxelization")
         rospy.Timer(rospy.Duration(secs=1/200), self.cbPointcloudToPybullet)
-        sleep(1)
+        sleep(sleep_dur)
         print("[Listener] Started callback for controlling robot")
         rospy.Timer(rospy.Duration(secs=1/control_rate), self.cbControl)
 
         print("[Listener] initialized node")
-        rospy.spin() #Lässt rospy immer weiter laufen
+        rospy.spin() #Keeps rospy running endlessly
 
 
     # verwerten Daten, wandeln in das Format vom NN, fragen NN, wandeln Output vom NN in vom
@@ -187,7 +186,7 @@ class listener_node_one:
                 self.virtual_robot.moveto_joints(self.joints, False)
                 # overwrite goal
                 self.env.world.position_targets[0] = self.goal
-                self.virtual_robot.goal.build_visual_aux()
+                # self.virtual_robot.goal.build_visual_aux()
                 # reset sensors
                 for sensor in self.env.sensors:
                     # sensor.reset()
@@ -203,14 +202,7 @@ class listener_node_one:
                         # print("[cbAction] Waiting for real_step to catch up to sim_step")
                         continue
 
-                    # sync point cloud
-                    # TODO check if inf_steps is too small
-                    if not self.static_done and self.inference_steps % 10 == 0:
-                        self.PointcloudToVoxel()
-                        self.VoxelsToPybullet()
-                        if self.point_cloud_static:
-                            self.static_done = True
-
+                  
                     action, _ = self.model.predict(obs)
                     obs, _, _, info = self.env.step(action)
                     self.inference_steps += 1
@@ -255,84 +247,25 @@ class listener_node_one:
                         # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
                         self.actions[self.sim_step % self.actions.shape[0]] = self.virtual_robot.joints_sensor.joints_angles
                         self.sim_step = self.sim_step + 1
-                        pos_ee_last = pos_ee  
+                        pos_ee_last = pos_ee
+                     
                         print("[cbAction] Action added")
                     
-                    
-                """"
-                while not self.actions :
-                    # while no actions found
-                    # repeat prediction steps
-                    iter += 1
-                    if iter > max_iter:
-                        print("[cbAction] Model isn't moving. Max iteration limit reached")
-                        self.goal = None
-                        # self.actions = []
-                        self.actions = np.zeros((100,6))
-                        self.sim_step = -1
-                        self.running_inference = False
-                        break
-                    for _ in range(self.max_drl_steps):
-                        self.inference_steps += 1
-                        action, _ = self.model.predict(obs)
-                        obs, _, _, info = self.env.step(action)
-                        if info["collision"]:
-                            self.goal = None
-                            # self.actions = []
-                            self.actions = np.zeros((100,6))
-                            self.sim_step = -1
-                            self.running_inference = False
-                            print("[cbAction] Found collision during inference! Choose a new goal or try again.")
-                            return
-                        elif info["is_success"]:
-                            self.drl_success = True
-                            # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
-                            self.actions[self.sim_step % len(self.actions.shape[0])] = self.virtual_robot.joints_sensor.joints_angles
-                            self.sim_step = self.sim_step + 1
-                            self.running_inference = False
-                            print("This is actions")
-                            for act in self.actions:
-                                print("act :", act)
-                            print("#"*20)
-                            print("[cbAction] DRL inference successful")
-                            return
-                        pos_ee = self.virtual_robot.position_rotation_sensor.position
-                        dist_diff = np.linalg.norm(pos_ee - pos_ee_last)
-                        if dist_diff >= self.dist_threshold:
-                            # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
-                            self.actions[self.sim_step % len(self.actions.shape[0])] = self.virtual_robot.joints_sensor.joints_angles
-                            self.sim_step = self.sim_step + 1
-                            pos_ee_last = pos_ee    
-                    # if skip_steps > self.max_drl_steps/10:
-                        # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
-                        # skip_steps = 0
-                    # skip_steps +=1
-                    # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
-                # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
-                print("[cbAction] DRL inference done")
-                ### DEBUG print statements
-                print("This is actions")
-                for act in self.actions:
-                    print("act :", act)
-                print("#"*20)
-                # inference done
-                self.running_inference = False
-                """
+            
               
-    def test_run(self):
+    def exist_AI_solution(self, goal):
         if self.joints is not None:  # wait until self.joints is written to for the first time
-            if self.goal is not None and not self.inference_done: # only do inference if there is a goal given by user and we're not already done with inference
-                print("[cbAction] starting DRL inference")
-                
+            if self.goal is not None: # only do inference if there is a goal given by user and we're not already done with inference
+                print("[exist_AI_solution] starting DRL inference")
                 # set inference mutex such that other callbacks do nothing while new movement is calculated
-                self.running_inference = True
+                # self.running_inference = True
                 # manually reset a few env attributes (we don't want to use env.reset() because that would delete all the voxels)
                 self.env.steps_current_episode = 0
                 self.env.is_success = False
 
                 self.virtual_robot.moveto_joints(self.joints, False)
                 # overwrite goal
-                self.env.world.position_targets[0] = self.goal
+                self.env.world.position_targets[0] = goal
                 self.virtual_robot.goal.build_visual_aux()
                 # reset sensors
                 for sensor in self.env.sensors:
@@ -344,66 +277,25 @@ class listener_node_one:
                 self.inference_steps = 0
                 
                 while True:
-                    # do nothing if an additional sim step would override parts of the trajectory that haven't been executed yet
-                    if self.sim_step - self.real_step >= self.drl_horizon:
-                        # print("[cbAction] Waiting for real_step to catch up to sim_step")
-                        continue
-
-                    # sync point cloud
-                    # TODO check if inf_steps is too small
-                    if not self.static_done and self.inference_steps % 10 == 0:
-                        self.PointcloudToVoxel()
-                        self.VoxelsToPybullet()
-                        if self.point_cloud_static:
-                            self.static_done = True
-
                     action, _ = self.model.predict(obs)
                     obs, _, _, info = self.env.step(action)
                     self.inference_steps += 1
                     
                     # loop breaking conditions
                     if info["collision"]:
-                        self.goal = None
-                        # self.actions = []
-                        self.actions = np.zeros((100,6))
-                        self.sim_step = -1
-                        self.running_inference = False
-                        self.inference_done = True
-                        self.env.episode += 1
-                        print("[cbAction] Found collision during inference! Choose a new goal or try again.")
-                        return
+                  
+                        print("[exist_AI_solution] Found collision during inference! Choose a new goal or try again.")
+                        return False
                     elif info["is_success"]:
-                        self.drl_success = True
-                        # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
-                        self.actions[self.sim_step % self.actions.shape[0]] = self.virtual_robot.joints_sensor.joints_angles
-                        self.sim_step = self.sim_step + 1
-                        self.running_inference = False
-                        self.inference_done = True
-                        self.env.episode += 1
-                        #print("This is actions")
-                        #act = self.actions[self.real_step % self.actions.shape[0]]
-                        #print("real_step :", self.real_step, "act :", act)
-                        print("[cbAction] DRL inference successful")
-                        return
+                     
+                        print("[exist_AI_solution] DRL inference successful")
+                        return True
                     elif self.inference_steps >= self.max_inference_steps:
-                        print("[cbAction] Model isn't moving. Max iteration limit reached")
-                        self.goal = None
-                        self.inference_done = True
-                        self.actions = np.zeros((100,6))
-                        self.sim_step = -1
-                        self.running_inference = False
-                        self.env.episode += 1
-                        return
-                    # calc next step
-                    pos_ee = self.virtual_robot.position_rotation_sensor.position
-                    dist_diff = np.linalg.norm(pos_ee - pos_ee_last)
-                    if dist_diff >= self.dist_threshold:
-                        # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
-                        self.actions[self.sim_step % self.actions.shape[0]] = self.virtual_robot.joints_sensor.joints_angles
-                        self.sim_step = self.sim_step + 1
-                        pos_ee_last = pos_ee  
-                        print("[cbAction] Action added")
-        return
+                        print("[exist_AI_solution] Model isn't moving. Max iteration limit reached")
+                   
+                        return False
+        print("[exist_AI_solution] Loop never entered")                
+        return False
 
 
     def cbControl(self, event):  
@@ -415,7 +307,7 @@ class listener_node_one:
             print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
             print("[cbControl] current (virtual) joint angles: " + str(self.joints))  
             inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or (c) to calibrate camera position: \n")
-            # inp = inp.split(" ")
+            
             # calibrate camera position
             if len(inp) == 1:
                 if inp[0] == "c":
@@ -441,11 +333,29 @@ class listener_node_one:
                     self.camera_calibration = False
                     self.point_cloud_static = was_static
                     self.static_done = False
+                elif inp[0] == "r":
+                    print("[cbControl] TEST, Try random goal_pos!")
+                    # check if inverse kinematics can actually reach the xyz pos
+                    tmp_goal = np.random.uniform(0,1,3)
+                    solution_found = False
+                    while not solution_found:
+                        q_goal = self.virtual_robot._solve_ik(tmp_goal, None)
+                        self.virtual_robot.moveto_joints(q_goal, False)
+                        self.virtual_robot.position_rotation_sensor.update(0)
+                        tmp_pos = self.virtual_robot.position_rotation_sensor.position
+                        # check if AI finds a complete solution first
+                        solution_found = self.exist_AI_solution(tmp_goal)
+                        if solution_found:
+                            self.sim_step = 0
+                            self.real_step = 0
+                            self.inference_steps = 0
+                            self.inference_done = False
+                            self.drl_success = False
+                            self.static_done = False
             else:          
                 # inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between: \n")
                 # inp = "0.5 0.5 0.5"
                 inp = inp.split(" ")
-
                 try:
                     inp = [float(ele) for ele in inp]
                 except ValueError:
@@ -463,6 +373,7 @@ class listener_node_one:
                 self.inference_done = False
                 self.drl_success = False
                 self.static_done = False
+                # TODO Is this necessary?
                 if np.linalg.norm(tmp_pos - tmp_goal) > 5e-2:
                     print("[cbControl] could not find solution via inverse kinematics that is close enough, try another position")
                 else:
@@ -482,25 +393,9 @@ class listener_node_one:
             self.durations = [self.dist_threshold * (1/v) for _ in self.actions]
             
             
-            #print(self.durations)
-            # for idx, waypoint in enumerate(self.actions):
-            #     point = JointTrajectoryPoint()
-            #     point.positions = waypoint
-            #     point.time_from_start = rospy.Duration(sum(self.durations[:idx+1]))
-            #     goal.trajectory.points.append(point)
-            # print("This is actions")
-            # act = self.actions[self.real_step % self.actions.shape[0]]
-            # for act in self.actions:
-                # print("act :", act)
-            # print("#"*20)
-            # print("real_step :", self.real_step,"sim_step :", self.sim_step,  "act :", act)
-            # print("sim_step", self.sim_step)
-            # print("real_step", self.real_step)
-            #Clear cb action
-            # self.trajectory_client.send_goal(goal)       
+              
             duration = 2*self.dist_threshold * (1/v)
-            # act = self.actions.pop(0)
-            # act = self.actions[i]
+         
             if self.sim_step < 0:
                 return
             elif self.sim_step > self.real_step:
@@ -541,35 +436,41 @@ class listener_node_one:
 
     def cbGetPointcloud(self, data):
         # print("[cbGetPointcloud] started")
-        np_data = ros_numpy.numpify(data)
-         
-        points = np.ones((np_data.shape[0], 4))
-        points[:, 0] = np_data['x']
-        points[:, 1] = np_data['y']
-        points[:, 2] = np_data['z']
-        self.points_raw = points
+        if self.enable_PC: 
+            np_data = ros_numpy.numpify(data)
+            
+            points = np.ones((np_data.shape[0], 4))
+            points[:, 0] = np_data['x']
+            points[:, 1] = np_data['y']
+            points[:, 2] = np_data['z']
+            self.points_raw = points
+        else: 
+            pass
 
     def cbPointcloudToPybullet(self, event):
         # callback for PointcloudToPybullet
         # static = only one update
         # dynamic = based on update frequency
-        if self.points_raw is not None and not self.running_inference:  # catch first time execution scheduling problems
-            if self.point_cloud_static:
-                if self.static_done:
-                    return
+        if self.enable_PC:
+            if self.points_raw is not None and not self.running_inference:  # catch first time execution scheduling problems
+                if self.point_cloud_static:
+                    if self.static_done:
+                        return
+                    else:
+                        self.static_done = True
+                        self.PointcloudToVoxel()
+                        self.VoxelsToPybullet()
                 else:
-                    self.static_done = True
                     self.PointcloudToVoxel()
                     self.VoxelsToPybullet()
-            else:
-                self.PointcloudToVoxel()
-                self.VoxelsToPybullet()
+        else: 
+            pass
         
     def PointcloudToVoxel(self):
         # prefilter data
         points = self.points_raw
         points_norms = np.linalg.norm(points, axis=1)
-        points = points[np.logical_and(points_norms <= 3.0, points_norms > 0.6)]  # remove data points that are too far or too close
+        points = points[np.logical_and(points_norms <= 3.5, points_norms > 0.4)]  # remove data points that are too far or too close
 
         # rotate and translate the data into the world coordinate system
         points = np.dot(self.camera_transform_to_pyb_origin, points.T).T.reshape(-1,4)
@@ -606,12 +507,29 @@ class listener_node_one:
 
         if not self.camera_calibration:
             not_delete_mask = np.zeros(shape=(voxel_centers.shape[0],), dtype=bool)
+            cluster_mask = np.zeros(shape=(voxel_centers.shape[0],), dtype=bool)
             for idx, point in enumerate(voxel_centers):
                 pyb.resetBasePositionAndOrientation(self.env.engine._geometry[self.probe_voxel.object_id], point.tolist(), [0,0,0,1])
                 #checks if point is in close distance of the robot
                 query = pyb.getClosestPoints(self.env.engine._geometry[self.probe_voxel.object_id], self.env.engine._robots[self.virtual_robot.object_id], self.robot_voxel_safe_distance)      
-                not_delete_mask[idx] = False if query else True
+                query2 = pyb.getClosestPoints(self.env.engine._geometry[self.probe_voxel.object_id], self.env.engine._robots[self.virtual_robot.object_id], self.robot_voxel_safe_distance + 0.5)
+                not_delete_mask[idx] = False if query  else True
+                #cluster_mask[idx] = True if not query and query2 else False #TODO: Voxel vorgang nur dann ausführen, 
             voxel_centers = voxel_centers[not_delete_mask]
+        
+        # get voxel_clusters 
+        voxel_clusters = get_voxel_cluster(voxel_centers, self.robot_voxel_safe_distance + 0.3)
+        #plot_voxel_clusters(voxel_centers, voxel_clusters, 'voxel_clusters_0.9.png')
+        # find clusters below a cluster size
+        cluster_numbers, counts = np.unique(voxel_clusters, return_counts=True)
+        remove_cluster = []
+        for idx, clus in enumerate(cluster_numbers):
+            if counts[idx] < self.voxel_cluster_threshold:
+                remove_cluster.append(clus)
+        # remove voxels belonging to small clusters
+        remove_cluster_idx = np.isin(voxel_clusters, remove_cluster, invert=True)
+        voxel_centers = voxel_centers[remove_cluster_idx] 
+        
         #np.save("./voxels.npy",voxel_centers)
         self.voxel_centers = voxel_centers
 
@@ -710,48 +628,58 @@ class listener_node_one:
         with open(file_path, 'w') as file:
             yaml.safe_dump(config, file)
 
-def voxel_clustering(self, voxel_centers,neighbour_threshhold):
-    # TODO calculate for every voxel if which cluster they belong to
-    # remove clusters that have not enough voxels
-    # Goal: remove flying voxels
-    voxel_cluster = np.repeat(-1,voxel_centers.shape[0])
-    max_cluster_num = 0
-    voxels_belonging_to_cluster = []
-    for i, chosen_voxel in enumerate(voxel_centers):
-        if voxel_cluster[i] < 0:
-            # no cluster assigned
-            voxels_idx_in_cluster = get_neighbouring_voxels(voxel_centers, chosen_voxel, neighbour_threshhold)
-            # setze sich selbst auf False
-            # voxels_idx_in_cluster[i] = False
-            voxel_cluster[voxels_idx_in_cluster] = max_cluster_num
-            for clust_voxel in voxel_centers[voxels_idx_in_cluster]:
-                voxels_belonging_to_cluster.append(clust_voxel)
 
 
-            max_cluster_num += 1
-            # rekrusiv über die neuen Voxels die zum Cluster gehören laufen und denen cluster zuweisen
-            return
-    
-    return
-"""
-def get_clusters(self, initial_voxel_idx, voxel_centers, voxel_cluster, cluster_num, neighbour_threshhold):
+def get_voxel_cluster(voxel_centers, neighbourhood_threshold):
+    # Build k-d tree for efficient distance calculation
+    kd_tree = cKDTree(voxel_centers)
+
+    voxel_cluster = np.repeat(-1, voxel_centers.shape[0])
+
+    cluster_id = 0
+    for idx in range(voxel_centers.shape[0]):
+        if voxel_cluster[idx] != -1:
+            continue
+
+        # Find voxels within robot_voxel_safe_distance+ 0.3
+        neighbours = kd_tree.query_ball_point(voxel_centers[idx], neighbourhood_threshold)
+        if len(neighbours) > 0:
+            voxel_cluster[neighbours] = cluster_id
+            cluster_id += 1
+
+    return voxel_cluster
+
+def set_clusters(initial_voxel_idx, kd_tree, voxel_centers, voxel_cluster, cluster_num, neighbourhood_threshold):
     queue = deque([initial_voxel_idx])
     while queue:
         idx = queue.popleft()
         current_voxel = voxel_centers[idx]
         if voxel_cluster[idx] < 0:
             voxel_cluster[idx] = cluster_num
-            neighbors = get_neighbouring_voxels_idx(voxel_centers, current_voxel, neighbour_threshhold)
+            neighbors = get_neighbouring_voxels_idx(kd_tree, current_voxel, neighbourhood_threshold)
             queue.extend(neighbors)
 
-    return cluster
+def get_neighbouring_voxels_idx(kd_tree, voxel, neighbour_threshold):
+    _, voxels_in_cluster_idx = kd_tree.query(voxel, k=len(kd_tree.data), distance_upper_bound=neighbour_threshold)    
+    valid_neighbors = [idx for idx in voxels_in_cluster_idx if idx != kd_tree.n] # Exclude out-of-range indices
+    return valid_neighbors
 
-def get_neighbouring_voxels_idx(voxel_centers, voxel, neighbour_threshold):
-    # returns indices of voxels that are within neighbouring threshold
-    voxels_in_cluster_bool = np.linalg.norm(voxel_centers - voxel) <= neighbour_threshold
-    voxels_in_cluster_idx = [i for i in range(len(voxels_in_cluster_bool))][voxels_in_cluster_bool]
-    return voxels_in_cluster_idx
-"""
+def plot_voxel_clusters(voxel_centers, voxel_clusters, file_name):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    unique_clusters = np.unique(voxel_clusters)
+    for cluster_id in unique_clusters:
+        cluster_mask = voxel_clusters == cluster_id
+        ax.scatter(voxel_centers[cluster_mask, 0], voxel_centers[cluster_mask, 1], voxel_centers[cluster_mask, 2], label=f'Cluster {cluster_id}')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    plt.legend()
+    plt.savefig(file_name)
+    plt.close(fig)
+
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True)
     listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=2000, point_cloud_static=False)
