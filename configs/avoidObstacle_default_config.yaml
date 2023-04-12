@@ -4,6 +4,7 @@ run:
   model_path: "models/weights/PPO_box2/model_3840000_steps.zip"
   train:
     num_envs : 16
+    logging: 0
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"  
@@ -44,12 +45,10 @@ env:
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
-  engine:
-    type: "Pybullet"
-    use_physics_sim: True
-    gravity: [0, 0, -9.8]
-    sim_step: 0.00416666666 
-    sim_steps_per_env_step: 1 
+  use_physics_sim: True
+  gravity: [0, 0, -9.8]
+  sim_step: 0.00416666666 
+  sim_steps_per_env_step: 1 
   robots:
     - type: "UR5"
       config:

@@ -4,6 +4,7 @@ run:
   model_path: ""  
   train:
     num_envs : 16  
+    logging: 0
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"  
