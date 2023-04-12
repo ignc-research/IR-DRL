@@ -22,7 +22,8 @@ import pybullet as pyb
 #TODO: env einführen
 # config schreiben in der wir den UR5 definieren
 # world generator 
-# trajectory aus step herausziehen und übergeben an UR5
+# trajectory aus step herausziehen und übergeben an
+#TODO: Camera Calibration wie in move_DRL
 
 JOINT_NAMES = [
     "shoulder_pan_joint",

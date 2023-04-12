@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #TODO: 
-# Clean Code () 
+# Clean Code (X) 
 # In der Config einstellen, ob gevoxelt wird oder nicht () 
 
 import rospy
@@ -80,8 +80,8 @@ class listener_node_one:
         self.camera_calibration = False
         
         # cbGetPointcloud
-        #if this is false the pointcloud doesnt get loaded into the simulation
-        self.enable_PC = False
+        #if enable_PC is False the pointcloud doesnt get loaded into the simulation
+        self.enable_PC = True
         self.points_raw = None
 
         # cbPointcloudToPybullet
@@ -121,7 +121,7 @@ class listener_node_one:
         # initialize probe_voxel and obstacle_voxels
         self.initialize_voxels()
 
-        self.model = PPO.load("models/model6.zip")
+        self.model = PPO.load("models/model2.zip")
         # self.model = PPO.load("./src/Universal_Robots_ROS_Driver/ur_robot_driver/scripts/model")
 
         print("[Listener] Moving robot into resting pose")
@@ -278,36 +278,16 @@ class listener_node_one:
                     
                     # loop breaking conditions
                     if info["collision"]:
-                        # self.goal = None
-                        # self.actions = []
-                        # self.actions = np.zeros((100,6))
-                        # self.sim_step = -1
-                        # self.running_inference = False
-                        # self.inference_done = True
-                        # self.env.episode += 1
+                  
                         print("[exist_AI_solution] Found collision during inference! Choose a new goal or try again.")
                         return False
                     elif info["is_success"]:
-                        # self.drl_success = True
-                        # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
-                        # self.actions[self.sim_step % self.actions.shape[0]] = self.virtual_robot.joints_sensor.joints_angles
-                        # self.sim_step = self.sim_step + 1
-                        # self.running_inference = False
-                        # self.inference_done = True
-                        # self.env.episode += 1
-                        #print("This is actions")
-                        #act = self.actions[self.real_step % self.actions.shape[0]]
-                        #print("real_step :", self.real_step, "act :", act)
+                     
                         print("[exist_AI_solution] DRL inference successful")
                         return True
                     elif self.inference_steps >= self.max_inference_steps:
                         print("[exist_AI_solution] Model isn't moving. Max iteration limit reached")
-                        # temp_goal = None
-                        # self.inference_done = True
-                        # self.actions = np.zeros((100,6))
-                        # self.sim_step = -1
-                        # self.running_inference = False
-                        # self.env.episode += 1
+                   
                         return False
         print("[exist_AI_solution] Loop never entered")                
         return False
@@ -317,12 +297,12 @@ class listener_node_one:
         if self.startup:
             pass # TODO   
         if self.goal is None and self.joints is not None:
-            self.virtual_robot.goal.delete_visual_aux()
+            #self.virtual_robot.goal.delete_visual_aux()
             self.virtual_robot.moveto_joints(self.joints, False)
             print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
             print("[cbControl] current (virtual) joint angles: " + str(self.joints))  
             inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or (c) to calibrate camera position: \n")
-            # inp = inp.split(" ")
+            
             # calibrate camera position
             if len(inp) == 1:
                 if inp[0] == "c":
@@ -467,29 +447,35 @@ class listener_node_one:
 
     def cbGetPointcloud(self, data):
         # print("[cbGetPointcloud] started")
-        np_data = ros_numpy.numpify(data)
-         
-        points = np.ones((np_data.shape[0], 4))
-        points[:, 0] = np_data['x']
-        points[:, 1] = np_data['y']
-        points[:, 2] = np_data['z']
-        self.points_raw = points
+        if self.enable_PC: 
+            np_data = ros_numpy.numpify(data)
+            
+            points = np.ones((np_data.shape[0], 4))
+            points[:, 0] = np_data['x']
+            points[:, 1] = np_data['y']
+            points[:, 2] = np_data['z']
+            self.points_raw = points
+        else: 
+            pass
 
     def cbPointcloudToPybullet(self, event):
         # callback for PointcloudToPybullet
         # static = only one update
         # dynamic = based on update frequency
-        if self.points_raw is not None and not self.running_inference:  # catch first time execution scheduling problems
-            if self.point_cloud_static:
-                if self.static_done:
-                    return
+        if self.enable_PC:
+            if self.points_raw is not None and not self.running_inference:  # catch first time execution scheduling problems
+                if self.point_cloud_static:
+                    if self.static_done:
+                        return
+                    else:
+                        self.static_done = True
+                        self.PointcloudToVoxel()
+                        self.VoxelsToPybullet()
                 else:
-                    self.static_done = True
                     self.PointcloudToVoxel()
                     self.VoxelsToPybullet()
-            else:
-                self.PointcloudToVoxel()
-                self.VoxelsToPybullet()
+        else: 
+            pass
         
     def PointcloudToVoxel(self):
         # prefilter data
