@@ -97,9 +97,10 @@ class pybullet_util:
         """
         Loads a URDF file and returns its string id.
         """
-        pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale)
+        
         
         if is_robot:
+            pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale, flags=pyb.URDF_USE_SELF_COLLISION)
             name = "robot_" + str(cls.spawn_counter) 
             joints_info = [pyb.getJointInfo(pyb_id, i) for i in range(pyb.getNumJoints(pyb_id))]
             for joint_info in joints_info:
@@ -111,6 +112,7 @@ class pybullet_util:
                 cls.gym_env_str_joints_names[(pyb_id, joint_pyb_id)] = joint_name
             cls.robot_pyb_ids.append(pyb_id)
         else:
+            pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale)
             name = "mesh_" + str(cls.spawn_counter)
 
         cls.pybullet_object_ids[name] = pyb_id

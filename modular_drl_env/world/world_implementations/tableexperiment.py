@@ -40,7 +40,7 @@ class TableExperiment(World):
         self.position_nowhere = np.array([0, 0, -10])
 
         # storage variations
-        self.mult_pre_gen = 40
+        self.mult_pre_gen = 20
         self.active_obstacles = []
         
     def set_up(self):
@@ -63,18 +63,20 @@ class TableExperiment(World):
                         trajectory.append(direction)
                         move_step = np.random.uniform(low=0.01, high=0.5, size=(1,)) * self.sim_step
                 halfExtents = np.random.uniform(low=0.01, high=0.12, size=(3,)).tolist()
-                obst = Box(self.position_nowhere, [0, 0, 0, 1], trajectory, move_step, halfExtents)
+                obst = Box(self.position_nowhere, np.random.normal(size=(4,)), trajectory, move_step, halfExtents)
                 obst.build()
                 self.obstacle_objects.append(obst)
 
     def reset(self, success_rate: float):
         
+        # reset attributes
         self.ee_starting_points = []
         for obst in self.active_obstacles:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
             obst.move_base(self.position_nowhere + offset)
         self.active_obstacles = []
 
+        # dynamically adapt number of obstacles via success rate
         if self.obstacle_training_schedule:
             if success_rate < 0.2:
                 obs_mean = 0
@@ -90,12 +92,15 @@ class TableExperiment(World):
             self.num_obstacles = min(8, self.num_obstacles)
             self.num_obstacles = max(0, self.num_obstacles)
 
-        for obst in sample(self.obstacle_objects, self.num_obstacles):
+        # sample obstacles from pre-generated ones and move them into random places
+        obst_sample = sample(self.obstacle_objects, self.num_obstacles)
+        for obst in obst_sample[:-1]:
             # generate random position
             position = np.random.uniform(low=self.table_bounds_low, high=self.table_bounds_high, size=(3,))
             obst.move_base(position)
-            self.active_obstacles.append(obst)
+            self.active_obstacles.append(obst)       
 
+        # create valid starting positions and targets
         val = False
         while not val:
             self.position_targets = []
@@ -111,6 +116,40 @@ class TableExperiment(World):
                     position = np.random.uniform(low=self.table_bounds_low, high=self.table_bounds_high, size=(3,))
                     obst.move_base(position)
 
+        # take the last obstacle from the sample and deliberately place it between start and goal
+        collision = True
+        pos_robot = self.ee_starting_points[0][0]
+        pos_goal = self.position_targets[0]
+        if len(obst_sample) > 0:
+            while collision:
+                dist_obstacle = pos_goal + (pos_robot-pos_goal) * np.random.uniform(0.25, 0.75)
+                # generate base
+                a = (pos_robot-pos_goal) / np.linalg.norm((pos_robot-pos_goal))
+                temp_vec = np.random.uniform(low=-1, high=1, size=(3,))
+                temp_vec = temp_vec / np.linalg.norm(temp_vec)
+                b = np.cross(a, temp_vec)
+                b = b / np.linalg.norm(b)
+                c = np.cross(a,b)
+                c = c / np.linalg.norm(b)
+                # set obstacle_pos as linear combi of base without normal_vec
+                obstacle_pos = dist_obstacle + b * np.random.uniform(0, 0.15) + c * np.random.uniform(0, 0.15)
+                # move obstacle between start and goal pos
+                obst_sample[-1].move_base(obstacle_pos)
+
+                # check collision
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                collision = pyb_u.collision
+                if pyb_u.collision:
+                    continue
+                else:
+                    self.robots[0].moveto_joints(self.ee_starting_points[0][2], False)
+                    pyb_u.perform_collision_check()
+                    pyb_u.get_collisions()
+                    collision = pyb_u.collision
+            self.active_obstacles.append(obst_sample[-1])
+
+        # move robot into starting position
         for idx, robot in enumerate(self.robots):
             if self.ee_starting_points[idx][0] is None:
                 continue

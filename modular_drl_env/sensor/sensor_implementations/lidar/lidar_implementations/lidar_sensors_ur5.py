@@ -17,7 +17,19 @@ class LidarSensorUR5(LidarSensor):
     Lidar class adapted for the use with the UR5. Features rays coming from the end effector and several wrist links.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int, robot: Robot, indicator_buckets:int, ray_start: float, ray_end: float, ray_setup: dict, indicator: bool = True):
+    def __init__(self, 
+                 normalize: bool, 
+                 add_to_observation_space: bool, 
+                 add_to_logging: bool, 
+                 sim_step: float, 
+                 update_steps: int, 
+                 sim_steps_per_env_step: int, 
+                 robot: Robot, 
+                 indicator_buckets:int, 
+                 ray_start: float, 
+                 ray_end: float, 
+                 ray_setup: dict, 
+                 indicator: bool = True):
         super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step, robot, indicator_buckets, indicator)
 
         # dict which governs which robot links get lidar rays and how many

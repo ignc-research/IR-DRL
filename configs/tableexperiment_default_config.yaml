@@ -44,7 +44,6 @@ env:
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
-  type: "Pybullet"
   use_physics_sim: True
   gravity: [0, 0, -9.8]
   sim_step: 0.00416666666 
