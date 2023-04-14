@@ -24,9 +24,7 @@ from time import sleep
 import yaml
 from collections import deque
 from scipy.spatial import cKDTree
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import hdbscan
 
 
 import pybullet as pyb
@@ -97,8 +95,9 @@ class listener_node_one:
         self.camera_transform_to_pyb_origin[:3, 3] = np.array(self.config['camera_transform_to_pyb_origin'])
         self.voxel_size = self.config['voxel_size']
         self.robot_voxel_safe_distance = self.config['robot_voxel_safe_distance']
+        self.robot_voxel_cluster_distance = 0.2 #TODO:
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
-        self.voxel_cluster_threshold = 60
+        self.voxel_cluster_threshold = 50
          
 
         #activate scaled_pos_joint_traj controller 
@@ -469,7 +468,7 @@ class listener_node_one:
         # prefilter data
         points = self.points_raw
         points_norms = np.linalg.norm(points, axis=1)
-        points = points[np.logical_and(points_norms <= 3, points_norms > 0.4)]  # remove data points that are too far or too close
+        points = points[np.logical_and(points_norms <= 3.5, points_norms > 0.4)]  # remove data points that are too far or too close
 
         # rotate and translate the data into the world coordinate system
         points = np.dot(self.camera_transform_to_pyb_origin, points.T).T.reshape(-1,4)
@@ -480,7 +479,7 @@ class listener_node_one:
             # remove the table, points below lower threshold
             points = points[points[:, 2] > -0.1]
             # remove points above a certain threshold where no obstacles should be :2 weil z achse
-            points = points[points[:, 2] < 1.2]
+            #points = points[points[:, 2] < 0.5]
             # filter objects near endeffector
             ee_pos = np.array(pyb.getLinkState(self.env.engine._robots[self.virtual_robot.object_id], self.env.engine._links[(self.virtual_robot.object_id, self.virtual_robot.end_effector_link_id)])[4])
             # TODO may need to be adjusted with KINECT Cam
@@ -516,10 +515,9 @@ class listener_node_one:
                 #cluster_mask[idx] = True if not query and query2 else False #TODO: Voxel vorgang nur dann ausführen, 
             voxel_centers = voxel_centers[not_delete_mask]
         
-        # get voxel_clusters TODO: Korrekte Neighbouring threshhold bestimmen 0.5 ist nur platzhalter
-        voxel_clusters = get_voxel_cluster(voxel_centers, 0.5)
-        print("Voxel Clusters: ", voxel_clusters)
-        plot_voxel_clusters(voxel_centers, voxel_clusters, 'voxel_clusters_0.5.png')
+        # get voxel_clusters
+        hdb = hdbscan.HDBSCAN(min_cluster_size=100, min_samples=1, cluster_selection_epsilon=0.5)
+        voxel_clusters = hdb.fit_predict(voxel_centers)
         # find clusters below a cluster size
         cluster_numbers, counts = np.unique(voxel_clusters, return_counts=True)
         remove_cluster = []
@@ -635,18 +633,11 @@ def get_voxel_cluster(voxel_centers, neighbourhood_threshold):
     kd_tree = cKDTree(voxel_centers)
 
     voxel_cluster = np.repeat(-1, voxel_centers.shape[0])
-
-    cluster_id = 0
-    for idx in range(voxel_centers.shape[0]):
-        if voxel_cluster[idx] != -1:
-            continue
-
-        # Find voxels within robot_voxel_safe_distance+ 0.3
-        neighbours = kd_tree.query_ball_point(voxel_centers[idx], neighbourhood_threshold)
-        if len(neighbours) > 0:
-            voxel_cluster[neighbours] = cluster_id
-            cluster_id += 1
-
+    max_cluster_num = 0
+    for i in range(len(voxel_centers)):
+        if voxel_cluster[i] < 0:
+            set_clusters(i, kd_tree, voxel_centers, voxel_cluster, max_cluster_num, neighbourhood_threshold)
+            max_cluster_num += 1
     return voxel_cluster
 
 def set_clusters(initial_voxel_idx, kd_tree, voxel_centers, voxel_cluster, cluster_num, neighbourhood_threshold):
@@ -663,22 +654,6 @@ def get_neighbouring_voxels_idx(kd_tree, voxel, neighbour_threshold):
     _, voxels_in_cluster_idx = kd_tree.query(voxel, k=len(kd_tree.data), distance_upper_bound=neighbour_threshold)    
     valid_neighbors = [idx for idx in voxels_in_cluster_idx if idx != kd_tree.n] # Exclude out-of-range indices
     return valid_neighbors
-
-def plot_voxel_clusters(voxel_centers, voxel_clusters, file_name):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    unique_clusters = np.unique(voxel_clusters)
-    for cluster_id in unique_clusters:
-        cluster_mask = voxel_clusters == cluster_id
-        ax.scatter(voxel_centers[cluster_mask, 0], voxel_centers[cluster_mask, 1], voxel_centers[cluster_mask, 2], label=f'Cluster {cluster_id}')
-
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    plt.legend()
-    plt.savefig("clusterpng/" + file_name)
-    plt.close(fig)
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True)
