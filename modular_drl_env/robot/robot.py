@@ -383,8 +383,7 @@ class Robot(ABC):
             u = self._joints_limits_upper
             d = len(self.all_joints_ids)
             ids = self.all_joints_ids
-        val = False
-        while not val:
+        while True:
             sample = np.random.uniform(low=l, high=u, size=(d,))
             self.moveto_joints(sample, False, ids)
             pyb.performCollisionDetection()
@@ -394,8 +393,7 @@ class Robot(ABC):
                 if contact[1] == pyb_u.to_pb(self.object_id) and contact[2] == pyb_u.to_pb(self.object_id):
                     self_col = True
                     break
-            if self_col:
-                continue
-            val = True  # if we reach this line, there were no self collisions
+            if not self_col:
+                break # if we reach this line, there were no self collisions
         self.moveto_joints(self.resting_pose_angles, False, self.controlled_joints_ids)
         return sample
