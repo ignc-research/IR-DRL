@@ -21,9 +21,7 @@ class RobotRegistry:
 
 # Pybullet robots
 RobotRegistry.register('UR5')(UR5)
-RobotRegistry.register('UR5_RRT')(UR5_RRT)
 RobotRegistry.register('UR5_Gripper')(UR5_Gripper)
-RobotRegistry.register('UR5_Gripper_RRT')(UR5_Gripper_RRT)
 RobotRegistry.register('KR16')(KR16)
 RobotRegistry.register('Kukaiiwa')(Kukaiiwa)
 RobotRegistry.register('KukaKr3')(KukaKr3)

@@ -4,6 +4,7 @@ import numpy as np
 from modular_drl_env.world.world import World
 from modular_drl_env.util.quaternion_util import quaternion_to_rpy, rpy_to_quaternion
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
+import pybullet as pyb
 from time import process_time
 
 CONTROL_MODES = [
@@ -32,7 +33,8 @@ class Robot(ABC):
                        ik_rpy_delta: float=0.005,
                        joint_velocities_overwrite: Union[float, List]=1,
                        joint_limits_overwrite: Union[float, List]=1,
-                       controlled_joints: list=[]):
+                       controlled_joints: list=[],
+                       self_collision: bool=True):
         super().__init__()
 
         # set name
@@ -108,6 +110,9 @@ class Robot(ABC):
         # these are the controlled joints, if this list is empty (default case) then all controllabe joints will be controlled by the agent
         self.controlled_joints = controlled_joints
 
+        # bool for whether robot will have self collisions
+        self.self_collision = self_collision
+
     def get_action_space_dims(self):
         """
         A simple method that should return a tuple containing as first entry the number action space
@@ -125,40 +130,54 @@ class Robot(ABC):
         Method that spawns the robot into the simulation, moves its base to the desired position and orientation
         and sets its joints to the resting angles. Also populates the PyBullet variables with information.
         """
-        self.object_id = pyb_u.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation, is_robot=True)
+        self.object_id = pyb_u.load_urdf(urdf_path=self.urdf_path, position=self.base_position, orientation=self.base_orientation, is_robot=True, self_collisions=self.self_collision)
         self.all_joints_ids = pyb_u.get_controllable_joint_ids(self.object_id)
         self.all_joints_ids = [ele[0] for ele in self.all_joints_ids]
         if self.controlled_joints:
             self.controlled_joints_ids = self.controlled_joints
         else:
             self.controlled_joints_ids = self.all_joints_ids
+        self.indices_controlled = []
+        for idx, joint_id in enumerate(self.all_joints_ids):
+            if joint_id in self.controlled_joints_ids:
+                self.indices_controlled.append(idx)
+        self.indices_controlled = np.array(self.indices_controlled)
 
         # handle the limit overwrite input
-        self.joint_limits_overwrite = self.joint_limits_overwrite if type(self.joint_limits_overwrite) == list else [self.joint_limits_overwrite for _ in self.controlled_joints_ids]
-        self.joint_velocities_overwrite = self.joint_velocities_overwrite if type(self.joint_velocities_overwrite) == list else [self.joint_velocities_overwrite for _ in self.controlled_joints_ids]
+        self.joint_limits_overwrite = self.joint_limits_overwrite if type(self.joint_limits_overwrite) == list else [self.joint_limits_overwrite for _ in self.all_joints_ids]
+        self.joint_velocities_overwrite = self.joint_velocities_overwrite if type(self.joint_velocities_overwrite) == list else [self.joint_velocities_overwrite for _ in self.all_joints_ids]
 
         # get info about joint limits, forces and max velocities
         lowers = []
         uppers = []
         forces = []
         velos = []
-        for idx, joint_id in enumerate(self.controlled_joints_ids):
+        for idx, joint_id in enumerate(self.all_joints_ids):
             lower, upper, force, velocity = pyb_u.get_joint_dynamics(self.object_id, joint_id)
             lowers.append(lower * self.joint_limits_overwrite[idx])
             uppers.append(upper * self.joint_limits_overwrite[idx])
             forces.append(force)
             velos.append(velocity * self.joint_velocities_overwrite[idx])
-        self.joints_limits_lower = np.array(lowers)
-        self.joints_limits_upper = np.array(uppers)
-        self.joints_range = self.joints_limits_upper - self.joints_limits_lower
-        self.joints_max_forces = np.array(forces)
-        self.joints_max_velocities = np.array(velos)
+        # set the internal full joint attributes
+        self._joints_limits_lower = np.array(lowers)
+        self._joints_limits_upper = np.array(uppers)
+        self._joints_range = self._joints_limits_upper - self._joints_limits_lower
+        self._joints_max_forces = np.array(forces)
+        self._joints_max_velocities = np.array(velos)
+        self._resting_pose_angles = self.resting_pose_angles
+        # set the exposed subset of controlled joint attributes
+        self.joints_limits_lower = self._joints_limits_lower[self.indices_controlled]
+        self.joints_limits_upper = self._joints_limits_upper[self.indices_controlled]
+        self.joints_range = self._joints_range[self.indices_controlled]
+        self.joints_max_forces = self._joints_max_forces[self.indices_controlled]
+        self.joints_max_velocities = self._joints_max_velocities[self.indices_controlled]
+        self.resting_pose_angles = self.resting_pose_angles[self.indices_controlled]
 
         # modify the internal Pybullet representation to obey our new limits on position and velocity
-        for idx, joint_id in enumerate(self.controlled_joints_ids):
-            pyb_u.set_joint_dynamics(self.object_id, joint_id, self.joints_max_velocities[idx], self.joints_limits_lower[idx], self.joints_limits_upper[idx])
+        for idx, joint_id in enumerate(self.all_joints_ids):
+            pyb_u.set_joint_dynamics(self.object_id, joint_id, self._joints_max_velocities[idx], self._joints_limits_lower[idx], self._joints_limits_upper[idx])
 
-        self.moveto_joints(self.resting_pose_angles, False)
+        self.moveto_joints(self._resting_pose_angles, False, self.all_joints_ids)
 
     def set_joint_sensor(self, joints_sensor):
         """
@@ -232,12 +251,12 @@ class Robot(ABC):
             # if we don't, we run simple algebra to get the new joint angles for this step and then apply them
 
             # transform action (-1 to 1) to joint velocities
-            new_joint_vels = action * self.joints_max_velocities
+            new_joint_vels = action * self.joints_max_velocities[self.indices_controlled]
             if not self.use_physics_sim:
                 # compute the delta for this sim step
                 joint_delta = new_joint_vels * self.sim_step
                 # add the delta to current joint angles
-                new_joints = joint_delta + self.joints_sensor.joints_angles
+                new_joints = joint_delta + self.joints_sensor.joints_angles[self.indices_controlled]
                 # execute movement
                 self.moveto_joints(new_joints, False)
 
@@ -260,32 +279,34 @@ class Robot(ABC):
             velocity=desired_joints_velocities,
             forces=self.joints_max_forces)
 
-    def moveto_joints(self, desired_joints_angles: np.ndarray, use_physics_sim: bool):
+    def moveto_joints(self, desired_joints_angles: np.ndarray, use_physics_sim: bool, joints_ids: list=None):
         """
         Moves the robot's joints towards the desired configuration.
         Also automatically clips the input such that no joint limits are violated.
 
         :param desired_joints_angles: Vector containing the desired new joint angles
         """
+        if joints_ids is None:
+            joints_ids = self.controlled_joints_ids
 
-        # clip desired angles at max/min
-        upper_limit_mask = desired_joints_angles > self.joints_limits_upper
-        lower_limit_mask = desired_joints_angles < self.joints_limits_lower
-        desired_joints_angles[upper_limit_mask] = self.joints_limits_upper[upper_limit_mask]
-        desired_joints_angles[lower_limit_mask] = self.joints_limits_lower[lower_limit_mask]
+            # clip desired angles at max/min
+            upper_limit_mask = desired_joints_angles > self.joints_limits_upper
+            lower_limit_mask = desired_joints_angles < self.joints_limits_lower
+            desired_joints_angles[upper_limit_mask] = self.joints_limits_upper[upper_limit_mask]
+            desired_joints_angles[lower_limit_mask] = self.joints_limits_lower[lower_limit_mask]
 
         # apply movement
         if use_physics_sim:
             pyb_u.set_joint_targets(
                 robot_id=self.object_id,
-                joint_ids=self.controlled_joints_ids,
+                joint_ids=joints_ids,
                 position=desired_joints_angles,
                 forces=self.joints_max_forces
             )
         else:
             pyb_u.set_joint_states(
                 robot_id=self.object_id,
-                joint_ids=self.controlled_joints_ids,
+                joint_ids=joints_ids,
                 position=desired_joints_angles
             )
 
@@ -347,3 +368,34 @@ class Robot(ABC):
         self.base_position = desired_base_position
         self.base_orientation = desired_base_orientation
         pyb_u.set_base_pos_and_ori(self.object_id, desired_base_position, desired_base_orientation)
+
+    def sample_valid_configuration(self, only_controlled_joints=True):
+        """
+        Samples the configuration space for a random element that is not in self-collision, does not check for collision with objects!
+        """
+        if only_controlled_joints:
+            l = self.joints_limits_lower
+            u = self.joints_limits_upper
+            d = len(self.controlled_joints_ids)
+            ids = self.controlled_joints_ids
+        else:
+            l = self._joints_limits_lower
+            u = self._joints_limits_upper
+            d = len(self.all_joints_ids)
+            ids = self.all_joints_ids
+        val = False
+        while not val:
+            sample = np.random.uniform(low=l, high=u, size=(d,))
+            self.moveto_joints(sample, False, ids)
+            pyb.performCollisionDetection()
+            contacts = pyb.getContactPoints(pyb_u.to_pb(self.object_id))
+            self_col = False
+            for contact in contacts:
+                if contact[1] == pyb_u.to_pb(self.object_id) and contact[2] == pyb_u.to_pb(self.object_id):
+                    self_col = True
+                    break
+            if self_col:
+                continue
+            val = True  # if we reach this line, there were no self collisions
+        self.moveto_joints(self.resting_pose_angles, False, self.controlled_joints_ids)
+        return sample

@@ -94,7 +94,7 @@ class TableExperiment(World):
 
         # sample obstacles from pre-generated ones and move them into random places
         obst_sample = sample(self.obstacle_objects, self.num_obstacles)
-        for obst in obst_sample[:-1]:
+        for obst in obst_sample:
             # generate random position
             position = np.random.uniform(low=self.table_bounds_low, high=self.table_bounds_high, size=(3,))
             obst.move_base(position)
@@ -120,9 +120,9 @@ class TableExperiment(World):
         collision = True
         pos_robot = self.ee_starting_points[0][0]
         pos_goal = self.position_targets[0]
-        if len(obst_sample) > 0:
+        if len(obst_sample) < 0:
             while collision:
-                dist_obstacle = pos_goal + (pos_robot-pos_goal) * np.random.uniform(0.25, 0.75)
+                dist_obstacle = pos_goal + (pos_robot-pos_goal) * np.random.uniform(0.5, 0.75)
                 # generate base
                 a = (pos_robot-pos_goal) / np.linalg.norm((pos_robot-pos_goal))
                 temp_vec = np.random.uniform(low=-1, high=1, size=(3,))
@@ -136,14 +136,16 @@ class TableExperiment(World):
                 # move obstacle between start and goal pos
                 obst_sample[-1].move_base(obstacle_pos)
 
-                # check collision
+                # check collision for start
+                self.robots[0].moveto_joints(self.ee_starting_points[0][2], False)
                 pyb_u.perform_collision_check()
                 pyb_u.get_collisions()
                 collision = pyb_u.collision
                 if pyb_u.collision:
                     continue
                 else:
-                    self.robots[0].moveto_joints(self.ee_starting_points[0][2], False)
+                    # and for goal
+                    self.robots[0].moveto_joints(self.joints_targets[0], False, self.robots[0].controlled_joints_ids)
                     pyb_u.perform_collision_check()
                     pyb_u.get_collisions()
                     collision = pyb_u.collision
@@ -154,7 +156,7 @@ class TableExperiment(World):
             if self.ee_starting_points[idx][0] is None:
                 continue
             else:
-                robot.moveto_joints(self.ee_starting_points[idx][2], False)
+                robot.moveto_joints(self.ee_starting_points[idx][2], False, robot.controlled_joints_ids)
 
     def update(self):
         for obstacle in self.active_obstacles:

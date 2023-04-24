@@ -93,14 +93,17 @@ class pybullet_util:
         return "defaultGroundPlane"
 
     @classmethod
-    def load_urdf(cls, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1, is_robot: bool=False, fixed_base: bool=True) -> str:
+    def load_urdf(cls, urdf_path: str, position: np.ndarray, orientation: np.ndarray, scale: float=1, is_robot: bool=False, fixed_base: bool=True, self_collisions: bool=True) -> str:
         """
         Loads a URDF file and returns its string id.
         """
         
         
         if is_robot:
-            pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale, flags=pyb.URDF_USE_SELF_COLLISION)
+            if self_collisions:
+                pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale, flags=pyb.URDF_USE_SELF_COLLISION)
+            else:
+                pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale)
             name = "robot_" + str(cls.spawn_counter) 
             joints_info = [pyb.getJointInfo(pyb_id, i) for i in range(pyb.getNumJoints(pyb_id))]
             for joint_info in joints_info:
@@ -159,7 +162,7 @@ class pybullet_util:
         """
         name = "geom_" + str(cls.spawn_counter)
         pyb_id = pyb.createMultiBody(baseMass=mass,
-                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height, rgbaColor=color),
+                                    baseVisualShapeIndex=pyb.createVisualShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, length=height, rgbaColor=color),
                                     baseCollisionShapeIndex=pyb.createCollisionShape(shapeType=pyb.GEOM_CYLINDER, radius=radius, height=height) if collision else -1,
                                     basePosition=position.tolist(),
                                     baseOrientation=orientation.tolist())

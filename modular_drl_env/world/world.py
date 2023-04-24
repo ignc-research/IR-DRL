@@ -131,7 +131,7 @@ class World(ABC):
         """
         pass
 
-    def _create_ee_starting_points(self, robots, custom_joints_limits=[], factor=-1, base_dist=7.5e-2) -> None:
+    def _create_ee_starting_points(self, robots, factor=-1, base_dist=7.5e-2) -> None:
         """
         This is a helper method to generate valid starting points for all robots in the env. You can use this within your build method to generate starting positions at random.
         The robots parameter is a list of all robots that should be touched by this method.
@@ -149,25 +149,17 @@ class World(ABC):
             oob = False
             too_close_to_base = False
             for idx, robot in enumerate(robots):
-                joint_dim = robot.get_action_space_dims()[0]
-                if custom_joints_limits:
-                    lower_limits = custom_joints_limits[idx][0]
-                    lower_limits = robot.joints_limits_lower if lower_limits is None else lower_limits
-                    upper_limits = custom_joints_limits[idx][1]
-                    upper_limits = robot.joints_limits_upper if upper_limits is None else upper_limits
-                else:
-                    lower_limits = robot.joints_limits_lower
-                    upper_limits = robot.joints_limits_upper
+                joint_dim = len(robot.all_joints_ids)
                 if factor == -1:
-                    random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
+                    random_joints = robot.sample_valid_configuration()
                 else:
-                    random_joints = (1 - factor) * robot.resting_pose_angles + factor * np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
-                    upper_limit_mask = random_joints > upper_limits
-                    lower_limit_mask = random_joints < lower_limits
-                    random_joints[upper_limit_mask] = upper_limits[upper_limit_mask]
-                    random_joints[lower_limit_mask] = lower_limits[lower_limit_mask]
+                    random_joints = (1 - factor) * robot.resting_pose_angles + factor * robot.sample_valid_configuration()
+                    upper_limit_mask = random_joints > robot.joints_limits_upper
+                    lower_limit_mask = random_joints < robot.joints_limits_lower
+                    random_joints[upper_limit_mask] = robot.joints_limits_upper[upper_limit_mask]
+                    random_joints[lower_limit_mask] = robot.joints_limits_lower[lower_limit_mask]
                 joints.append(random_joints)
-                robot.moveto_joints(random_joints, False)
+                robot.moveto_joints(random_joints, False, robot.controlled_joints_ids)
 
                 # check if robot is out of bounds directly
                 robot.position_rotation_sensor.reset()  # refresh position data for oob calculation below
@@ -200,7 +192,7 @@ class World(ABC):
                     self.ee_starting_points.append((None, None, None))    
         return val
 
-    def _create_position_and_rotation_targets(self, robots, min_dist=0, custom_joints_limits=[], base_dist=7.5e-2) -> None:
+    def _create_position_and_rotation_targets(self, robots, min_dist=0, base_dist=7.5e-2) -> None:
         """
         This is a helper method to generate valid targets for your robots with goals at random. You can use this in your build method to generate targets.
         The min_dist parameter will enforce a minimum cartesian distance to the respective robots starting point.
@@ -214,16 +206,9 @@ class World(ABC):
             oob_or_too_close = False
             too_close_to_base = False
             for idx, robot in enumerate(robots):
-                joint_dim = robot.get_action_space_dims()[0]
-                if custom_joints_limits:
-                    lower_limits = custom_joints_limits[idx][0]
-                    lower_limits = robot.joints_limits_lower if lower_limits is None else lower_limits
-                    upper_limits = custom_joints_limits[idx][1]
-                    upper_limits = robot.joints_limits_upper if upper_limits is None else upper_limits
-                else:
-                    lower_limits = robot.joints_limits_lower
-                    upper_limits = robot.joints_limits_upper
-                random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
+                random_joints = robot.sample_valid_configuration()
+                if True:  # replace by some condition that checks if a robot has an aliased joint range
+                    random_joints = (random_joints + np.pi) % (2 * np.pi) - np.pi
                 robot.moveto_joints(random_joints, False)
 
                 # check if robot is out of bounds directly
@@ -260,7 +245,7 @@ class World(ABC):
                     self.rotation_targets.append(rot)
                     self.joints_targets.append(joints)
                     # reset robot back to starting position
-                    robot.moveto_joints(self.ee_starting_points[idx][2], False)
+                    robot.moveto_joints(self.ee_starting_points[idx][2], False, robot.controlled_joints_ids)
                 else:  # other robots (e.g. camera arm robot)
                     self.position_targets.append(None)
                     self.rotation_targets.append(None)   

@@ -117,7 +117,8 @@ class RandomObstacleWorld(World):
             rand_number = self.num_moving_obstacles + self.num_static_obstacles
 
         # sample from pre-generated obstacles and move into position
-        for obst in sample(self.obstacle_objects, rand_number):
+        obst_sample = sample(self.obstacle_objects, rand_number)
+        for obst in obst_sample[:-1]:
             # generate random position
             position = np.random.uniform(low=np.array([self.x_min, self.y_min, self.z_min]), high=np.array([self.x_max, self.y_max, self.z_max]), size=(3,))
             obst.move_base(position)
@@ -146,6 +147,46 @@ class RandomObstacleWorld(World):
             self.ee_starting_points = []
         min_dist = min((self.x_max - self.x_min) / 2, (self.y_max - self.y_min) / 2, (self.z_max - self.z_min) / 2)
         self._create_position_and_rotation_targets(robots_with_starting_points, min_dist=min_dist)
+
+        # move a random object between ee and goal
+        collision = True
+        pos_robot = self.ee_starting_points[0][0]
+        pos_goal = self.position_targets[0]
+        if len(obst_sample) > 0:
+            tries = 0
+            while collision and tries < 200:
+                dist_obstacle = pos_goal + (pos_robot-pos_goal) * np.random.uniform(0.5, 0.75)
+                # generate base
+                a = (pos_robot-pos_goal) / np.linalg.norm((pos_robot-pos_goal))
+                temp_vec = np.random.uniform(low=-1, high=1, size=(3,))
+                temp_vec = temp_vec / np.linalg.norm(temp_vec)
+                b = np.cross(a, temp_vec)
+                b = b / np.linalg.norm(b)
+                c = np.cross(a,b)
+                c = c / np.linalg.norm(b)
+                # set obstacle_pos as linear combi of base without normal_vec
+                obstacle_pos = dist_obstacle + b * np.random.uniform(0, 0.075) + c * np.random.uniform(0, 0.075)
+                # move obstacle between start and goal pos
+                obst_sample[-1].move_base(obstacle_pos)
+
+                # check collision for start
+                self.robots[0].moveto_joints(self.ee_starting_points[0][2], False)
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                collision = pyb_u.collision
+                if pyb_u.collision:
+                    tries += 1
+                    continue
+                else:
+                    # and for goal
+                    self.robots[0].moveto_joints(self.joints_targets[0], False, self.robots[0].controlled_joints_ids)
+                    pyb_u.perform_collision_check()
+                    pyb_u.get_collisions()
+                    collision = pyb_u.collision
+            if tries < 200:
+                self.active_obstacles.append(obst_sample[-1])
+            else:
+                obst_sample[-1].move_base(self.obstacle_storage_location)
         
         # move robots to starting position
         for idx, robot in enumerate(self.robots):

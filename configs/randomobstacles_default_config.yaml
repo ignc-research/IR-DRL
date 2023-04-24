@@ -57,6 +57,7 @@ env:
         base_orientation: [0, 0, 0]
         resting_angles: [0, 90, -30, -120, -80, 90]
         control_mode: 0
+        self_collision: False
       sensors:
         - type: "LidarSensorUR5"
           config:

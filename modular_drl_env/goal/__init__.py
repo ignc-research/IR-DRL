@@ -22,3 +22,4 @@ class GoalRegistry:
 GoalRegistry.register('PositionCollision')(PositionCollisionGoal)
 GoalRegistry.register('PositionRotationCollision')(PositionRotationCollisionGoal)
 GoalRegistry.register('PositionRotationBetterSmoothingCollision')(PositionCollisionBetterSmoothingGoal)
+GoalRegistry.register('PositionCollisionTrajectory')(PositionCollisionTrajectoryGoal)

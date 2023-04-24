@@ -42,14 +42,14 @@ class JointsSensor(Sensor):
     def update(self, step) -> dict:
         self.cpu_epoch = process_time()
         if step % self.update_steps == 0:
-            self.joints_angles, self.joints_velocities = pyb_u.get_joint_states(self.robot.object_id, self.robot.all_joints_ids)
+            self.joints_angles, self.joints_velocities = pyb_u.get_joint_states(self.robot.object_id, self.robot.controlled_joints_ids)
         self.cpu_time = process_time() - self.cpu_epoch
 
         return self.get_observation()
 
     def reset(self):
         self.cpu_epoch = process_time()
-        self.joints_angles, _ = pyb_u.get_joint_states(self.robot.object_id, self.robot.all_joints_ids)
+        self.joints_angles, _ = pyb_u.get_joint_states(self.robot.object_id, self.robot.controlled_joints_ids)
         self.joints_velocities = np.zeros(self.joints_dims)
         self.cpu_time = process_time() - self.cpu_epoch
 
