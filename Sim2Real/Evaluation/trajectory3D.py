@@ -29,6 +29,10 @@ fig.add_trace(moving_point)
 # Set the axis labels for the 3D plot
 fig.update_layout(scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Z'))
 
+animation_settings = dict(frame=dict(duration=100, redraw=True), fromcurrent=True)
+pause_settings = dict(frame=dict(duration=1e10, redraw=True), fromcurrent=True)  # Extremely high duration to pretend there is a "pause"
+
+
 # Define a function to update the moving point's position based on the index in the t array
 def update_point_position(t_idx):
     fig.data[1].x = [x[t_idx]]
