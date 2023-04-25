@@ -1,39 +1,20 @@
 # config that builds the env as Yifan had it
 run:
-  load_model: False  
-  model_path: ""  
+  algorithm:
+    load_model: False  
+    model_path: ""  
+    type: "PPO"
+    gamma: 0.99
+    learning_rate: 0.0003
   train:
     num_envs : 16  
     logging: 0
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"  
-    save_name: "PPO_default"
-    recurrent: False
-    ppo_steps: 1024  
-    batch_size: 512
-    gamma: 0.99  
-    tensorboard_folder: "./models/tensorboard_logs"
-    custom_policy:
-      use: False
-      activation_function: "ReLU"  
-      layers:
-        - 128
-        - 128
-        - value_function:
-          - 64
-        - policy_function:
-          - 32
-          - 32
-          - 16   
-      lstm:
-        lstm_hidden_size: 512
-        n_lstm_layers: 2
-        shared_lstm: False
-        enable_critic_lstm: True
-
+    save_name: "oldtestcases_default"
   eval:
-    max_episodes: 30  
+    max_episodes: -1  
     logging: 1  
     display_delay: 0.00416666666 
     show_world_aux: True

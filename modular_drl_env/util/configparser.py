@@ -6,6 +6,12 @@ import pybullet as pyb
 def walk_dict_and_convert_to_our_format(node):
     # walk through the nested dictionaries and lists
     for key, item in node.items():
+        # deal with tuples
+        # yaml will convert tuples to strs, this converts them back
+        if type(item) == str:
+            if len(item) > 1:
+                if item[0] == "(" and item[-1] == ")":
+                    node[key] = eval(item)
         # deal with lists
         if type(item) == list:
             # skip empty lists
@@ -60,35 +66,29 @@ def parse_config(filepath, train):
         config_raw["run"][key] = config_raw["run"]["train"][key]
 
     # convert the dict description of custom policy to actual format used by sb3
-    if not config_raw["run"]["train"]["custom_policy"]["use"]:
+    if "config" not in config_raw["run"]["algorithm"]:
+        config_raw["run"]["algorithm"]["config"] = {}
+    if "custom_policy" not in config_raw["run"]["algorithm"]:
         config_raw["run"]["custom_policy"] = None
     else:
         # get activation function
-        if config_raw["run"]["train"]["custom_policy"]["activation_function"] == "ReLU":
+        if config_raw["run"]["algorithm"]["custom_policy"]["activation_function"] == "ReLU":
             activation_function = th.nn.ReLU
-        elif config_raw["run"]["train"]["custom_policy"]["activation_function"] == "tanh":
+        elif config_raw["run"]["algorithm"]["custom_policy"]["activation_function"] == "tanh":
             activation_function = th.nn.Tanh
         else:
             raise Exception("Unsupported activation function!")
         pol_dict = dict(activation_fn=activation_function)
         net_arch = []
         vf_pi_dict = dict(vf=[], pi=[])
-        for ele in config_raw["run"]["train"]["custom_policy"]["layers"]:
-            if type(ele) == int:
-                net_arch.append(ele)
-            elif type(ele) == dict:
-                if "value_function" in ele:
-                    for layer in ele["value_function"]:
-                        vf_pi_dict["vf"].append(layer)
-                elif "policy_function" in ele:
-                    for layer in ele["policy_function"]:
-                        vf_pi_dict["pi"].append(layer)
+        for layer in config_raw["run"]["algorithm"]["custom_policy"]["value_function"]:
+            vf_pi_dict["vf"].append(layer)
+        for layer in config_raw["run"]["algorithm"]["custom_policy"]["policy_function"]:
+            vf_pi_dict["pi"].append(layer)    
         net_arch.append(vf_pi_dict)
         pol_dict["net_arch"] = net_arch
-        if config_raw["run"]["recurrent"]:
-            for key in config_raw["run"]["train"]["custom_policy"]["lstm"]:
-                pol_dict[key] = config_raw["run"]["train"]["custom_policy"]["lstm"][key]
         config_raw["run"]["custom_policy"] = pol_dict
+        print(pol_dict)
 
     # set some defaults for train or eval
     if train:
@@ -104,6 +104,7 @@ def parse_config(filepath, train):
 
     # convert all lists to numpy, angles to radians and rpy to quaternion
     walk_dict_and_convert_to_our_format(config_raw["env"])
+    walk_dict_and_convert_to_our_format(config_raw["run"])
 
     env_config = config_raw["env"].copy()
     env_config["train"] = train
