@@ -64,6 +64,7 @@ app.layout = html.Div([
         html.Div([
             html.Button('Play', id='play-button', n_clicks=0),
             html.Button('Pause', id='pause-button', n_clicks=0),
+            html.Button('Repeat', id='repeat-button', n_clicks=0),
             dcc.Interval(id='interval', interval=500),  # speed in which the red point moves
         ], style={'display': 'flex', 'justifyContent': 'center'}),
     ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'justifyContent': 'center'}),
@@ -101,16 +102,25 @@ def toggle_play_pause(play_clicks, pause_clicks, is_playing):
     elif button_id == 'pause-button':
         return False
 
-# Callback to update the moving point and waypoints visibility
+# Callback to update the moving point, waypoints visibility, and handle repeat button
 @app.callback(
     [Output('graph', 'figure'), Output('n_intervals', 'data')],
-    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value')],
+    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks')],
     [State('graph', 'figure'), State('is_playing', 'data'), State('n_intervals', 'data')]
 )
+def update_point_and_waypoints_visibility_and_repeat(_, dropdown_value, repeat_clicks, figure, is_playing, n_intervals):
+    ctx = dash.callback_context
+    if ctx.triggered:
+        input_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-def update_point_and_waypoints_visibility(_, slider_value, figure, is_playing, n_intervals):
+        # Handle repeat button click
+        if input_id == 'repeat-button':
+            n_intervals = 0
+            figure['data'][2].update(x=[x[n_intervals]], y=[y[n_intervals]], z=[z[n_intervals]])
+            return figure, n_intervals
+
     # Update waypoints visibility
-    figure['data'][1].update(visible=True if slider_value == 1 else False)
+    figure['data'][1].update(visible=True if dropdown_value == 1 else False)
 
     # Update the moving point
     if not is_playing:
