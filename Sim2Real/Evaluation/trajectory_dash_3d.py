@@ -28,22 +28,37 @@ x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
 
 # Create the initial figure with the 3D curve and the moving point
 fig = go.Figure()
-fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name='Curve'))
-fig.add_trace(go.Scatter3d(x=[x[0]], y=[y[0]], z=[z[0]], mode='markers', marker=dict(size=10, color='red'), name='Moving Point'))
-fig.update_layout(scene=dict(xaxis_title='X', yaxis_title='Y', zaxis_title='Z'))
+fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name='Trajectory'))
+fig.add_trace(go.Scatter3d(x=[x[0]], y=[y[0]], z=[z[0]], mode='markers', marker=dict(size=10, color='red'), name='Endeffector-Movement'))
+fig.update_layout(scene = dict(
+    xaxis_title="X",
+    yaxis_title="Y",
+    zaxis_title="Z",
+    aspectmode='auto',
+    camera=dict(
+        eye=dict(x=1.5, y=1.5, z=1.5)  # Increase the values here to zoom out.
+    )
+))
 
 # Initialize the Dash app
 app = dash.Dash(__name__)
 
 # Define the app layout with the graph and buttons
 app.layout = html.Div([
-    dcc.Graph(id='graph', figure=fig, style={'height': '80vh', 'width': '80vw'}),
-    html.Button('Play', id='play-button', n_clicks=0),
-    html.Button('Pause', id='pause-button', n_clicks=0),
-    dcc.Interval(id='interval', interval=500), # speed in which the red point moves
+    html.Div([
+        dcc.Graph(id='graph', figure=fig, style={'height': '80vh', 'width': '80vw'}),
+        html.Div([
+            html.Button('Play', id='play-button', n_clicks=0),
+            html.Button('Pause', id='pause-button', n_clicks=0),
+            dcc.Interval(id='interval', interval=500), # speed in which the red point moves
+        ], style={'display': 'flex', 'justifyContent': 'center'}),
+    ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'justifyContent': 'center'}),
     dcc.Store(id='n_intervals', data=0),
     dcc.Store(id='is_playing', data=True)
 ])
+
+
+
 
 # Callback to toggle play/pause
 @app.callback(
