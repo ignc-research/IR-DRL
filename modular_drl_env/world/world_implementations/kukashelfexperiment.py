@@ -3,6 +3,7 @@ import numpy as np
 from modular_drl_env.world.obstacles.human import Human
 from modular_drl_env.world.obstacles.shapes import Box
 from modular_drl_env.world.obstacles.urdf_object import URDFObject
+from modular_drl_env.world.obstacles.ground_plate import GroundPlate
 from random import choice, sample
 from modular_drl_env.util.quaternion_util import rotate_vector
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
@@ -48,7 +49,8 @@ class KukaShelfExperiment(World):
                 raise Exception("Shelf Experiment does not support rotation or joint position goals.")
 
         # ground plane
-        pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
+        plate = GroundPlate()
+        plate.build()
 
         # generate an appropriate URDF
         urdf_name = self.assets_path + "/runtime/shelf_" + str(self.env_id) + ".urdf"

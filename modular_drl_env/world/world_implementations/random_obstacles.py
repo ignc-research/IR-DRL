@@ -1,5 +1,6 @@
 from modular_drl_env.world.world import World
 from modular_drl_env.world.obstacles.shapes import Box, Sphere
+from modular_drl_env.world.obstacles.ground_plate import GroundPlate
 import numpy as np
 from random import choice, shuffle, sample
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
@@ -62,7 +63,8 @@ class RandomObstacleWorld(World):
 
     def set_up(self):
         # add ground plate
-        pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
+        plate = GroundPlate()
+        plate.build()
 
         # pre-generate all the obstacles we're going to use
         for i in range(self.num_static_obstacles + self.num_moving_obstacles):
@@ -155,6 +157,7 @@ class RandomObstacleWorld(World):
         if len(obst_sample) > 0:
             tries = 0
             while collision and tries < 200:
+                tries += 1
                 dist_obstacle = pos_goal + (pos_robot-pos_goal) * np.random.uniform(0.5, 0.75)
                 # generate base
                 a = (pos_robot-pos_goal) / np.linalg.norm((pos_robot-pos_goal))
@@ -175,7 +178,6 @@ class RandomObstacleWorld(World):
                 pyb_u.get_collisions()
                 collision = pyb_u.collision
                 if pyb_u.collision:
-                    tries += 1
                     continue
                 else:
                     # and for goal

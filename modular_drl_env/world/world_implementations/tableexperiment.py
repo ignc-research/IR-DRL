@@ -3,6 +3,8 @@ import numpy as np
 import pybullet as pyb
 from modular_drl_env.world.obstacles.human import Human
 from modular_drl_env.world.obstacles.shapes import Box
+from modular_drl_env.world.obstacles.ground_plate import GroundPlate
+from modular_drl_env.world.obstacles.urdf_object import URDFObject
 import pybullet_data as pyb_d
 from random import choice, sample
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
@@ -45,9 +47,12 @@ class TableExperiment(World):
         
     def set_up(self):
         # ground plane
-        pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
+        plate = GroundPlate()
+        plate.build()
         # table
-        pyb_u.load_urdf(pyb_d.getDataPath() + "/table/table.urdf", np.array([0, 0, 0]), np.array([0, 0, 0, 1]), scale=1.75)
+        table = URDFObject([0, 0, 0], [0, 0, 0, 1], [], 0, pyb_d.getDataPath() + "/table/table.urdf", scale=1.75)
+        self.obstacle_objects.append(table)
+        table.build()
 
         for i in range(self.num_obstacles):
             for j in range(self.mult_pre_gen):

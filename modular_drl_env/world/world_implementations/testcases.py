@@ -3,6 +3,7 @@ import numpy as np
 from random import choice
 from modular_drl_env.world.obstacles.shapes import Box
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
+from modular_drl_env.world.obstacles.ground_plate import GroundPlate
 
 __all__ = [
     'TestcasesWorld'
@@ -39,7 +40,8 @@ class TestcasesWorld(World):
 
     def set_up(self):
         # add ground plate
-        pyb_u.add_ground_plane(np.array([0, 0, -0.01]))
+        plate = GroundPlate()
+        plate.build()
         
         # set up testcase geometry
         self.obst1 = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])

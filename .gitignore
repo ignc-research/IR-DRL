@@ -13,7 +13,7 @@ configs/*karim*
 configs/*test*
 
 # test py
-test.py
+test*.py
 
 # exclude the generated urdfs from maze and shelf class
 modular_drl_env/world/obstacles/shelf/*shelf*.urdf

@@ -19,7 +19,7 @@ run_config, env_config = parse_config(args.configfile, args.train)
 # we import the rest here because this takes quite some time and we want the arg parsing to be fast and responsive
 from modular_drl_env.gym_env.environment import ModularDRLEnv
 from stable_baselines3 import PPO, TD3, SAC
-from sb3_contrib import RecurrentPPO
+from sb3_contrib import RecurrentPPO#, AttentionPPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from modular_drl_env.callbacks.callbacks import MoreLoggingCustomCallback
@@ -71,12 +71,14 @@ if __name__ == "__main__":
                 model = RecurrentPPO("MultiInputLstmPolicy", envs, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"], batch_size=run_config["batch_size"])
             else:
                 model = PPO("MultiInputPolicy", envs, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"], batch_size=run_config["batch_size"])
+                #model = AttentionPPO("MultiInputAttnPolicy", envs, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["gamma"], tensorboard_log=run_config["tensorboard_folder"], n_steps=run_config["ppo_steps"], batch_size=run_config["batch_size"])
             print(model.policy)
         else:
             if run_config["recurrent"]:
                 model = RecurrentPPO.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
             else:
                 model = PPO.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
+                #model = AttentionPPO.load(run_config["model_path"], env=envs, tensorboard_log=run_config["tensorboard_folder"])
             # needs to be set on my pc when loading a model, dont know why, might not be needed on yours
             model.policy.optimizer.param_groups[0]["capturable"] = True
 
@@ -93,6 +95,7 @@ if __name__ == "__main__":
                 model = RecurrentPPO.load(run_config["model_path"], env=env)
             else:
                 model = PPO.load(run_config["model_path"], env=env)
+                #model = AttentionPPO.load(run_config["model_path"], env=env)
 
         #explainer = ExplainPPO(env, model, extractor_bias= 'camera')
         #exp_visualizer = VisualizeExplanations(explainer, type_of_data= 'rgbd')

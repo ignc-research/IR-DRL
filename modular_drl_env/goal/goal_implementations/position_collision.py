@@ -156,7 +156,7 @@ class PositionCollisionGoal(Goal):
         self.is_success = False
         if self.out_of_bounds:
             self.done = True
-            reward += self.reward_collision / 2
+            reward += self.reward_collision
         elif self.collided:
             self.done = True
             reward += self.reward_collision
