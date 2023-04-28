@@ -63,7 +63,7 @@ if __name__ == "__main__":
             model = algorithm(policy, envs, policy_kwargs=run_config["custom_policy"], verbose=1, gamma=run_config["algorithm"]["gamma"], learning_rate=run_config["algorithm"]["learning_rate"], tensorboard_log="./models/tensorboard_logs", **run_config["algorithm"]["config"])
             print(model.policy)
         else:
-            model = algorithm.load(run_config["model_path"], env=envs, tensorboard_log="./models/tensorboard_logs")
+            model = algorithm.load(run_config["algorithm"]["model_path"], env=envs, tensorboard_log="./models/tensorboard_logs")
             # needs to be set on some PCs when loading a model, dont know why, might not be needed on yours
             model.policy.optimizer.param_groups[0]["capturable"] = True
 

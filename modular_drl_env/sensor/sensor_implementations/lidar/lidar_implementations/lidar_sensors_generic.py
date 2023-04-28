@@ -22,7 +22,8 @@ class LidarSensorGeneric(LidarSensor):
                  ray_start: float, 
                  ray_end: float, 
                  ray_setup: dict, 
-                 indicator: bool = True):
+                 indicator: bool = True,
+                 ignore_self: bool = True):
         super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step, robot, indicator_buckets, indicator)
 
         # this is a dict which will contain link names as keys and number of rays distributed in a sphere around the link as value
@@ -52,7 +53,6 @@ class LidarSensorGeneric(LidarSensor):
             #sampled_sphere_points = regular_equidistant_sphere_points(self.ray_setup[link], self.ray_end)
             sampled_sphere_points = fibonacci_sphere(self.ray_setup[link]) * self.ray_end
             self.lidar_indicator_shape += len(sampled_sphere_points)
-            print(self.ray_setup[link], len(sampled_sphere_points))
             self.rays_ends_base[link] = sampled_sphere_points
             self.rays_starts_base[link] = (sampled_sphere_points * self.ray_start / self.ray_end) # == the points where our rays are supposed to start
 
@@ -60,6 +60,9 @@ class LidarSensorGeneric(LidarSensor):
         self.rays_starts = []
         self.rays_ends = []
         self.results = []
+
+        # bool for whether self hits get reported or treated as nothing hit
+        self.ignore_self = ignore_self
 
     def get_observation_space_element(self) -> dict:
         return {self.output_name: Box(low=-1, high=1, shape=(self.lidar_indicator_shape,), dtype=np.float32)}
@@ -74,8 +77,14 @@ class LidarSensorGeneric(LidarSensor):
             self.rays_ends = np.vstack([self.rays_ends, self.rays_ends_base[link] + pos])
 
         self.results = pyb.rayTestBatch(self.rays_starts, self.rays_ends)
+        
+        processed_results = np.array(self.results, dtype=object)
+        if self.ignore_self:
+            # set the hit fraction to 1 for all rays that hit the robot itself
+            self_mask = processed_results[:, 0] == pyb_u.to_pb(self.robot.object_id)
+            processed_results[self_mask][:, 2] = 1
 
-        return np.array(self.results, dtype=object)[:,2]
+        return processed_results[:,2]
 
     def _process_raw_lidar(self, raw_lidar_data):
 

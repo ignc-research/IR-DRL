@@ -88,7 +88,6 @@ def parse_config(filepath, train):
         net_arch.append(vf_pi_dict)
         pol_dict["net_arch"] = net_arch
         config_raw["run"]["custom_policy"] = pol_dict
-        print(pol_dict)
 
     # set some defaults for train or eval
     if train:

@@ -453,7 +453,7 @@ class ModularDRLEnv(gym.Env):
         
         self.world:World = WorldRegistry.get(world_type)(**world_config)
         self.world.set_up()
-        if self.show_auxillary_geometry_world:
+        if not self.train and self.show_auxillary_geometry_world:
             self.world.build_visual_aux()
 
     def _robot_setup(self, env_config):
