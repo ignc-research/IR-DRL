@@ -4,7 +4,7 @@ import dash
 from dash import dcc
 from dash import html
 from dash.dependencies import Input, Output, State
-
+from dash import dash_table
 
 
 #trajectory Points
@@ -45,6 +45,23 @@ fig.update_layout(scene=dict(
 # Initialize the Dash app
 app = dash.Dash(__name__)
 
+def update_table_data_and_highlight_active_waypoint(n_intervals):
+    data = [
+        {'waypoints': f'({x[i]:.2f}, {y[i]:.2f}, {z[i]:.2f})', 'velocities': ''}
+        for i in range(len(x))
+    ]
+
+    style_data_conditional = [
+        {
+            'if': {'row_index': n_intervals},
+            'backgroundColor': 'rgb(255, 215, 0)',
+            'color': 'black'
+        }
+    ]
+
+    return data, style_data_conditional
+
+
 # Define the app layout with the graph, buttons, headline, and dropdown menu
 app.layout = html.Div([
     html.Div([
@@ -56,6 +73,7 @@ app.layout = html.Div([
                 {'label': 'Real', 'value': 'Real'}
             ],
             value='Simulation',
+            clearable = False,
             style={'width': '50%', 'margin': 'auto'}
         ),
     ]),
@@ -76,13 +94,26 @@ app.layout = html.Div([
                 {'label': 'Show Waypoints', 'value': 1}
             ],
             value=1,
-            clearable = False,
-            style={'width': '30%', 'position': 'absolute', 'right': "10%", 'top': '50%', 'textAlign': 'center', 'fontSize': '17px'}
+            clearable=False,   
         )
-    ]),
+    ], style={'width': '10%', 'position': 'absolute', 'right': "10%", 'top': '50%', 'textAlign': 'center'}),
+    html.Div([
+        dash_table.DataTable(
+            id='waypoints-table',
+            columns=[
+                {'name': 'Waypoints', 'id': 'waypoints'},
+                {'name': 'Velocities', 'id': 'velocities'}
+            ],
+            data=update_table_data_and_highlight_active_waypoint(0)[0],
+            style_data_conditional=update_table_data_and_highlight_active_waypoint(0)[1],
+            style_cell={'textAlign': 'center'},
+            style_header={'fontWeight': 'bold'}
+        )
+    ], style={'position': 'absolute', 'left': '5%', 'top': '25%'}),
     dcc.Store(id='n_intervals', data=0),
     dcc.Store(id='is_playing', data=True)
 ])
+
 
 
 # Callback to toggle play/pause
@@ -103,8 +134,9 @@ def toggle_play_pause(play_clicks, pause_clicks, is_playing):
         return False
 
 # Callback to update the moving point, waypoints visibility, and handle repeat button
+# Callback to update the moving point, waypoints visibility, and handle repeat button
 @app.callback(
-    [Output('graph', 'figure'), Output('n_intervals', 'data')],
+    [Output('graph', 'figure'), Output('n_intervals', 'data'), Output('waypoints-table', 'data'), Output('waypoints-table', 'style_data_conditional')],
     [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks')],
     [State('graph', 'figure'), State('is_playing', 'data'), State('n_intervals', 'data')]
 )
@@ -117,19 +149,22 @@ def update_point_and_waypoints_visibility_and_repeat(_, dropdown_value, repeat_c
         if input_id == 'repeat-button':
             n_intervals = 0
             figure['data'][2].update(x=[x[n_intervals]], y=[y[n_intervals]], z=[z[n_intervals]])
-            return figure, n_intervals
 
     # Update waypoints visibility
     figure['data'][1].update(visible=True if dropdown_value == 1 else False)
 
     # Update the moving point
     if not is_playing:
-        return figure, n_intervals
+        data, style_data_conditional = update_table_data_and_highlight_active_waypoint(n_intervals)
+        return figure, n_intervals, data, style_data_conditional
 
     if n_intervals < len(x):
         figure['data'][2].update(x=[x[n_intervals]], y=[y[n_intervals]], z=[z[n_intervals]])
         n_intervals += 1
-    return figure, n_intervals
+
+    data, style_data_conditional = update_table_data_and_highlight_active_waypoint(n_intervals)
+    return figure, n_intervals, data, style_data_conditional
+
 
 
 

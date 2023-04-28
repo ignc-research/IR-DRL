@@ -1,0 +1,9 @@
+.Select-control {
+    text-align: center;
+}
+
+.Select-value {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
