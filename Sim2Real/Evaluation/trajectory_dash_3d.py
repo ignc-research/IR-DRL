@@ -5,6 +5,7 @@ from dash import dcc
 from dash import html
 from dash.dependencies import Input, Output, State
 from dash import dash_table
+import dash_bootstrap_components as dbc
 
 
 #trajectory Points
@@ -42,8 +43,9 @@ fig.update_layout(scene=dict(
     )
 ))
 
-# Initialize the Dash app
-app = dash.Dash(__name__)
+# Initialize the Dash app with bootstrap to make the website responsive
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
 
 def update_table_data_and_highlight_active_waypoint(n_intervals):
     data = [
@@ -63,57 +65,65 @@ def update_table_data_and_highlight_active_waypoint(n_intervals):
 
 
 # Define the app layout with the graph, buttons, headline, and dropdown menu
-app.layout = html.Div([
-    html.Div([
-        html.H1('Evaluation', style={'textAlign': 'center'}),
-        dcc.Dropdown(
-            id='evaluation-type',
-            options=[
-                {'label': 'Simulation', 'value': 'Simulation'},
-                {'label': 'Real', 'value': 'Real'}
-            ],
-            value='Simulation',
-            clearable = False,
-            style={'width': '50%', 'margin': 'auto'}
-        ),
+app.layout = dbc.Container([
+    dbc.Row([
+        dbc.Col([
+            html.H1('Evaluation', style={'textAlign': 'center'}),
+        ], width=12),
     ]),
-    html.Div([
-        dcc.Graph(id='graph', figure=fig, style={'height': '80vh', 'width': '80vw'}),
-        html.Div([
-            html.Button('Play', id='play-button', n_clicks=0),
-            html.Button('Pause', id='pause-button', n_clicks=0),
-            html.Button('Repeat', id='repeat-button', n_clicks=0),
-            dcc.Interval(id='interval', interval=500),  # speed in which the red point moves
-        ], style={'display': 'flex', 'justifyContent': 'center'}),
-    ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'justifyContent': 'center'}),
-    html.Div([
-        dcc.Dropdown(
-            id='waypoints-dropdown',
-            options=[
-                {'label': 'Hide Waypoints', 'value': 0},
-                {'label': 'Show Waypoints', 'value': 1}
-            ],
-            value=1,
-            clearable=False,   
-        )
-    ], style={'width': '10%', 'position': 'absolute', 'right': "10%", 'top': '50%', 'textAlign': 'center'}),
-    html.Div([
-        dash_table.DataTable(
-            id='waypoints-table',
-            columns=[
-                {'name': 'Waypoints', 'id': 'waypoints'},
-                {'name': 'Velocities', 'id': 'velocities'}
-            ],
-            data=update_table_data_and_highlight_active_waypoint(0)[0],
-            style_data_conditional=update_table_data_and_highlight_active_waypoint(0)[1],
-            style_cell={'textAlign': 'center'},
-            style_header={'fontWeight': 'bold'}
-        )
-    ], style={'position': 'absolute', 'left': '5%', 'top': '25%'}),
+    dbc.Row([
+        dbc.Col([
+            dcc.Graph(id='graph', figure=fig, style={'height': '80vh', 'width': '100%'}),
+        ], width=8, style={'padding-right': '0px'}),
+        dbc.Col([
+            html.Div([
+                html.Div([
+                    dcc.Dropdown(
+                        id='evaluation-type',
+                        options=[
+                            {'label': 'Simulation', 'value': 'Simulation'},
+                            {'label': 'Real', 'value': 'Real'}
+                        ],
+                        value='Simulation',
+                        clearable=False,
+                        style={'width': '100%', 'margin-bottom': '5px'}
+                    ),
+                    html.Div([
+                        html.Button('Play', id='play-button', n_clicks=0),
+                        html.Button('Pause', id='pause-button', n_clicks=0),
+                        html.Button('Repeat', id='repeat-button', n_clicks=0),
+                        dcc.Interval(id='interval', interval=500),  # speed in which the red point moves
+                    ], style={'display': 'flex', 'justifyContent': 'center', 'margin-top': '0px'}),
+                    html.Br(),
+                    dcc.Dropdown(
+                        id='waypoints-dropdown',
+                        options=[
+                            {'label': 'Hide Waypoints', 'value': 0},
+                            {'label': 'Show Waypoints', 'value': 1}
+                        ],
+                        value=1,
+                        clearable=False,
+                        style={'width': '100%'}
+                    ),
+                    html.Br(),
+                    dash_table.DataTable(
+                        id='waypoints-table',
+                        columns=[
+                            {'name': 'Waypoints', 'id': 'waypoints'},
+                            {'name': 'Velocities', 'id': 'velocities'}
+                        ],
+                        data=update_table_data_and_highlight_active_waypoint(0)[0],
+                        style_data_conditional=update_table_data_and_highlight_active_waypoint(0)[1],
+                        style_cell={'textAlign': 'center'},
+                        style_header={'fontWeight': 'bold'}
+                    ),
+                ], style={'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center', 'height': '80vh'})
+            ], style={'padding': '0 15px'})
+        ], width=4),
+    ]),
     dcc.Store(id='n_intervals', data=0),
     dcc.Store(id='is_playing', data=True)
-])
-
+], fluid=True)
 
 
 # Callback to toggle play/pause
