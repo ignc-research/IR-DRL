@@ -329,7 +329,7 @@ class Robot(ABC):
         :param desired_quat: Vector containing the desired new quaternion orientation of the end effector.
         """
         joints = self._solve_ik(desired_xyz, desired_quat)
-        self.moveto_joints(joints, use_physics_sim)
+        self.moveto_joints(joints, use_physics_sim, self.all_joints_ids)
 
     def moveto_xyz(self, desired_xyz: np.ndarray, use_physics_sim: bool):
         """
@@ -339,7 +339,7 @@ class Robot(ABC):
         :param desired_xyz: Vector containing the desired new xyz position of the end effector.
         """
         joints = self._solve_ik(desired_xyz, None)
-        self.moveto_joints(joints, use_physics_sim)
+        self.moveto_joints(joints, use_physics_sim, self.all_joints_ids)
 
     def _solve_ik(self, xyz: np.ndarray, quat:Union[np.ndarray, None]):
         """

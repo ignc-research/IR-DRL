@@ -8,7 +8,8 @@ from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 __all__ = [
     'PositionCollisionGoal',
     'PositionRotationCollisionGoal',
-    'PositionCollisionBetterSmoothingGoal'
+    'PositionCollisionBetterSmoothingGoal',
+    'PositionCollisionGoalNoShaking'
 ]
 
 class PositionCollisionGoal(Goal):
@@ -535,5 +536,81 @@ class PositionRotationCollisionGoal(Goal):
         logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
         logging_dict["rot_distance_" + self.robot.name] = self.rotation_distance
         logging_dict["rotation_threshold_" + self.robot.name] = self.rotation_threshold
+
+        return logging_dict
+    
+class PositionCollisionGoalNoShaking(PositionCollisionGoal):
+
+    def reward(self, step, action):
+
+        reward = 0
+
+        self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
+        self.collided = pyb_u.collision
+
+        self.is_success = False
+        if self.out_of_bounds:
+            self.done = True
+            reward += self.reward_collision
+        elif self.collided:
+            self.done = True
+            reward += self.reward_collision
+        elif self.distance < self.distance_threshold:
+            self.done = True
+            self.is_success = True
+            reward += self.reward_success
+        elif step > self.max_steps:
+            self.done = True
+            self.timeout = True
+            reward += self.reward_collision / 10
+        else:
+            self.done = False
+            reward += self.reward_distance_mult * self.distance
+        
+        self.reward_value = reward
+        if self.normalize_rewards:
+            self.reward_value = self.normalizing_constant_a_reward * self.reward_value + self.normalizing_constant_b_reward
+        
+        # return
+        return self.reward_value, self.is_success, self.done, self.timeout, self.out_of_bounds    
+
+    def on_env_reset(self, success_rate):
+        
+        self.timeout = False
+        self.is_success = False
+        self.is_done = False
+        self.collided = False
+        self.out_of_bounds = False
+        
+        # set the distance threshold according to the success of the training
+        if self.train: 
+
+            # calculate increment
+            ratio_start_end = (self.distance_threshold - self.distance_threshold_end) / (self.distance_threshold_start - self.distance_threshold_end)
+            increment = (self.distance_threshold_increment_start - self.distance_threshold_increment_end) * ratio_start_end + self.distance_threshold_increment_end
+            if success_rate > self.distance_threshold_change and self.distance_threshold > self.distance_threshold_end:
+                self.distance_threshold -= increment
+            elif success_rate < self.distance_threshold_change and self.distance_threshold < self.distance_threshold_start:
+                #self.distance_threshold += increment / 25  # upwards movement should be slower # DISABLED
+                pass
+            if self.distance_threshold > self.distance_threshold_start:
+                self.distance_threshold = self.distance_threshold_start
+            if self.distance_threshold < self.distance_threshold_end:
+                self.distance_threshold = self.distance_threshold_end
+
+        return [("distance_threshold", self.distance_threshold, True, True)]
+
+    def build_visual_aux(self):
+        # build a sphere of distance_threshold size around the target
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
+        self.aux_object_ids.append(pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
+        #self.aux_lines += pyb_u.draw_lines([self.robot.world.position_targets[0]], [self.robot.world.ee_starting_points[0][0]], [[0, 0, 1]])
+
+    def get_data_for_logging(self) -> dict:
+        logging_dict = dict()
+
+        logging_dict["reward_" + self.robot.name] = self.reward_value
+        logging_dict["distance_" + self.robot.name] = self.distance
+        logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
 
         return logging_dict
