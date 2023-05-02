@@ -6,10 +6,13 @@ from dash import html
 from dash.dependencies import Input, Output, State
 from dash import dash_table
 import dash_bootstrap_components as dbc
+import load_csv
 
 
 #trajectory Points
 #TODO: Replace with trajectores from csv
+csv_data = load_csv.load_csv_data("/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV/episode_1.csv")
+"""
 trajectory = np.array([
     [0.14964543, 0.51980054, 0.34284654],
     [0.15218042, 0.51606137, 0.34318519],
@@ -22,7 +25,8 @@ trajectory = np.array([
     [0.17038222, 0.55280972, 0.33981764],
     [0.17449835, 0.55258667, 0.34343454],
 ])
-
+"""
+trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
 
 # Extract x, y, and z arrays from the trajectory
 x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
@@ -68,7 +72,7 @@ def update_table_data_and_highlight_active_waypoint(n_intervals):
 app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            html.H1('Evaluation', style={'textAlign': 'center'}),
+            html.H1('Evaluation', style={'textAlign': 'center', 'font-family': 'Arial, sans-serif'}),
         ], width=12),
     ]),
     dbc.Row([
@@ -86,12 +90,15 @@ app.layout = dbc.Container([
                         ],
                         value='Simulation',
                         clearable=False,
-                        style={'width': '100%', 'margin-bottom': '5px'}
+                        style={'width': '100%', 'margin-bottom': '5px', 'font-family': 'Arial, sans-serif'}
                     ),
                     html.Div([
-                        html.Button('Play', id='play-button', n_clicks=0),
-                        html.Button('Pause', id='pause-button', n_clicks=0),
-                        html.Button('Repeat', id='repeat-button', n_clicks=0),
+                        dbc.Button('Load csv', id='load-csv-button', n_clicks=0, color='secondary', className='mr-1'),
+                    ], style={'display': 'flex', 'justifyContent': 'center', 'margin-top': '0px', 'margin-bottom': '1%'}),
+                    html.Div([
+                        dbc.Button('Play', id='play-button', n_clicks=0, color='primary', className='mr-1'),
+                        dbc.Button('Pause', id='pause-button', n_clicks=0, color='primary', className='mr-1'),
+                        dbc.Button('Repeat', id='repeat-button', n_clicks=0, color='primary', className='mr-1'),
                         dcc.Interval(id='interval', interval=500),  # speed in which the red point moves
                     ], style={'display': 'flex', 'justifyContent': 'center', 'margin-top': '0px'}),
                     html.Br(),
@@ -103,27 +110,30 @@ app.layout = dbc.Container([
                         ],
                         value=1,
                         clearable=False,
-                        style={'width': '100%'}
+                        style={'width': '100%', 'font-family': 'Arial, sans-serif'}
                     ),
                     html.Br(),
-                    dash_table.DataTable(
-                        id='waypoints-table',
-                        columns=[
-                            {'name': 'Waypoints', 'id': 'waypoints'},
-                            {'name': 'Velocities', 'id': 'velocities'}
-                        ],
-                        data=update_table_data_and_highlight_active_waypoint(0)[0],
-                        style_data_conditional=update_table_data_and_highlight_active_waypoint(0)[1],
-                        style_cell={'textAlign': 'center'},
-                        style_header={'fontWeight': 'bold'}
-                    ),
+                    html.Div([
+                        dash_table.DataTable(
+                            id='waypoints-table',
+                            columns=[
+                                {'name': 'Waypoints', 'id': 'waypoints'},
+                                {'name': 'Velocities', 'id': 'velocities'}
+                            ],
+                            data=update_table_data_and_highlight_active_waypoint(0)[0],
+                            style_data_conditional=update_table_data_and_highlight_active_waypoint(0)[1],
+                            style_cell={'textAlign': 'center', 'font-family': 'Arial, sans-serif'},
+                            style_header={'fontWeight': 'bold', 'font-family': 'Arial, sans-serif'}
+                        )
+                    ], style={'height': '50%', 'overflowY': 'auto'}),
                 ], style={'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center', 'height': '80vh'})
             ], style={'padding': '0 15px'})
         ], width=4),
     ]),
     dcc.Store(id='n_intervals', data=0),
     dcc.Store(id='is_playing', data=True)
-], fluid=True)
+],fluid=True)
+
 
 
 # Callback to toggle play/pause
@@ -143,7 +153,7 @@ def toggle_play_pause(play_clicks, pause_clicks, is_playing):
     elif button_id == 'pause-button':
         return False
 
-# Callback to update the moving point, waypoints visibility, and handle repeat button
+
 # Callback to update the moving point, waypoints visibility, and handle repeat button
 @app.callback(
     [Output('graph', 'figure'), Output('n_intervals', 'data'), Output('waypoints-table', 'data'), Output('waypoints-table', 'style_data_conditional')],
