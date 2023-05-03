@@ -7,35 +7,40 @@ from dash.dependencies import Input, Output, State
 from dash import dash_table
 import dash_bootstrap_components as dbc
 import load_csv
+from gen_obstacle import generate_obstacle
 
 
 #trajectory Points
 csv_data = load_csv.load_csv_data("/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV/episode_1.csv")
-"""
-trajectory = np.array([
-    [0.14964543, 0.51980054, 0.34284654],
-    [0.15218042, 0.51606137, 0.34318519],
-    [0.15552515, 0.52252108, 0.34451479],
-    [0.16411068, 0.52975202, 0.34508801],
-    [0.16643231, 0.53591859, 0.34596759],
-    [0.16485478, 0.53941351, 0.3404704 ],
-    [0.17190547, 0.54124993, 0.33658996],
-    [0.17293172, 0.55146658, 0.33927181],
-    [0.17038222, 0.55280972, 0.33981764],
-    [0.17449835, 0.55258667, 0.34343454],
-])
-"""
+
 trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
 
 # Extract x, y, and z arrays from the trajectory
 x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
+
+# Load the obstacle
+obstacle_vertices, obstacle_faces = generate_obstacle()
+
 
 # Create the initial figure with the 3D curve, waypoints, and the moving point
 fig = go.Figure()
 fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name='Trajectory'))
 fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', marker=dict(size=4, color='green'), name='Waypoints'))
 fig.add_trace(go.Scatter3d(x=[x[0]], y=[y[0]], z=[z[0]], mode='markers', marker=dict(size=10, color='red'), name='Endeffector-Movement'))
-
+# add obstacle to graph
+fig.add_trace(
+    go.Mesh3d(
+        x=obstacle_vertices[:, 0],
+        y=obstacle_vertices[:, 1],
+        z=obstacle_vertices[:, 2],
+        i=[face[0] for face in obstacle_faces],
+        j=[face[1] for face in obstacle_faces],
+        k=[face[2] for face in obstacle_faces],
+        color='gray',
+        opacity=1.0,
+        name='Obstacle'
+    )
+)
 fig.update_layout(scene=dict(
     xaxis_title="X",
     yaxis_title="Y",
@@ -81,14 +86,13 @@ app.layout = dbc.Container([
         dbc.Col([
             html.Div([
                 html.Div([
-                    dcc.Dropdown(
-                        id='Episode-dropdown',
+                  dcc.Dropdown(
+                        id='obstacle-dropdown',
                         options=[
-                            {'label': 'Episode 1', 'value': 'Episode 1'},
-                            {'label': 'Episode 2', 'value': 'Episode 2'},
-                            {'label': 'All Episodes', 'value': 'All Episodes'}
+                            {'label': 'Hide Obstacles', 'value': 0},
+                            {'label': 'Show Obstacles', 'value': 1}
                         ],
-                        value='Episode',
+                        value=0,  # Set the default value to 0 (Hide Obstacles)
                         clearable=False,
                         style={'width': '100%', 'margin-bottom': '5px', 'font-family': 'Arial, sans-serif'}
                     ),
