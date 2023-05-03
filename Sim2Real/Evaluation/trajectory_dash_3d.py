@@ -83,12 +83,13 @@ app.layout = dbc.Container([
             html.Div([
                 html.Div([
                     dcc.Dropdown(
-                        id='evaluation-type',
+                        id='Episode-dropdown',
                         options=[
-                            {'label': 'Simulation', 'value': 'Simulation'},
-                            {'label': 'Real', 'value': 'Real'}
+                            {'label': 'Episode 1', 'value': 'Episode 1'},
+                            {'label': 'Episode 2', 'value': 'Episode 2'},
+                            {'label': 'All Episodes', 'value': 'All Episodes'}
                         ],
-                        value='Simulation',
+                        value='Episode',
                         clearable=False,
                         style={'width': '100%', 'margin-bottom': '5px', 'font-family': 'Arial, sans-serif'}
                     ),
@@ -102,7 +103,7 @@ app.layout = dbc.Container([
                         dbc.Button('Play', id='play-button', n_clicks=0, color='primary', className='mr-1'),
                         dbc.Button('Pause', id='pause-button', n_clicks=0, color='primary', className='mr-1'),
                         dbc.Button('Repeat', id='repeat-button', n_clicks=0, color='primary', className='mr-1'),
-                        dcc.Interval(id='interval', interval=500),  # speed in which the red point moves
+                        dcc.Interval(id='interval', interval=250),  # speed in which the red point moves
                     ], style={'display': 'flex', 'justifyContent': 'center', 'margin-top': '0px'}),
                     html.Br(),
                     dcc.Dropdown(
