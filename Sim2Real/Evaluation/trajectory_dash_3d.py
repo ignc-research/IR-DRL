@@ -172,10 +172,11 @@ def toggle_play_pause(play_clicks, pause_clicks, is_playing):
 
 @app.callback(
     [Output('graph', 'figure'), Output('n_intervals', 'data'), Output('waypoints-table', 'data'), Output('waypoints-table', 'style_data_conditional')],
-    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks'), Input('load-csv-upload', 'contents')],
+    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks'), Input('load-csv-upload', 'contents'), Input('obstacle-dropdown', 'value')],
     [State('graph', 'figure'), State('is_playing', 'data'), State('n_intervals', 'data'), State('load-csv-upload', 'filename')]
 )
-def update_graph_and_csv(_, dropdown_value, repeat_clicks, csv_contents, figure, is_playing, stored_n_intervals, csv_filename):
+
+def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, csv_contents, obstacle_dropdown_value, figure, is_playing, stored_n_intervals, csv_filename):
     global x, y, z
     ctx = dash.callback_context
     if ctx.triggered:
@@ -203,7 +204,8 @@ def update_graph_and_csv(_, dropdown_value, repeat_clicks, csv_contents, figure,
             stored_n_intervals = 0
 
     # Update waypoints visibility
-    figure['data'][1].update(visible=True if dropdown_value == 1 else False)
+    figure['data'][1].update(visible=True if waypoints_dropdown_value == 1 else False)
+    figure['data'][3].update(visible=True if obstacle_dropdown_value == 1 else False)
 
     # Update the moving point
     if not is_playing:
