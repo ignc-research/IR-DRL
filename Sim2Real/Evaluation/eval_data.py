@@ -16,12 +16,13 @@ steps = list(range(1, 11))
 distance_to_obstacle = [0.5, 0.6, 0.7, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]
 
 # Create the dashboard layout
-app.layout = dbc.Container([
+app.layout = dbc.Container(fluid=True, children=[
     dbc.Row([
         dbc.Col([
             html.H1('Evaluation', style={'textAlign': 'center', 'font-family': 'Arial, sans-serif'}),
         ], width=12),
     ]),
+    html.Br(),
     dbc.Row([
         dbc.Col([
             html.H3('Planning and Execution Time', style={'textAlign': 'center', 'font-family': 'Arial, sans-serif'}),
@@ -32,7 +33,7 @@ app.layout = dbc.Container([
                         go.Bar(x=list(range(1, 6)), y=planning_time, name='Planning Time'),
                         go.Bar(x=list(range(1, 6)), y=execution_time, name='Execution Time')
                     ],
-                    'layout': go.Layout(barmode='stack', xaxis={'title': 'Steps'}, yaxis={'title': 'Time'})
+                    'layout': go.Layout(barmode='stack', xaxis={'title': 'Episode'}, yaxis={'title': 'Time'})
                 }
             ),
             dcc.Dropdown(

@@ -10,7 +10,6 @@ import load_csv
 
 
 #trajectory Points
-#TODO: Replace with trajectores from csv
 csv_data = load_csv.load_csv_data("/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV/episode_1.csv")
 """
 trajectory = np.array([
