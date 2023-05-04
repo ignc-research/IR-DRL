@@ -64,7 +64,7 @@ def update_table_data_and_highlight_active_waypoint(n_intervals):
     style_data_conditional = [
         {
             'if': {'row_index': n_intervals},
-            'backgroundColor': 'rgb(255, 215, 0)',
+            'backgroundColor': 'rgb(164, 185, 191)',
             'color': 'black'
         }
     ]
@@ -205,6 +205,7 @@ def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, csv_content
 
     # Update waypoints visibility
     figure['data'][1].update(visible=True if waypoints_dropdown_value == 1 else False)
+    #Update visibility of obstacles
     figure['data'][3].update(visible=True if obstacle_dropdown_value == 1 else False)
 
     # Update the moving point
