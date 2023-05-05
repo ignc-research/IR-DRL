@@ -97,11 +97,8 @@ app.layout = dbc.Container([
                         style={'width': '100%', 'margin-bottom': '5px', 'font-family': 'Arial, sans-serif'}
                     ),
                     html.Div([
-                        dcc.Upload(
-                            id='load-csv-upload',
-                            children=dbc.Button('Load csv', color='secondary', className='mr-1'),
-                            style={'display': 'flex', 'justifyContent': 'center', 'margin-top': '0px', 'margin-bottom': '1%'}
-                        )], style={'display': 'flex', 'justifyContent': 'center', 'margin-top': '0px', 'margin-bottom': '1%'}),
+                        dbc.Button('Load csv', color='secondary', className='mr-1', style={'margin-top': '0px', 'margin-bottom': '1%'})
+                    ], style={'display': 'flex', 'justifyContent': 'center', 'margin-top': '0px', 'margin-bottom': '1%'}),
                     html.Div([
                         dbc.Button('Play', id='play-button', n_clicks=0, color='primary', className='mr-1'),
                         dbc.Button('Pause', id='pause-button', n_clicks=0, color='primary', className='mr-1'),
@@ -138,7 +135,7 @@ app.layout = dbc.Container([
         ], width=4),
     ]),
     dcc.Store(id='n_intervals', data=0),
-    dcc.Store(id='is_playing', data=True)
+    dcc.Store(id='is_playing', data=False)
 ],fluid=True)
 
 
@@ -162,22 +159,15 @@ def toggle_play_pause(play_clicks, pause_clicks, is_playing):
 
 
 # Callback to update the moving point, waypoints visibility, and handle repeat button
-"""
+
 @app.callback(
     [Output('graph', 'figure'), Output('n_intervals', 'data'), Output('waypoints-table', 'data'), Output('waypoints-table', 'style_data_conditional')],
-    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks')],
+    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks'),  Input('obstacle-dropdown', 'value')],
     [State('graph', 'figure'), State('is_playing', 'data'), State('n_intervals', 'data')]
 )
-"""
 
-@app.callback(
-    [Output('graph', 'figure'), Output('n_intervals', 'data'), Output('waypoints-table', 'data'), Output('waypoints-table', 'style_data_conditional')],
-    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks'), Input('load-csv-upload', 'contents'), Input('obstacle-dropdown', 'value')],
-    [State('graph', 'figure'), State('is_playing', 'data'), State('n_intervals', 'data'), State('load-csv-upload', 'filename')]
-)
+def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, obstacle_dropdown_value, figure, is_playing, stored_n_intervals):
 
-def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, csv_contents, obstacle_dropdown_value, figure, is_playing, stored_n_intervals, csv_filename):
-    global x, y, z
     ctx = dash.callback_context
     if ctx.triggered:
         input_id = ctx.triggered[0]['prop_id'].split('.')[0]
@@ -187,19 +177,7 @@ def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, csv_content
             stored_n_intervals = 0
             figure['data'][2].update(x=[x[stored_n_intervals]], y=[y[stored_n_intervals]], z=[z[stored_n_intervals]])
 
-        # Handle CSV upload
-        if input_id == 'load-csv-upload' and csv_contents is not None:
-            csv_data = load_csv.parse_csv_contents(csv_contents, csv_filename)
-            trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
-
-            # Update x, y, and z arrays
-            x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
-
-            # Update the graph with the new trajectory
-            figure['data'][0].update(x=x, y=y, z=z)
-            figure['data'][1].update(x=x, y=y, z=z)
-            figure['data'][2].update(x=[x[0]], y=[y[0]], z=[z[0]])
-
+    
             # Reset n_intervals
             stored_n_intervals = 0
 
@@ -219,6 +197,8 @@ def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, csv_content
 
     data, style_data_conditional = update_table_data_and_highlight_active_waypoint(stored_n_intervals)
     return figure, stored_n_intervals, data, style_data_conditional
+
+
 def update_point_and_waypoints_visibility_and_repeat(_, dropdown_value, repeat_clicks, figure, is_playing, n_intervals):
     ctx = dash.callback_context
     if ctx.triggered:
