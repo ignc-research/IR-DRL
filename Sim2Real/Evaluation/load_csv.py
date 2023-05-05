@@ -1,5 +1,6 @@
 import pandas as pd
 import csv
+import os
 
 def load_csv_data(file_path, columns=None):
     def string_to_list(string):
@@ -23,3 +24,11 @@ def load_csv_data(file_path, columns=None):
     return data
 
 
+
+def get_csv_filepaths(directory):
+    filepaths = []
+    for filename in os.listdir(directory):
+        if filename.endswith('.csv'):
+            filepath = os.path.join(directory, filename)
+            filepaths.append(filepath)
+    return filepaths
