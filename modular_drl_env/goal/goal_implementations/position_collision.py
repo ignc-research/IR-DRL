@@ -562,7 +562,7 @@ class PositionCollisionGoalNoShaking(PositionCollisionGoal):
         elif step > self.max_steps:
             self.done = True
             self.timeout = True
-            reward += self.reward_collision / 10
+            reward += self.reward_distance_mult * self.distance
         else:
             self.done = False
             reward += self.reward_distance_mult * self.distance

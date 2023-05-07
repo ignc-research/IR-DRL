@@ -339,7 +339,7 @@ class pybullet_util:
             maxNumIterations=max_iterations,
             residualThreshold=threshold
         )
-        return np.float32(joints)
+        return np.float64(joints)
     
     ########
     # misc #

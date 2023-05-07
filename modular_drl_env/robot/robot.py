@@ -294,6 +294,12 @@ class Robot(ABC):
             lower_limit_mask = desired_joints_angles < self.joints_limits_lower
             desired_joints_angles[upper_limit_mask] = self.joints_limits_upper[upper_limit_mask]
             desired_joints_angles[lower_limit_mask] = self.joints_limits_lower[lower_limit_mask]
+        else:
+            indices = [self.all_joints_ids.index(i) for i in joints_ids]
+            upper_limit_mask = desired_joints_angles > self._joints_limits_upper[indices]
+            lower_limit_mask = desired_joints_angles < self._joints_limits_lower[indices]
+            desired_joints_angles[upper_limit_mask] = self._joints_limits_upper[indices][upper_limit_mask]
+            desired_joints_angles[lower_limit_mask] = self._joints_limits_lower[indices][lower_limit_mask]
 
         # apply movement
         if use_physics_sim:

@@ -167,15 +167,18 @@ class BiRRT(RRT):
     def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=1000) -> None:
         super().__init__(robot)
         # get list of pybullet int ids of obstacles
-        self.obstacles = [value for value in pyb_u.gym_env_str_names.keys() if value != pyb_u.to_pb(robot.object_id)]
         self.joint_ids = [pyb_u.pybullet_joints_ids[self.robot.object_id, joint_id] for joint_id in self.robot.controlled_joints_ids]
 
         self.epsilon = epsilon
         self.max_iterations = max_iterations
 
-    def plan(self, q_goal) -> List:
+    def plan(self, q_goal, obstacles) -> List:
+        obstacles = [pyb_u.to_pb(obstacle.object_id) for obstacle in obstacles]
         angles = self.robot.joints_sensor.joints_angles
-        ret = pyb_p.plan_joint_motion(pyb_u.to_pb(self.robot.object_id), self.joint_ids, q_goal, obstacles=self.obstacles, max_iterations=40)
+        ret = pyb_p.plan_joint_motion(pyb_u.to_pb(self.robot.object_id), self.joint_ids, q_goal, obstacles=obstacles, max_iterations=40)
+        pyb_u.perform_collision_check()
+        pyb_u.get_collisions()
+        #print(pyb_u.collisions)
         self.robot.moveto_joints(angles, False)
         return ret
     

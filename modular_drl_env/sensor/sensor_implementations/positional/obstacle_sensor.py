@@ -92,9 +92,9 @@ class ObstacleSensor(Sensor):
             new_data = self._process(self.data_raw[idx])
             self.output_vector[idx][:len(new_data)] = new_data
             if self.sphere_coordinates:
-                self.min_dist = min(self.min_dist, self.output_vector[0])
+                self.min_dist = min(self.min_dist, self.output_vector[idx][0])
             else:
-                self.min_dist = min(self.min_dist, np.linalg.norm(self.output_vector[:3]))
+                self.min_dist = min(self.min_dist, np.linalg.norm(self.output_vector[idx][:3]))
         pyb_u.set_base_pos_and_ori(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
         self.aux_visual_objects = []
@@ -154,8 +154,8 @@ class ObstacleSensor(Sensor):
             vector = data_raw[i][3:6] -  data_raw[i][0:3]
             if self.sphere_coordinates:
                 r = np.linalg.norm(vector)
-                theta = np.arccos(vector[2] / r)
-                phi = np.sign(vector[1]) * np.arccos(vector[0] / np.linalg.norm(vector[:2]))
+                theta = np.arccos(vector[2]/r)
+                phi = np.arctan2(vector[1], vector[0])
                 vector = np.array([r, theta, phi])
             data_processed.append(vector)
         return np.array(data_processed).flatten()

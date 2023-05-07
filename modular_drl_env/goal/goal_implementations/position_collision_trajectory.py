@@ -259,7 +259,10 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.trajectory_idx = 0
 
         # plan new trajectory      
-        self.trajectory = self.planner.plan(self.target_joints)
+        if hasattr(self.robot.world, 'active_obstacles'):  # if the class has this attribute this saves some collision checking
+            self.trajectory = self.planner.plan(self.target_joints, self.robot.world.active_obstacles)
+        else:
+            self.trajectory = self.planner.plan(self.target_joints, self.robot.world.obstacle_objects)
         self.robot.moveto_joints(self.current_joints, False)
         if self.trajectory is not None:
             self.waypoint_joints = self.trajectory[0]
@@ -291,3 +294,10 @@ class PositionCollisionTrajectoryGoal(Goal):
                 color = [0, 1, 0, 0.7] if np.array_equal(waypoint, self.target_joints) else [1, 1, 0, 0.7]
                 goal_cylinder = pyb_u.create_cylinder(goal_pos, goal_rot, 0, radius=0.0125, height=0.06, color=color, collision=False)
                 self.aux_object_ids.append(goal_cylinder)
+        self.robot.moveto_joints(self.current_joints, False)
+
+class PositionCollisionTrajectoryGoalCartesian(Goal):
+    """
+    Goal that gives the robot a trajectory to follow. In default mode, it will try to go to the target in a straight line.
+    TODO
+    """

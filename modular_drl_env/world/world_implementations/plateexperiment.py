@@ -88,7 +88,7 @@ class PlateExperiment(World):
                     break
                 random_obst = choice(self.obstacle_objects)
                 # we randomly pick a spot along the way between goal and start
-                random_mod = np.random.uniform(low=0.25, high=0.75)
+                random_mod = np.random.uniform(low=0.35, high=0.65)
                 obst_pos = random_start + random_direction * random_mod * random_length / np.linalg.norm(random_direction)
                 # we created all the plates in 0,0,0,1 rotation and the thin dimension along the x axis
                 # we can use the random direction for this
@@ -110,6 +110,14 @@ class PlateExperiment(World):
                 pyb_u.get_collisions()
                 if pyb_u.collision:
                     pyb_u.set_base_pos_and_ori(random_obst.object_id, self.position_nowhere, np.array([0, 0, 0, 1]))
+                    continue
+                # check for starting position
+                self.robots[0].moveto_joints(joints_start, False)
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                if pyb_u.collision:
+                    pyb_u.set_base_pos_and_ori(random_obst.object_id, self.position_nowhere, np.array([0, 0, 0, 1]))
+                    self.robots[0].moveto_joints(joints_goal, False)
                     continue
                 break
             if tries <= 500:
