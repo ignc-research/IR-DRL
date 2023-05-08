@@ -10,6 +10,10 @@ import load_csv
 from gen_obstacle import generate_obstacle
 from dash.exceptions import PreventUpdate
 import os
+from dash_color_picker import ColorPicker
+from dash.dependencies import Input, Output, State, ALL
+
+
 
 #trajectory Points
 #csv_data = load_csv.load_csv_data("/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV/episode_1.csv")
@@ -80,38 +84,63 @@ app.layout = dbc.Container([
                         ],
                         value=0,
                         clearable=False,
-                        style={'width': '100%', 'font-family': 'Arial, sans-serif'}
+                        style={'width': '100%', 'font-family': 'Arial, sans-serif', 'margin-bottom': '10px'}
                     ),
                 ]),
-            ], style={'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center', 'height': '80vh'})
+            html.Div([
+                html.Div([
+                    dbc.Row([
+                        dbc.Col(html.Label(f"{os.path.basename(file)}", style={'font-family': 'Arial, sans-serif'}), width=6),
+                        dbc.Col(ColorPicker(
+                            id={'type': 'color-picker', 'index': i},
+                            color='red',
+                        ), width=6),
+                    ]),
+                    html.Button("Toggle Table", id={'type': 'toggle-table-btn', 'index': i}, n_clicks=0),
+                    dbc.Collapse(
+                        dash_table.DataTable(
+                            id={'type': 'waypoints-table', 'index': i},
+                            columns=[{"name": str(wp), "id": str(wp)} for wp in range(1, len(trajectory[0]) * 2 + 1)] + [{"name": "Velocities", "id": "velocities"}],
+                            data=[{str(wp): trajectory[i // 2, i % 2] if i < len(trajectory) * 2 else None for wp in range(1, len(trajectory[0]) * 2 + 1)}],
+                            fixed_rows={'headers': True, 'data': 0},
+                            style_table={'overflowY': 'auto', 'maxWidth': '100%'},
+                        ),
+                        id={'type': 'table-collapse', 'index': i},
+                        is_open=True,
+                    ),
+                ], style={'margin-bottom': '10px'}) for i, file in enumerate(csv_filepaths)
+            ]),
+        ], style={'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center', 'height': '80vh'})
         ], width=4, style={'padding': '0 15px'})
-    ]),
+        ]),
 ], fluid=True)
-
-
 
 # Add this callback below the app.layout
 @app.callback(
     Output('graph', 'figure'),
-    [Input('csv-dropdown', 'value'),
-     Input('waypoints-dropdown', 'value')
-     ],
+    [
+        Input('csv-dropdown', 'value'),
+        Input('waypoints-dropdown', 'value'),
+    ],
+    [
+        State({'type': 'color-picker', 'index': ALL}, 'color'),
+    ],
 )
-def update_trajectories(selected_csv_files, show_waypoints):
+
+def update_trajectories(selected_csv_files, show_waypoints, selected_colors):
     if not selected_csv_files:
         raise PreventUpdate
 
     fig = go.Figure()
 
-    for i, file in enumerate(selected_csv_files):
-        csv_data = load_csv.load_csv_data(file)
-        trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
-        x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
-        fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name=f'Trajectory {i+1}'))
+    for i, (file, color) in enumerate(zip(selected_csv_files, selected_colors)):
+            csv_data = load_csv.load_csv_data(file)
+            trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
+            x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
+            fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name=f'Trajectory {i+1}', line=dict(color=selected_colors[i])))
 
-        if show_waypoints:  # Check if waypoints should be shown
-            fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', name=f'Waypoints {i+1}', marker=dict(size=4, color='red')))
-
+            if show_waypoints:
+                fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', name=f'Waypoints {i+1}', marker=dict(size=4, color=selected_colors[i])))
 
     fig.update_layout(scene=dict(
         xaxis_title="X",
