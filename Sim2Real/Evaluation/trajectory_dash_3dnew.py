@@ -87,29 +87,39 @@ app.layout = dbc.Container([
                         style={'width': '100%', 'font-family': 'Arial, sans-serif', 'margin-bottom': '10px'}
                     ),
                 ]),
+         html.Div([
             html.Div([
-                html.Div([
-                    dbc.Row([
-                        dbc.Col(html.Label(f"{os.path.basename(file)}", style={'font-family': 'Arial, sans-serif'}), width=6),
-                        dbc.Col(ColorPicker(
-                            id={'type': 'color-picker', 'index': i},
-                            color='red',
-                        ), width=6),
-                    ]),
-                    html.Button("Toggle Table", id={'type': 'toggle-table-btn', 'index': i}, n_clicks=0),
-                    dbc.Collapse(
-                        dash_table.DataTable(
-                            id={'type': 'waypoints-table', 'index': i},
-                            columns=[{"name": str(wp), "id": str(wp)} for wp in range(1, len(trajectory[0]) * 2 + 1)] + [{"name": "Velocities", "id": "velocities"}],
-                            data=[{str(wp): trajectory[i // 2, i % 2] if i < len(trajectory) * 2 else None for wp in range(1, len(trajectory[0]) * 2 + 1)}],
-                            fixed_rows={'headers': True, 'data': 0},
-                            style_table={'overflowY': 'auto', 'maxWidth': '100%'},
-                        ),
-                        id={'type': 'table-collapse', 'index': i},
-                        is_open=True,
+                dbc.Row([
+                    dbc.Col(html.Label(f"{os.path.basename(file)}", style={'font-family': 'Arial, sans-serif'}), width=6),
+                    dbc.Col(ColorPicker(
+                        id={'type': 'color-picker', 'index': i},
+                        color='red',
+                    ), width=6),
+                ]),
+                html.Button("Toggle Table", id={'type': 'toggle-table-btn', 'index': i}, n_clicks=0),
+                dbc.Collapse(
+                    dash_table.DataTable(
+                        id={'type': 'waypoints-table', 'index': i},
+                        columns = [
+                            {'name': 'Waypoints', 'id' : 'waypoints'},
+                            {'name' : 'Velocities', 'id' : 'velocities'}
+                        ],
+                        data=[
+                        {
+                            'waypoints': f'({row["position_ee_link_ur5_1"][0]:.2f}, {row["position_ee_link_ur5_1"][1]:.2f}, {row["position_ee_link_ur5_1"][2]:.2f})',
+                            'velocities': f'({row["velocity_ee_link_ur5_1"][0]:.2f}, {row["velocity_ee_link_ur5_1"][1]:.2f}, {row["velocity_ee_link_ur5_1"][2]:.2f})'
+                        } for row in load_csv.load_csv_data(file)
+                        ],
+
+                        fixed_rows={'headers': True, 'data': 0},
+                        style_table={'overflowY': 'auto', 'maxWidth': '100%'},
                     ),
-                ], style={'margin-bottom': '10px'}) for i, file in enumerate(csv_filepaths)
-            ]),
+                    id={'type': 'table-collapse', 'index': i},
+                    is_open=True,
+                ),
+            ], style={'margin-bottom': '10px'}) for i, file in enumerate(csv_filepaths)
+        ], style={'max-height': '50vh', 'overflow-y': 'auto'}),
+            
         ], style={'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center', 'height': '80vh'})
         ], width=4, style={'padding': '0 15px'})
         ]),
