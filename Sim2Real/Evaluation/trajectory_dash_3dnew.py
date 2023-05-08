@@ -87,7 +87,7 @@ app.layout = dbc.Container([
                         style={'width': '100%', 'font-family': 'Arial, sans-serif', 'margin-bottom': '10px'}
                     ),
                 ]),
-         html.Div([
+        html.Div([
             html.Div([
                 dbc.Row([
                     dbc.Col(html.Label(f"{os.path.basename(file)}", style={'font-family': 'Arial, sans-serif'}), width=6),
@@ -117,13 +117,14 @@ app.layout = dbc.Container([
                     id={'type': 'table-collapse', 'index': i},
                     is_open=True,
                 ),
-            ], style={'margin-bottom': '10px'}) for i, file in enumerate(csv_filepaths)
+            ], style={'margin-bottom': '10px', 'border': '1px solid', 'padding': '5px'}) for i, file in enumerate(csv_filepaths)
         ], style={'max-height': '50vh', 'overflow-y': 'auto'}),
-            
+        
         ], style={'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center', 'height': '80vh'})
         ], width=4, style={'padding': '0 15px'})
         ]),
 ], fluid=True)
+
 
 # Add this callback below the app.layout
 @app.callback(
