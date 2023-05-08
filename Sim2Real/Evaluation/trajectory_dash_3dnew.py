@@ -87,41 +87,49 @@ app.layout = dbc.Container([
                         style={'width': '100%', 'font-family': 'Arial, sans-serif', 'margin-bottom': '10px'}
                     ),
                 ]),
-        html.Div([
-            html.Div([
-                dbc.Row([
-                    dbc.Col(html.Label(f"{os.path.basename(file)}", style={'font-family': 'Arial, sans-serif'}), width=6),
-                    dbc.Col(ColorPicker(
-                        id={'type': 'color-picker', 'index': i},
-                        color='red',
-                    ), width=6),
-                ]),
-                html.Button("Toggle Table", id={'type': 'toggle-table-btn', 'index': i}, n_clicks=0),
-                dbc.Collapse(
-                    dash_table.DataTable(
-                        id={'type': 'waypoints-table', 'index': i},
-                        columns = [
-                            {'name': 'Waypoints', 'id' : 'waypoints'},
-                            {'name' : 'Velocities', 'id' : 'velocities'}
-                        ],
-                        data=[
-                        {
-                            'waypoints': f'({row["position_ee_link_ur5_1"][0]:.2f}, {row["position_ee_link_ur5_1"][1]:.2f}, {row["position_ee_link_ur5_1"][2]:.2f})',
-                            'velocities': f'({row["velocity_ee_link_ur5_1"][0]:.2f}, {row["velocity_ee_link_ur5_1"][1]:.2f}, {row["velocity_ee_link_ur5_1"][2]:.2f})'
-                        } for row in load_csv.load_csv_data(file)
-                        ],
+            ], style={'flex': '0 0 auto'}),
+            html.Div(
+                [
+                    html.Div([
+                        dbc.Row([
+                            dbc.Col(html.Label(f"{os.path.basename(file)}", style={'font-family': 'Arial, sans-serif'}), width=6),
+                           dbc.Col(html.Div(
+                                ColorPicker(
+                                    id={'type': 'color-picker', 'index': i},
+                                    color='red',
+                                ),
+                                style={'position': 'relative', 'z-index': '1000'}
+                            ), width=6),
+                        ]),
+                        html.Button("Toggle Table", id={'type': 'toggle-table-btn', 'index': i}, n_clicks=0),
+                        dbc.Collapse(
+                            dash_table.DataTable(
+                                id={'type': 'waypoints-table', 'index': i},
+                                columns = [
+                                    {'name': 'Waypoints', 'id' : 'waypoints'},
+                                    {'name' : 'Velocities', 'id' : 'velocities'}
+                                ],
+                                data=[
+                                {
+                                    'waypoints': f'({row["position_ee_link_ur5_1"][0]:.2f}, {row["position_ee_link_ur5_1"][1]:.2f}, {row["position_ee_link_ur5_1"][2]:.2f})',
+                                    'velocities': f'({row["velocity_ee_link_ur5_1"][0]:.2f}, {row["velocity_ee_link_ur5_1"][1]:.2f}, {row["velocity_ee_link_ur5_1"][2]:.2f})'
+                                } for row in load_csv.load_csv_data(file)
+                                ],
 
-                        fixed_rows={'headers': True, 'data': 0},
-                        style_table={'overflowY': 'auto', 'maxWidth': '100%'},
-                    ),
-                    id={'type': 'table-collapse', 'index': i},
-                    is_open=True,
-                ),
-            ], style={'margin-bottom': '10px', 'border': '1px solid', 'padding': '5px'}) for i, file in enumerate(csv_filepaths)
-        ], style={'max-height': '50vh', 'overflow-y': 'auto'}),
-        
-        ], style={'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center', 'height': '80vh'})
-        ], width=4, style={'padding': '0 15px'})
+                                fixed_rows={'headers': True, 'data': 0},
+                                style_table={'overflowY': 'auto', 'maxWidth': '100%'},
+                                style_data={
+                                    'textAlign': 'center',
+                                },
+                            ),
+                            id={'type': 'table-collapse', 'index': i},
+                            is_open=True,
+                        ),
+                    ], style={'margin-bottom': '10px', 'border': '1px solid', 'padding': '5px'}) for i, file in enumerate(csv_filepaths)
+                ],
+                style={'max-height': '65vh', 'overflow-y': 'auto', 'flex': '1 1 auto'}
+            )
+        ], width=4, style={'padding': '0 15px', 'display': 'flex', 'flex-direction': 'column', 'height': '80vh'})
         ]),
 ], fluid=True)
 
