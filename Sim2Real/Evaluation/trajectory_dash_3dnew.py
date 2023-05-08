@@ -78,7 +78,7 @@ app.layout = dbc.Container([
                             {'label': 'Hide Waypoints', 'value': 0},
                             {'label': 'Show Waypoints', 'value': 1}
                         ],
-                        value=1,
+                        value=0,
                         clearable=False,
                         style={'width': '100%', 'font-family': 'Arial, sans-serif'}
                     ),
@@ -93,9 +93,11 @@ app.layout = dbc.Container([
 # Add this callback below the app.layout
 @app.callback(
     Output('graph', 'figure'),
-    [Input('csv-dropdown', 'value')],
+    [Input('csv-dropdown', 'value'),
+     Input('waypoints-dropdown', 'value')
+     ],
 )
-def update_trajectories(selected_csv_files):
+def update_trajectories(selected_csv_files, show_waypoints):
     if not selected_csv_files:
         raise PreventUpdate
 
@@ -106,6 +108,10 @@ def update_trajectories(selected_csv_files):
         trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
         x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
         fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name=f'Trajectory {i+1}'))
+
+        if show_waypoints:  # Check if waypoints should be shown
+            fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', name=f'Waypoints {i+1}', marker=dict(size=4, color='red')))
+
 
     fig.update_layout(scene=dict(
         xaxis_title="X",
