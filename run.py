@@ -22,6 +22,8 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from modular_drl_env.callbacks.callbacks import MoreLoggingCustomCallback
 from time import sleep
+import signal
+import sys
 
 # import the RL algorithms
 from stable_baselines3 import PPO, TD3, SAC, A2C, DDPG
@@ -67,7 +69,15 @@ if __name__ == "__main__":
             # needs to be set on some PCs when loading a model, dont know why, might not be needed on yours
             if run_config["algorithm"]["type"] == "PPO":
                 model.policy.optimizer.param_groups[0]["capturable"] = True
-
+        
+        # signal handler, allows us to save a model if we interrupt training by ctrl + c
+        # code copied from https://git.tu-berlin.de/erik.fischer98/autonomous-agents/-/blob/main/franka_move/franka_train.py
+        def signal_handler(sig, frame):
+                model.save(run_config["save_folder"] + "/" + run_config["algorithm"]["type"] + "_" + run_config["save_name"] + "/model_interrupt")
+                sys.exit(0)
+        signal.signal(signal.SIGINT, signal_handler)
+        
+        # perform learning
         model.learn(total_timesteps=run_config["timesteps"], callback=callback, tb_log_name=run_config["algorithm"]["type"] + "_" + run_config["save_name"], reset_num_timesteps=False)
 
     else:
