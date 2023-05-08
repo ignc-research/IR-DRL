@@ -123,7 +123,7 @@ app.layout = dbc.Container([
                                 },
                             ),
                             id={'type': 'table-collapse', 'index': i},
-                            is_open=True,
+                            is_open=False,
                         ),
                     ], style={'margin-bottom': '10px', 'border': '1px solid', 'padding': '5px'}) for i, file in enumerate(csv_filepaths)
                 ],
@@ -135,6 +135,18 @@ app.layout = dbc.Container([
 
 
 # Add this callback below the app.layout
+"""@app.callback(
+    Output('graph', 'figure'),
+    [
+        Input('csv-dropdown', 'value'),
+        Input('waypoints-dropdown', 'value'),
+    ],
+    [
+        State({'type': 'color-picker', 'index': ALL}, 'color'),
+    ],
+)
+"""
+
 @app.callback(
     Output('graph', 'figure'),
     [
@@ -147,6 +159,7 @@ app.layout = dbc.Container([
 )
 
 def update_trajectories(selected_csv_files, show_waypoints, selected_colors):
+
     if not selected_csv_files:
         raise PreventUpdate
 
@@ -172,6 +185,18 @@ def update_trajectories(selected_csv_files, show_waypoints, selected_colors):
     ))
 
     return fig
+
+#seperate callback only for the table to be able to hide/show it
+for i in range(len(csv_filepaths)):
+    @app.callback(
+        Output({'type': 'table-collapse', 'index': i}, 'is_open'),
+        Input({'type': 'toggle-table-btn', 'index': i}, 'n_clicks'),
+        State({'type': 'table-collapse', 'index': i}, 'is_open')
+    )
+    def toggle_table(n_clicks, is_open):
+        if n_clicks:
+            return not is_open
+        return is_open
 
 
 
