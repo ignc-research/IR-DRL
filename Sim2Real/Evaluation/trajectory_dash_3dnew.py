@@ -50,9 +50,14 @@ fig.update_layout(scene=dict(
     zaxis_title="Z",
     aspectmode='auto',
     camera=dict(
-        eye=dict(x=1.5, y=1.5, z=1.5)  # Increase the values here to zoom out.
+        eye=dict(x=1.5, y=1.5, z=1.0)  # Increase the values here to zoom out.
     )
 ))
+
+#colors get repeated if there are more than 4 .csv items
+colors_list = ['red', 'green', 'blue', 'yellow']
+colors = [colors_list[i % len(colors_list)] for i in range(len(csv_filepaths))]
+
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -74,7 +79,8 @@ app.layout = dbc.Container([
                         options=csv_options,
                         value=[csv_filepaths[0]],  # Set the first CSV file as the default selected value
                         multi=True,  # Allow multiple selections
-                        style={'width': '100%', 'font-family': 'Arial, sans-serif', 'margin-bottom': '10px'}
+                        style={'width': '100%', 'font-family': 'Arial, sans-serif', 'margin-bottom': '10px'},
+                        clearable=False
                     ),
                     dcc.Dropdown(
                         id='waypoints-dropdown',
@@ -96,7 +102,7 @@ app.layout = dbc.Container([
                            dbc.Col(html.Div(
                                 ColorPicker(
                                     id={'type': 'color-picker', 'index': i},
-                                    color='red',
+                                    color=colors[i],
                                 ),
                                 style={'position': 'relative', 'z-index': '1000'}
                             ), width=6),
@@ -125,7 +131,7 @@ app.layout = dbc.Container([
                             id={'type': 'table-collapse', 'index': i},
                             is_open=False,
                         ),
-                    ], style={'margin-bottom': '10px', 'border': '1px solid', 'padding': '5px'}) for i, file in enumerate(csv_filepaths)
+                    ], id = {'type' : 'csv-elements', 'index': i}, style={'margin-bottom': '10px', 'border': '1px solid', 'padding': '5px', 'display':'none'}) for i, file in enumerate(csv_filepaths)
                 ],
                 style={'max-height': '65vh', 'overflow-y': 'auto', 'flex': '1 1 auto'}
             )
@@ -135,17 +141,6 @@ app.layout = dbc.Container([
 
 
 # Add this callback below the app.layout
-"""@app.callback(
-    Output('graph', 'figure'),
-    [
-        Input('csv-dropdown', 'value'),
-        Input('waypoints-dropdown', 'value'),
-    ],
-    [
-        State({'type': 'color-picker', 'index': ALL}, 'color'),
-    ],
-)
-"""
 
 @app.callback(
     Output('graph', 'figure'),
@@ -180,7 +175,7 @@ def update_trajectories(selected_csv_files, show_waypoints, selected_colors):
         zaxis_title="Z",
         aspectmode='auto',
         camera=dict(
-            eye=dict(x=1.5, y=1.5, z=1.5)  # Increase the values here to zoom out.
+            eye=dict(x=1.5, y=1.5, z=1.0)  # Increase the values here to zoom out.
         )
     ))
 
@@ -197,6 +192,16 @@ for i in range(len(csv_filepaths)):
         if n_clicks:
             return not is_open
         return is_open
+
+# functionality to hide the data names, tables and colorpicker function of the .csv data that is not chosen
+@app.callback(
+    Output({'type': 'csv-elements', 'index': ALL}, 'style'),
+    Input('csv-dropdown', 'value'),
+    [State({'type': 'csv-elements', 'index': ALL}, 'id')],
+)
+def update_csv_elements_visibility(selected_csv_files, element_ids):
+    selected_indices = [csv_filepaths.index(file) for file in selected_csv_files]
+    return [{'display': 'block' if id['index'] in selected_indices else 'none'} for id in element_ids]
 
 
 
