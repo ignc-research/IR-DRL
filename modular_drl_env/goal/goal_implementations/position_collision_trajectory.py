@@ -84,11 +84,11 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.w_collision = w_collision
 
         # normalizing parameters
-        self.normalizing_constant_a_obs = np.zeros(4)
-        self.normalizing_constant_b_obs = np.zeros(4)
+        self.normalizing_constant_a_obs = np.zeros(len(self.robot.controlled_joints_ids))
+        self.normalizing_constant_b_obs = np.zeros(len(self.robot.controlled_joints_ids))
 
-        self.normalizing_constant_a = 2 / self.robot.joints_range
-        self.normalizing_constant_b = np.ones(len(self.robot.joints_range)) - np.multiply(self.normalizing_constant_a, self.robot.joints_limits_upper)
+        self.normalizing_constant_a_obs = 2 / self.robot.joints_range
+        self.normalizing_constant_b_obs = np.ones(len(self.robot.joints_range)) - np.multiply(self.normalizing_constant_a_obs, self.robot.joints_limits_upper)
 
         # init planner # TODO
         #self.planner = RRT(self.robot)
@@ -110,7 +110,7 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.joints_position_buffer_size = joints_position_buffer_size
         self.previous_action = None
 
-        self.trajectory_sample_rate = 1 / 60  # hz
+        self.trajectory_sample_rate = 1 / 30  # hz
 
         # performance metric name
         self.metric_names = ["angle_threshold"]
@@ -133,6 +133,8 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.current_joints = self.robot.joints_sensor.joints_angles
         if self.trajectory is not None:
             self.waypoint_joints = self.trajectory[self.trajectory_idx]
+            if self.robot.control_mode == 3:
+                self.robot.control_target = self.waypoint_joints
             self.final = np.array_equal(self.waypoint_joints, self.trajectory[-1])
         else:
             self.waypoint_joints = np.zeros((len(self.current_joints),))
@@ -140,7 +142,7 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.target_joints = self.robot.world.joints_targets[self.robot.mgt_id]
         
         ret = dict()
-        if self.normalize_rewards:
+        if self.normalize_observations:
             # normalize TODO
             ret[self.output_name + "_JointsTarget"] = np.multiply(self.normalizing_constant_a_obs, self.waypoint_joints) + self.normalizing_constant_b_obs
             ret[self.output_name + "_JointsDelta"] = np.multiply(self.normalizing_constant_a_obs, self.waypoint_joints - self.current_joints) + self.normalizing_constant_b_obs
@@ -266,6 +268,8 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.robot.moveto_joints(self.current_joints, False)
         if self.trajectory is not None:
             self.waypoint_joints = self.trajectory[0]
+            if self.robot.control_mode == 3:  # joint target control mode
+                self.robot.control_target = self.waypoint_joints
 
         if self.train: 
 

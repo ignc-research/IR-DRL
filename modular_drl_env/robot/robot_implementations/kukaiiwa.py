@@ -20,11 +20,12 @@ class Kukaiiwa(Robot):
                        control_mode: Union[int, str], 
                        ik_xyz_delta: float=0.005,
                        ik_rpy_delta: float=0.005,
+                       jt_joint_delta: float=0.5,
                        joint_velocities_overwrite: Union[float, List]=1,
                        joint_limits_overwrite: Union[float, List]=1,
                        controlled_joints: list=[],
                        self_collision: bool=True):
-        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, ik_xyz_delta, ik_rpy_delta, joint_velocities_overwrite, joint_limits_overwrite, controlled_joints, self_collision)
+        super().__init__(name, id_num, world, sim_step, use_physics_sim, base_position, base_orientation, resting_angles, control_mode, ik_xyz_delta, ik_rpy_delta, jt_joint_delta, joint_velocities_overwrite, joint_limits_overwrite, controlled_joints, self_collision)
 
         self.end_effector_link_id = "lbr_iiwa_link_7"
         self.base_link_id = "lbr_iiwa_link_0"

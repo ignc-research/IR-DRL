@@ -53,7 +53,7 @@ class ObstacleSensor(Sensor):
         self.normalizing_constant_a = 2 / (np.ones(3 * self.num_obstacles) * self.max_distance * 2)
         self.normalizing_constant_b = np.ones(3 * self.num_obstacles) - np.multiply(self.normalizing_constant_a, np.ones(3 * self.num_obstacles) * self.max_distance)
         self.normalizing_constant_a_spherical = 2 / np.tile([max_distance, 4 * np.pi, 4 * np.pi], self.num_obstacles)
-        self.normalizing_constant_b_spherical = np.ones(3 * self.num_obstacles) - np.multiply(self.normalizing_constant_a, np.tile([max_distance, 2 * np.pi, 2 * np.pi], self.num_obstacles))
+        self.normalizing_constant_b_spherical = np.ones(3 * self.num_obstacles) - np.multiply(self.normalizing_constant_a_spherical, np.tile([max_distance, 2 * np.pi, 2 * np.pi], self.num_obstacles))
         # bool for reporting output in spherical coordinates
         self.sphere_coordinates = sphere_coordinates
 

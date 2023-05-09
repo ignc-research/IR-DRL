@@ -10,7 +10,8 @@ from time import process_time
 CONTROL_MODES = [
     "inverse_kinematics",
     "joint_positions",
-    "joint_velocities"
+    "joint_velocities",
+    "joint_target"
 ]
 
 class Robot(ABC):
@@ -31,6 +32,7 @@ class Robot(ABC):
                        control_mode: Union[int, str], 
                        ik_xyz_delta: float=0.005,
                        ik_rpy_delta: float=0.005,
+                       jt_joint_delta: float=0.5,
                        joint_velocities_overwrite: Union[float, List]=1,
                        joint_limits_overwrite: Union[float, List]=1,
                        controlled_joints: list=[],
@@ -84,7 +86,7 @@ class Robot(ABC):
             assert control_mode in CONTROL_MODES, "[ROBOT init] unknown control mode!"
             self.control_mode = CONTROL_MODES.index(control_mode)
         else:
-            assert control_mode >= 0 and control_mode < 3, "[ROBOT init] unknown control mode!"
+            assert control_mode >= 0 and control_mode < 4, "[ROBOT init] unknown control mode!"
             self.control_mode = control_mode
 
         # goal associated with the robot
@@ -101,6 +103,10 @@ class Robot(ABC):
         self.xyz_delta = ik_xyz_delta
         self.rpy_delta = ik_rpy_delta
 
+        # for control mode 3
+        # the amount of deviation from the set joint target that is allowed
+        self.joint_delta = jt_joint_delta
+
         # if float: a multiplier for all joint velocities
         # if list: overwrite for max joint velocities, has to overwrite every single one
         self.joint_velocities_overwrite = joint_velocities_overwrite
@@ -112,6 +118,9 @@ class Robot(ABC):
 
         # bool for whether robot will have self collisions
         self.self_collision = self_collision
+
+        # joint angles for control mode 3, only ever gets set from the outside by other entities, e.g. a goal
+        self.control_target = []
 
     def get_action_space_dims(self):
         """
@@ -265,6 +274,18 @@ class Robot(ABC):
                 self.moveto_joints_vels(new_joint_vels)
         
         # returns execution time, gets used in gym env to log the times here
+        elif self.control_mode == 3:
+            # control via a pre-set joint angle target
+            # in this control mode we have joint angles and actions correspond to deviations from it
+            # the robot will then try to move to set joint angles + deviation
+            # e.g. a zero action will just be the trajectory angle
+
+            # convert action to desired joint angles
+            new_joints = self.control_target + self.joint_delta * action
+            # execute movement
+            self.moveto_joints(new_joints, self.use_physics_sim)
+
+
         return process_time() - cpu_epoch
 
     def moveto_joints_vels(self, desired_joints_velocities: np.ndarray):
