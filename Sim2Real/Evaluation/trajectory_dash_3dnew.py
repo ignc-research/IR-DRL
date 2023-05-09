@@ -69,7 +69,7 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([
-            dcc.Graph(id='graph', figure=fig, style={'height': '80vh', 'width': '100%'}),
+         dcc.Graph(id='graph', figure=fig, style={'height': '80vh', 'width': '100%'}),   
         ], width=8, style={'padding-right': '0px'}),
         dbc.Col([
             html.Div([
@@ -98,7 +98,7 @@ app.layout = dbc.Container([
                 [
                     html.Div([
                         dbc.Row([
-                            dbc.Col(html.Label(f"{os.path.basename(file)}", style={'font-family': 'Arial, sans-serif'}), width=6),
+                            dbc.Col(dcc.Input(id={'type': 'data-name', 'index': i}, value=os.path.basename(file), type='text', style={'width': '100%'})),
                            dbc.Col(html.Div(
                                 ColorPicker(
                                     id={'type': 'color-picker', 'index': i},
@@ -140,34 +140,29 @@ app.layout = dbc.Container([
 ], fluid=True)
 
 
-# Add this callback below the app.layout
-
 @app.callback(
     Output('graph', 'figure'),
     [
         Input('csv-dropdown', 'value'),
         Input('waypoints-dropdown', 'value'),
-    ],
-    [
-        State({'type': 'color-picker', 'index': ALL}, 'color'),
+        Input({'type': 'data-name', 'index': ALL}, 'value'),
+        Input({'type': 'color-picker', 'index': ALL}, 'color'),
     ],
 )
-
-def update_trajectories(selected_csv_files, show_waypoints, selected_colors):
-
+def update_trajectories(selected_csv_files, show_waypoints, data_names, selected_colors):
     if not selected_csv_files:
         raise PreventUpdate
 
     fig = go.Figure()
 
-    for i, (file, color) in enumerate(zip(selected_csv_files, selected_colors)):
+    for i, (file, color, name) in enumerate(zip(selected_csv_files, selected_colors, data_names)):
             csv_data = load_csv.load_csv_data(file)
             trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
             x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
-            fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name=f'Trajectory {i+1}', line=dict(color=selected_colors[i])))
+            fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name=name, line=dict(color=color)))
 
             if show_waypoints:
-                fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', name=f'Waypoints {i+1}', marker=dict(size=4, color=selected_colors[i])))
+                fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', name=f'Waypoints {i+1}', marker=dict(size=4, color=color)))
 
     fig.update_layout(scene=dict(
         xaxis_title="X",
@@ -180,6 +175,12 @@ def update_trajectories(selected_csv_files, show_waypoints, selected_colors):
     ))
 
     return fig
+
+
+
+
+
+
 
 #seperate callback only for the table to be able to hide/show it
 for i in range(len(csv_filepaths)):
@@ -203,6 +204,15 @@ def update_csv_elements_visibility(selected_csv_files, element_ids):
     selected_indices = [csv_filepaths.index(file) for file in selected_csv_files]
     return [{'display': 'block' if id['index'] in selected_indices else 'none'} for id in element_ids]
 
+
+# Functionality for user being able to change names of csv and trajectories
+@app.callback(
+    Output({'type': 'data-name', 'index': ALL}, 'value'),
+    Input({'type': 'data-name', 'index': ALL}, 'value'),
+    [State({'type': 'data-name', 'index': ALL}, 'id')],
+)
+def update_data_names(new_data_names, element_ids):
+    return new_data_names
 
 
 if __name__ == '__main__':
