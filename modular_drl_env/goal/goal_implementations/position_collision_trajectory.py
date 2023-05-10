@@ -110,7 +110,7 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.joints_position_buffer_size = joints_position_buffer_size
         self.previous_action = None
 
-        self.trajectory_sample_rate = 1 / 30  # hz
+        self.sample_radius = 0.05
 
         # performance metric name
         self.metric_names = ["angle_threshold"]
@@ -154,6 +154,11 @@ class PositionCollisionTrajectoryGoal(Goal):
     
     def reward(self, step, action):
         
+        if step == 100:
+            self.robot.moveto_joints(self.trajectory[-250], False)
+            self.robot.joints_sensor.update(0)
+            self.robot.position_rotation_sensor.update(0)
+
         if self.trajectory is None:
             return 0, False, True, False, False
 
@@ -163,6 +168,43 @@ class PositionCollisionTrajectoryGoal(Goal):
         # check collision status
         self.collided = pyb_u.collision
 
+        reward = 0
+
+        # Reward weights
+        close_distance_weight = -2.0
+        delta_joint_weight = 1.0
+        action_usage_weight = 1.5
+        rapid_action_weight = -0.2
+        collision_weight = -0.5
+        target_reached_weight = 0.05
+
+        delta_joints = self.waypoint_joints - self.current_joints
+        for i in delta_joints:
+            if abs(i) < 0.8:
+                reward += delta_joint_weight * (1 - (np.abs(i) / 0.8)) * (1 / 1000) * (1 / len(delta_joints))
+
+        reward += action_usage_weight * (1 - (np.square(action).sum() / len(action))) * (1 / 1000)
+
+        for i in range(len(action)):
+            if abs(action[i] - self.previous_action[i]) > 0.4:
+                reward += rapid_action_weight * (1 / 1000)
+
+        if self.obst_sensor.min_dist < self.d_min:
+            reward += close_distance_weight * (1/1000)
+        
+        if self.collided:
+            self.done = True
+            reward = collision_weight
+        else:
+            if self.final and np.all(np.absolute(self.current_joints - self.waypoint_joints) < self.angle_threshold):
+                reward += target_reached_weight
+                self.done = True
+                self.is_success = True
+
+        if step > self.max_steps:
+            self.timeout = True
+            self.done = True
+        """
         # binary signal for when robot is too close to obstacle
         if self.obst_sensor.min_dist < self.d_min:
             r_dist = 1
@@ -210,40 +252,27 @@ class PositionCollisionTrajectoryGoal(Goal):
         if step > self.max_steps:
             self.timeout = True
             self.done = True
-
+        """
+            
         self.reward_value = reward
 
         # remember action for next call
         self.previous_action = action
 
-        if step * self.robot.world.sim_step - self.n * self.trajectory_sample_rate >= self.trajectory_sample_rate:
-            self.trajectory_idx += 1
-            self.trajectory_idx = min(self.trajectory_idx, len(self.trajectory) - 1)
-            self.n += 1
-        """
-        # append current joints to the buffer
-        self.joints_position_buffer.append(self.current_joints)
-        
-        #check if buffer is full
-        if len(self.joints_position_buffer) > self.joints_position_buffer_size:
-            self.joints_position_buffer.pop(0)
-       
-        # if the buffer is full, calculate whether among the last x movements
-        # at least half were in the direction of the target
-        # if no, we assume that the current waypoint won't be reached and we increment to the next one
-        if len(self.joints_position_buffer) == self.joints_position_buffer_size and self.trajectory_idx < len(self.trajectory) - 1:
-            min_dist = np.inf
-            not_smaller = 0
-            for joint_position in self.joints_position_buffer:
-                joints_dist = np.linalg.norm(joint_position - self.waypoint_joints)
-                if joints_dist > min_dist:
-                    not_smaller += 1 # if not smaller bigger than 50% we assume the waypoint wont be reached anymore
-                else:
-                    min_dist = joints_dist
-            if not_smaller >= 0.5 * self.joints_position_buffer_size:
-                self.trajectory_idx += 1
-                self.joints_position_buffer = []
-        """
+        # determine which waypoint will be going into the observation space for the next step
+        # method: in a sphere around the robot's end effector, pick the one waypoint that is both
+        # a) the most far away from the end effector while stile in the sphere and
+        # b) the closest to the end waypoint along the trajectory
+        ee_position = self.robot.position_rotation_sensor.position
+        distances_to_ee = np.linalg.norm(self.trajectory_xyz -  ee_position, axis=1)
+        sphere_mask = distances_to_ee < self.sample_radius
+        if sphere_mask.any() == False:  # no points within radius, might happen if the agent goes too far off track
+            pass  # trajectory idx stays the same
+        else:
+            waylengths_of_trajectory_points_within_the_sphere = self.trajectory_waylenghts[sphere_mask]
+            min_waylength_within_sphere = min(waylengths_of_trajectory_points_within_the_sphere)
+            index_of_that_waypoint = np.where(self.trajectory_waylenghts == min_waylength_within_sphere)[0][0]
+            self.trajectory_idx = index_of_that_waypoint
 
         return self.reward_value, self.is_success, self.done, self.timeout, False  # out of bounds always false, doesn't make sense for preplanned trajectory
             
@@ -265,7 +294,24 @@ class PositionCollisionTrajectoryGoal(Goal):
             self.trajectory = self.planner.plan(self.target_joints, self.robot.world.active_obstacles)
         else:
             self.trajectory = self.planner.plan(self.target_joints, self.robot.world.obstacle_objects)
+        
+        # calculate cartesian positions of trajectory waypoints
+        self.trajectory_xyz = []
+        for waypoint in self.trajectory:
+            self.robot.moveto_joints(waypoint, False)
+            xyz, _, _, _ = pyb_u.get_link_state(self.robot.object_id, self.robot.end_effector_link_id)
+            self.trajectory_xyz.append(xyz)
+        self.trajectory_xyz = np.array(self.trajectory_xyz)
+        # calculate waylengths
+        self.trajectory_waylenghts = np.linalg.norm(self.trajectory_xyz[:-1] - self.trajectory_xyz[1:], axis=1)
+        self.trajectory_waylenghts = np.array(list(reversed(np.cumsum(list(reversed(self.trajectory_waylenghts))))) + [0])
+        
+
+        
         self.robot.moveto_joints(self.current_joints, False)
+
+
+
         if self.trajectory is not None:
             self.waypoint_joints = self.trajectory[0]
             if self.robot.control_mode == 3:  # joint target control mode
@@ -289,8 +335,13 @@ class PositionCollisionTrajectoryGoal(Goal):
         return [("angle_threshold", self.angle_threshold, True, True)]
     
     def build_visual_aux(self):
-        if self.trajectory:
-            for waypoint in self.trajectory:
+        if self.trajectory is not None:
+            n_waypoints = len(self.trajectory)
+            n_draw_points = min(50, int(0.1 * n_waypoints))
+            indices_to_drop = np.random.choice(len(self.trajectory), n_draw_points, replace=False)
+            keep_mask = np.zeros(len(self.trajectory), dtype=bool)
+            keep_mask[indices_to_drop] = True
+            for waypoint in self.trajectory[keep_mask]:
                 waypoint = np.array(waypoint)
                 self.robot.moveto_joints(waypoint, False)
                 goal_pos, goal_rot, _, _ = pyb_u.get_link_state(self.robot.object_id, self.robot.end_effector_link_id)

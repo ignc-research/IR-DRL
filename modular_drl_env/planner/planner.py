@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from modular_drl_env.robot.robot import Robot
 from typing import List
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 class Planner(ABC):
 
@@ -17,3 +18,4 @@ class Planner(ABC):
         The result has to be a list of joint positions which for a valid, collision-free trajectory between the start and q_goal.
         """
         pass
+    

@@ -174,13 +174,34 @@ class BiRRT(RRT):
 
     def plan(self, q_goal, obstacles) -> List:
         obstacles = [pyb_u.to_pb(obstacle.object_id) for obstacle in obstacles]
-        angles = self.robot.joints_sensor.joints_angles
-        ret = pyb_p.plan_joint_motion(pyb_u.to_pb(self.robot.object_id), self.joint_ids, q_goal, obstacles=obstacles, max_iterations=40)
+        q_start = self.robot.joints_sensor.joints_angles
+        ret = None
+        tries = 0
+        sample_fn = pyb_p.get_sample_fn(pyb_u.to_pb(self.robot.object_id), self.joint_ids)
+        distance_fn = pyb_p.get_distance_fn(pyb_u.to_pb(self.robot.object_id), self.joint_ids)
+        extend_fn = pyb_p.get_extend_fn(pyb_u.to_pb(self.robot.object_id), self.joint_ids)
+
+        def collision_fn(q, diagnosis=False) -> bool:
+            q = np.array(q)
+            self.robot.moveto_joints(q, False)
+            pyb_u.perform_collision_check()
+            pyb_u.get_collisions()
+            return pyb_u.collision
+
+        if not pyb_p.check_initial_end(q_start, q_goal, collision_fn):
+            return [q_start]
+        
+        while ret is None and tries < 50:
+            ret = pyb_p.birrt(q_start, q_goal, distance_fn, sample_fn, extend_fn, collision_fn, max_iterations=40, resolutions=0.005*np.ones(len(self.joint_ids)))
+            tries += 1
+            if tries >= 50:
+                raise Exception("RRT planner stuck!")
+        ret = pyb_p.refine_path(pyb_u.to_pb(self.robot.object_id), self.joint_ids, ret, 200)
         pyb_u.perform_collision_check()
         pyb_u.get_collisions()
         #print(pyb_u.collisions)
-        self.robot.moveto_joints(angles, False)
-        return ret
+        self.robot.moveto_joints(q_start, False)
+        return np.array(ret)
     
     
     

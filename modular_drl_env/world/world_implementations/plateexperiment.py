@@ -124,6 +124,7 @@ class PlateExperiment(World):
                 break
         # now we can set all the attributes
         self.active_obstacles.append(random_obst)
+        #print(self.active_obstacles)
         self.ee_starting_points.append((random_start, rotation_start, joints_start))
         self.position_targets.append(random_goal)
         self.rotation_targets.append(rotation_goal)
