@@ -58,7 +58,7 @@ class RandomObstacleWorld(World):
         self.obstacle_storage_location = np.array([0, 0, -10])
 
         # helper list
-        self.active_obstacles = []
+        self.active_objects = []
         self.moving_obstacles = []
 
     def set_up(self):
@@ -104,10 +104,10 @@ class RandomObstacleWorld(World):
         self.joints_targets = []
         self.ee_starting_points = []
         # move currently used obstacles into storage
-        for obst in self.active_obstacles:
+        for obst in self.active_objects:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
             obst.move_base(self.obstacle_storage_location + offset)
-        self.active_obstacles = []
+        self.active_objects = []
 
         # get number of obstacles for this run
         if self.randomize_number_of_obstacles:
@@ -124,7 +124,7 @@ class RandomObstacleWorld(World):
             # generate random position
             position = np.random.uniform(low=np.array([self.x_min, self.y_min, self.z_min]), high=np.array([self.x_max, self.y_max, self.z_max]), size=(3,))
             obst.move_base(position)
-            self.active_obstacles.append(obst)
+            self.active_objects.append(obst)
 
         # generate robot starting positions and targets
         robots_with_starting_points = [robot for robot in self.robots if robot.goal is not None]
@@ -186,7 +186,7 @@ class RandomObstacleWorld(World):
                     pyb_u.get_collisions()
                     collision = pyb_u.collision
             if tries < 200:
-                self.active_obstacles.append(obst_sample[-1])
+                self.active_objects.append(obst_sample[-1])
             else:
                 obst_sample[-1].move_base(self.obstacle_storage_location)
         
@@ -199,5 +199,5 @@ class RandomObstacleWorld(World):
 
     def update(self):
 
-        for obstacle in self.active_obstacles:
+        for obstacle in self.active_objects:
             obstacle.move_traj()

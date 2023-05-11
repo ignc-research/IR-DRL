@@ -24,7 +24,7 @@ class PlateExperiment(World):
         self.num_pre_gen = 50
 
         # active objects in episode
-        self.active_obstacles = []
+        self.active_objects = []
 
     def set_up(self):
         # ground plate
@@ -40,10 +40,10 @@ class PlateExperiment(World):
     def reset(self, success_rate: float):
         # reset attributes
         self.ee_starting_points = []
-        for obst in self.active_obstacles:
+        for obst in self.active_objects:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
             obst.move_base(self.position_nowhere + offset)
-        self.active_obstacles = []
+        self.active_objects = []
         self.position_targets = []
         self.rotation_targets = []
         self.joints_targets = []
@@ -104,26 +104,26 @@ class PlateExperiment(World):
                 rot_mat[:3, 2] = c
                 rot_quat = matrix_to_quaternion(rot_mat)
                 # now we can move the obstacle
-                pyb_u.set_base_pos_and_ori(random_obst.object_id, obst_pos, rot_quat)
+                random_obst.move_base(obst_pos, rot_quat)
                 # now check if there is any collision
                 pyb_u.perform_collision_check()
                 pyb_u.get_collisions()
                 if pyb_u.collision:
-                    pyb_u.set_base_pos_and_ori(random_obst.object_id, self.position_nowhere, np.array([0, 0, 0, 1]))
+                    random_obst.move_base(self.position_nowhere, np.array([0, 0, 0, 1]))
                     continue
                 # check for starting position
                 self.robots[0].moveto_joints(joints_start, False)
                 pyb_u.perform_collision_check()
                 pyb_u.get_collisions()
                 if pyb_u.collision:
-                    pyb_u.set_base_pos_and_ori(random_obst.object_id, self.position_nowhere, np.array([0, 0, 0, 1]))
+                    random_obst.move_base(self.position_nowhere, np.array([0, 0, 0, 1]))
                     self.robots[0].moveto_joints(joints_goal, False)
                     continue
                 break
             if tries <= 500:
                 break
         # now we can set all the attributes
-        self.active_obstacles.append(random_obst)
+        self.active_objects.append(random_obst)
         #print(self.active_obstacles)
         self.ee_starting_points.append((random_start, rotation_start, joints_start))
         self.position_targets.append(random_goal)

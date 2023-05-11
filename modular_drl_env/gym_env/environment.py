@@ -47,6 +47,7 @@ class ModularDRLEnv(gym.Env):
         # number of episodes after which the code will exit on its own, if set to -1 will continue indefinitely until stopped from the outside
         self.max_episodes = env_config["max_episodes"]  
         # 0: no logging, 1: logging for console every episode, 2: logging for console every episode and to csv after maximum number of episodes has been reached or after every episode if max_episodes is -1
+        # 3: same as 2 but will also log the position, orientation and shape of every obstacle as well as the closest distances to those for each robot (performance heavy)
         self.logging = env_config["logging"] 
         # length of the stat arrays in terms of episodes over which the average will be drawn for logging
         self.stat_buffer_size = env_config["stat_buffer_size"]  
@@ -60,6 +61,7 @@ class ModularDRLEnv(gym.Env):
         self.sim_step = env_config["sim_step"]  
         # the env id, this is used to recognize this env when running multiple in parallel, is used for some file related stuff
         self.env_id = env_config["env_id"]
+        
 
         # tracking variables
         self.episode = 0
@@ -302,7 +304,7 @@ class ModularDRLEnv(gym.Env):
         if self.logging == 0:
             # no logging
             info = {}
-        if self.logging == 1 or self.logging == 2:
+        if self.logging == 1 or self.logging == 2 or self.logging == 3:
             # logging to console or textfile
 
             # start log dict with env wide information
@@ -334,6 +336,9 @@ class ModularDRLEnv(gym.Env):
             for goal in self.goals:
                 if goal.add_to_logging:
                     info = {**info, **goal.get_data_for_logging()}
+            # get log data from world
+            if self.logging == 3:
+                info = {**info, **self.world.get_data_for_logging()}
 
             self.log.append(info)
 
@@ -343,7 +348,7 @@ class ModularDRLEnv(gym.Env):
                 info_string = self._get_info_string(info)
                 print(info_string)
                 # write to textfile, in this case the entire log so far
-                if self.logging == 2:
+                if self.logging == 2 or self.logging == 3:
                     if self.max_episodes == -1 or self.episode == self.max_episodes:
                         pd.DataFrame(self.log).to_csv("./models/env_logs/episode_" + str(self.episode) + ".csv")
 
@@ -373,6 +378,8 @@ class ModularDRLEnv(gym.Env):
                     to_print = str(round(info[key], 3))
                 else:  # time very small
                     to_print = "{:.2e}".format(info[key])
+            elif type(info[key]) == list:
+                pass
             else:
                 to_print = str(round(info[key], 3))
             info_string += key + ": " + to_print + ", "

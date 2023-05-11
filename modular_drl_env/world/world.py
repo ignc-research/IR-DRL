@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
+import pybullet as pyb
 import numpy as np
+from modular_drl_env.world.obstacles.shapes import *
+from modular_drl_env.world.obstacles.urdf_object import URDFObject
 
 
 class World(ABC):
@@ -15,8 +18,12 @@ class World(ABC):
         self.aux_objects = []
         # same, but for lines
         self.aux_lines = []
-        # list that will contain all obstacle objects used in this world
+        # list that will contain all obstacle objects used in this world, even those that are not being used for the current episode
         self.obstacle_objects = []
+        # this list should contain those objects that are used in the current episode, this is important to manage as
+        # a) our logging will only take these objects into account and b) some collision checks like the RRT planner
+        # will only check for objects in this list
+        self.active_objects = []
 
         # set sim step
         self.sim_step = sim_step
@@ -130,6 +137,38 @@ class World(ABC):
         This method should update all dynamic and movable parts of the world simulation. If there are none it doesn't need to do anything at all.
         """
         pass
+
+    def get_data_for_logging(self):
+        """
+        This method logs the position and sizes of all active geometry. Additionally, it will report the closest distance of all robots to the obstacles.
+        """
+        log_dict = dict()
+        for robot in self.robots:
+            log_dict[robot.name + "_closestObstDistance_robot"] = np.inf
+            log_dict[robot.name + "_closestObstDistance_ee"] = np.inf
+        obstacle_log_list = []
+        for obstacle in self.active_objects:
+            # check distance of obstacle to all robots
+            for robot in self.robots:
+                obstacle_pyb_id = pyb_u.to_pb(obstacle.object_id)
+                robot_pyb_id = pyb_u.to_pb(robot.object_id)
+                closestDistances_robot = pyb.getClosestPoints(robot_pyb_id, obstacle_pyb_id, 99)
+                closestDistance_robot = min([value[8] for value in closestDistances_robot])
+                closestDistance_ee = pyb.getClosestPoints(robot_pyb_id, obstacle_pyb_id, 99, pyb_u.pybullet_link_ids[robot.object_id, robot.end_effector_link_id])[0][8]
+                log_dict[robot.name + "_closestObstDistance_robot"] = min(closestDistance_robot, log_dict[robot.name + "_closestObstDistance_robot"])
+                log_dict[robot.name + "_closestObstDistance_ee"] = min(closestDistance_ee, log_dict[robot.name + "_closestObstDistance_ee"])
+
+            if type(obstacle) == Sphere:
+                obstacle_log_list.append(["Sphere", obstacle.radius, obstacle.position])
+            elif type(obstacle) == Box:
+                obstacle_log_list.append(["Box", obstacle.halfExtents, obstacle.position, obstacle.orientation])
+            elif type(obstacle) == Cylinder:
+                obstacle_log_list.append(["Cylinder", obstacle.radius, obstacle.height, obstacle.position, obstacle.orientation])
+            elif type(obstacle) == URDFObject:
+                obstacle_log_list.append(["URDF", obstacle.urdf_path, obstacle.position, obstacle.orientation])
+        log_dict["obstacles"] = obstacle_log_list
+
+        return log_dict
 
     def _create_ee_starting_points(self, robots, factor=-1, base_dist=7.5e-2) -> None:
         """

@@ -67,7 +67,11 @@ class Obstacle(ABC):
                 self.position = self.position + step
                 pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=self.position, orientation=self.orientation)
 
-    def move_base(self, new_base_position):
-        pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=new_base_position, orientation=self.orientation_orig)
+    def move_base(self, new_base_position, new_base_rotation=None):
+        if new_base_rotation is None:
+            new_base_rotation = self.orientation_orig
+        pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=new_base_position, orientation=new_base_rotation)
         self.position_orig = new_base_position
         self.position = new_base_position
+        self.orientation = new_base_rotation
+        self.orientation_orig = new_base_rotation
