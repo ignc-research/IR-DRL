@@ -113,11 +113,13 @@ app.layout = dbc.Container([
                             dash_table.DataTable(
                                 id={'type': 'waypoints-table', 'index': i},
                                 columns = [
+                                     {'name' : 'Episodes', 'id': 'episodes'},
                                     {'name': 'Waypoints', 'id' : 'waypoints'},
                                     {'name' : 'Velocities', 'id' : 'velocities'}
                                 ],
                                 data=[
                                 {
+                                    'episodes': f'{int(row["episodes"])}',
                                     'waypoints': f'({row["position_ee_link_ur5_1"][0]:.2f}, {row["position_ee_link_ur5_1"][1]:.2f}, {row["position_ee_link_ur5_1"][2]:.2f})',
                                     'velocities': f'({row["velocity_ee_link_ur5_1"][0]:.2f}, {row["velocity_ee_link_ur5_1"][1]:.2f}, {row["velocity_ee_link_ur5_1"][2]:.2f})'
                                 } for row in load_csv.load_csv_data(file)
@@ -245,8 +247,6 @@ def update_data_names(new_data_names, element_ids):
 def count_episodes(csv_data):
     #define needed data in data_array
             episodes = np.array([row["episodes"]for row in csv_data])
-            ee_pos = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
-            velocities_ee = np.array([row["velocity_ee_link_ur5_1"] for row in csv_data])
             #print(episodes)
             return (episodes[-1])
     #Access last element of episodes row, to know how many episodes are there
