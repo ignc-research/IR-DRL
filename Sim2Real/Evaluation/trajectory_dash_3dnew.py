@@ -36,6 +36,7 @@ trajectory2 = np.array([row["position_ee_link_ur5_1"] for row in csv_data2])
 
 
 
+
 # Extract x, y, and z arrays from the trajectory
 x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
 a,b,c = trajectory2[:,0], trajectory2[:,1], trajectory2[:,2]
@@ -152,15 +153,41 @@ app.layout = dbc.Container([
 def update_trajectories(selected_csv_files, show_waypoints, data_names, selected_colors):
     if not selected_csv_files:
         raise PreventUpdate
+    
+    
+   
 
     fig = go.Figure()
 
     for i, (file, color, name) in enumerate(zip(selected_csv_files, selected_colors, data_names)):
             csv_data = load_csv.load_csv_data(file)
-            trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
-            x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
-            fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name=name, line=dict(color=color)))
+            count_ep = int(count_episodes(csv_data))
+            #check if there are multiple episodes, if yes then add a trajectory for every episode on its own
+            if count_ep > 1: 
+                 #count all ones, twos etc..
+                 number_ep = count_number_of_episodes(csv_data)
+                 #set lower and upper bounds
+                 num_lower_bound = 0
+                 num_upper_bound = 0
+                 ee_pos = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
+                 for i in range(count_ep):
+                    num_upper_bound = num_upper_bound + number_ep[i]
+                    trajectory = ee_pos[num_lower_bound:num_upper_bound]
+                    x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
+                    fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name= name + "_" + str(i+1), line=dict(color=color)))
+                    num_lower_bound = num_upper_bound 
+                    if show_waypoints:
+                        fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', name=f'Waypoints {i+1}', marker=dict(size=4, color=color)))
 
+                 
+                    
+            else:
+                trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
+                x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
+                fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name=name, line=dict(color=color)))
+                
+            
+          
             if show_waypoints:
                 fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='markers', name=f'Waypoints {i+1}', marker=dict(size=4, color=color)))
 
@@ -214,6 +241,27 @@ def update_csv_elements_visibility(selected_csv_files, element_ids):
 def update_data_names(new_data_names, element_ids):
     return new_data_names
 
+
+def count_episodes(csv_data):
+    #define needed data in data_array
+            episodes = np.array([row["episodes"]for row in csv_data])
+            ee_pos = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
+            velocities_ee = np.array([row["velocity_ee_link_ur5_1"] for row in csv_data])
+            #print(episodes)
+            return (episodes[-1])
+    #Access last element of episodes row, to know how many episodes are there
+    
+def count_number_of_episodes(csv_data):
+     # Array erstellen, in dem für jede indexstelle die anzahl der jeweiligen Zahlen i+1 gespeichert wird
+    episodes = np.array([row["episodes"]for row in csv_data])
+    max_number = int(max(episodes))
+    number_array = [0] * max_number
+
+    for episode in episodes: 
+         number_array[int(episode) -1] += 1
+
+    return number_array
+   
 
 if __name__ == '__main__':
     app.run_server(debug=True)
