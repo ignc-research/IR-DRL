@@ -8,12 +8,21 @@ import load_csv
 from dash import dash_table
 from dash.dependencies import Input,Output
 
+import random
+
+
 #sim time = execution time
 
 #TODO:
 #Start und Goal markieren
 #Computation time statt planning time, computation time farbe des planners
-# 2. Chart, Steps als Barchart
+#shaking 
+#gucken ob die werte für distance to obstacle stimmen 
+
+#TODO: 
+# Average per episode
+# tabular farben statt basic farben 
+
 
 #DRL = Green,
 #RRT = red, 
@@ -110,21 +119,34 @@ def distance_to_obstacles(csv_data):
 
     return distance
 
-    
-      
-    
-distance_to_obstacles(csv_DRL)
+DRL_array = [
+    [0.3, 0.5, 0.2, 0.8],
+    [0.4, 0.6, 0.3, 0.9],
+    [0.5, 0.7, 0.4, 0.8],
+    [0.6, 0.7, 0.4, 0.7],
+    [0.7, 0.8, 0.3, 0.6],
+    [0.4, 0.5, 0.6, 0.9],
+    [0.8, 0.9, 0.2, 0.5],
+    [0.4, 0.6, 0.3, 0.9],
+    [0.4, 0.6, 0.3, 0.9],
+    [0.5, 0.7, 0.4, 0.8]  
+]
+
+def generate_random_array():
+    return [[random.random() for _ in range(4)] for _ in range(10)]
+
+RRT_array = generate_random_array()
+PRM_array = generate_random_array()
+
 plan_DRL, exec_DRL = planning_execution_average(csv_DRL,1)
 plan_RRT, exec_RRT = planning_execution_average(csv_RRT,2)
 plan_PRM, exec_PRM = planning_execution_average(csv_PRM,2)
 
 # Planning execution time
-planning_time_DRL_1  =plan_DRL[0] 
-execution_time_DRL_1 = exec_DRL[0]
+
 planning = [plan_DRL[0], plan_RRT[0], plan_PRM[0]]
 execution = [exec_DRL[0], exec_RRT[0], exec_PRM[0]]
-planning_2 = [plan_DRL[1], plan_RRT[1], plan_PRM[1]]
-execution_2 = [exec_DRL[1], exec_RRT[1], exec_PRM[1]]
+
 
 
 #Number of Steps 
@@ -134,12 +156,16 @@ steps_PRM = count_number_of_episodes(csv_PRM)
 
 
 #distance_to_obstacle
-distance_to_obstacle = [0.5, 0.6, 0.7, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]
+#distance_to_obstacle = [0.5, 0.6, 0.7, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]
 distance_obst_DRL = distance_to_obstacles(csv_DRL)
 distance_obst_RRT = distance_to_obstacles(csv_RRT)
 distance_obst_PRM = distance_to_obstacles(csv_PRM)
 
 
+#radar array
+#radar_DRL = fill_radar_array(csv_DRL,1)
+#radar_RRT = fill_radar_array (csv_RRT,2)
+#radar_PRM = fill_radar_array (csv_PRM,2)
 
 # Create the dashboard layout
 app.layout = dbc.Container(fluid=True, children=[
@@ -220,34 +246,43 @@ app.layout = dbc.Container(fluid=True, children=[
        dbc.Col([
             html.H3('Radar Chart', style={'textAlign': 'center', 'font-family': 'Arial, sans-serif'}),
             dcc.Graph(
-                id='radar-chart',
-                figure={
-                    'data': [
-                        go.Scatterpolar(
-                            r=[0.5, 0.3, 0.9, 0.5],
-                            theta=['smoothness', 'collision','number of steps', 'execution time'],
-                            fill='toself',
-                            name='Radar Chart'
-                        )
-                    ],
-                    'layout': go.Layout(
-                        polar=dict(
-                            radialaxis=dict(visible=True, range=[0, 1])
-                        ),
-                        showlegend=False
-                    )
-                }
+    id='radar-chart',
+    figure={
+        'data': [
+            go.Scatterpolar(
+                r=DRL_array[0],
+                theta=['computation Time', 'distance_to_obstacle', 'number of steps', 'execution time'],
+                fill='toself',
+                name='DRL'
             ),
-            dcc.Dropdown(
-                id='radar-chart-dropdown',
-                options=[
-                    {'label': 'Placeholder 1', 'value': 'Placeholder 1'},
-                    {'label': 'Placeholder 2', 'value': 'Placeholder 2'}
-                ],
-                value='Placeholder 1',
-                clearable=False,
-                style={'width': '100%', 'font-family': 'Arial, sans-serif'}
+            go.Scatterpolar(
+                r=RRT_array[0],
+                theta=['computation Time', 'distance_to_obstacle', 'number of steps', 'execution time'],
+                fill='toself',
+                name='RRT'
             ),
+            go.Scatterpolar(
+                r=PRM_array[0],
+                theta=['computation Time', 'distance_to_obstacle', 'number of steps', 'execution time'],
+                fill='toself',
+                name='PRM'
+            )
+        ],
+        'layout': go.Layout(
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 1])
+            ),
+            showlegend=True
+        )
+    }
+),
+dcc.Dropdown(
+    id='radar-chart-dropdown',
+    options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)],
+    value='Episode 1',
+    clearable=False,
+    style={'width': '100%', 'font-family': 'Arial, sans-serif'}
+),
         ], width=4),
         
     ]),
@@ -310,6 +345,43 @@ def update_distance_to_obstacle_chart(episode):
         'layout': go.Layout(
             xaxis={'title': 'Steps'},
             yaxis={'title': 'Distance'}
+        )
+    }
+
+
+@app.callback(
+    Output('radar-chart', 'figure'),
+    [Input('radar-chart-dropdown', 'value')]
+)
+def update_radar_chart(episode):
+    episode_index = int(episode.split(" ")[-1]) - 1
+
+    return {
+        'data': [
+            go.Scatterpolar(
+                r=DRL_array[episode_index],
+                theta=['computation Time', 'distance_to_obstacle', 'number of steps', 'execution time'],
+                fill='toself',
+                name='DRL'
+            ),
+            go.Scatterpolar(
+                r=RRT_array[episode_index],
+                theta=['computation Time', 'distance_to_obstacle', 'number of steps', 'execution time'],
+                fill='toself',
+                name='RRT'
+            ),
+            go.Scatterpolar(
+                r=PRM_array[episode_index],
+                theta=['computation Time', 'distance_to_obstacle', 'number of steps', 'execution time'],
+                fill='toself',
+                name='PRM'
+            )
+        ],
+        'layout': go.Layout(
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 1])
+            ),
+            showlegend=True
         )
     }
 
