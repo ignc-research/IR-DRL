@@ -81,10 +81,36 @@ def planning_execution_average(csv_data,mode):
 
     return computation_time_per_episode, exec_time_per_episode
 
+def set_bounds(csv_data):
+    num_episodes = count_number_of_episodes(csv_data)
+    lower_bound = [None for _ in range(len(num_episodes))]
+    upper_bound = [None for _ in range(len(num_episodes))]
+    lower_bound[0] = 0
+    upper_bound[0] = num_episodes[0] -1
+    for i in range(1,len(num_episodes)):
+        lower_bound[i] = upper_bound[i-1]
+        upper_bound[i] = upper_bound[i-1] + num_episodes[i]
+    
+    return lower_bound, upper_bound
+
+def distance_to_obstacles(csv_data):
+    num_episodes = count_number_of_episodes(csv_data)
+    lower_bound,upper_bound = set_bounds(csv_data)
+    
+    distance_row = np.array([row["ur5_1_closestObstDistance_robot"]for row in csv_data])
+    distance = [[] for _ in range(len(num_episodes))]
+
+
+    for i in range(len(num_episodes)):
+        for j in range(lower_bound[i], upper_bound[i]):
+            distance[i].append(distance_row[j])
+
+    return distance
 
     
+      
     
-
+distance_to_obstacles(csv_DRL)
 plan_DRL, exec_DRL = planning_execution_average(csv_DRL,1)
 plan_RRT, exec_RRT = planning_execution_average(csv_RRT,2)
 plan_PRM, exec_PRM = planning_execution_average(csv_PRM,2)
@@ -98,17 +124,7 @@ planning_2 = [plan_DRL[1], plan_RRT[1], plan_PRM[1]]
 execution_2 = [exec_DRL[1], exec_RRT[1], exec_PRM[1]]
 
 
-
-#shaking part
-"""
-shaking_DRL = np.array([row["shaking_ur5_1"] for row in csv_DRL])
-steps_DRL = list(range(1, 200))
-steps_row = np.array([row[""] for row in csv_DRL])
-steps_DRL = list(range(1,int(steps_row[-1])))
-"""
-
-#dummy steps 
-# Dummy values
+#Number of Steps 
 steps_DRL = count_number_of_episodes(csv_DRL)
 steps_RRT = count_number_of_episodes(csv_RRT)
 steps_PRM = count_number_of_episodes(csv_PRM)
@@ -116,8 +132,9 @@ steps_PRM = count_number_of_episodes(csv_PRM)
 
 #distance_to_obstacle
 distance_to_obstacle = [0.5, 0.6, 0.7, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]
-distance_obst_DRL = np.array([row["ur5_1_closestObstDistance_robot"]for row in csv_DRL])
-distance_obst_RRT = np.array([row["ur5_1_closestObstDistance_robot"]for row in csv_RRT])
+distance_obst_DRL = distance_to_obstacles(csv_DRL)
+distance_obst_RRT = distance_to_obstacles(csv_RRT)
+distance_obst_PRM = distance_to_obstacles(csv_PRM)
 
 
 
@@ -179,31 +196,20 @@ app.layout = dbc.Container(fluid=True, children=[
                 id='distance-to-obstacle',
                 figure={
                     'data': [
-                        go.Scatter(x=steps_DRL, y=distance_to_obstacle, mode='lines+markers', name='Distance')
+                        go.Scatter(x=list(range(1, 500)), y=distance_obst_DRL[0], mode='lines+markers', name='DRL Distance', marker_color=colors[0]),
+                        go.Scatter(x=list(range(1, 500)), y=distance_obst_RRT[0], mode='lines+markers', name='RRT Distance',marker_color=colors[1]),
+                        go.Scatter(x=list(range(1, 500)), y=distance_obst_PRM[0], mode='lines+markers', name='PRM Distance',marker_color=colors[2])
                     ],
                     'layout': go.Layout(
                         xaxis={'title': 'Steps'},
-                        yaxis={'title': 'Distance'},
-                        shapes=[{
-                            'type': 'line',
-                            'x0': steps_DRL[0],
-                            'x1': steps_DRL[-1],
-                            'y0': 0.5,
-                            'y1': 0.5,
-                            'yref': 'y',
-                            'xref': 'x',
-                            'line': {'color': 'red', 'width': 1, 'dash': 'dot'}
-                        }]
+                        yaxis={'title': 'Distance'}
                     )
                 }
             ),
             dcc.Dropdown(
                 id='distance-to-obstacle-dropdown',
-                options=[
-                    {'label': 'Placeholder 1', 'value': 'Placeholder 1'},
-                    {'label': 'Placeholder 2', 'value': 'Placeholder 2'}
-                ],
-                value='Placeholder 1',
+                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)],
+                value='Episode 1',
                 clearable=False,
                 style={'width': '100%', 'font-family': 'Arial, sans-serif'}
             ),
@@ -244,7 +250,7 @@ app.layout = dbc.Container(fluid=True, children=[
     ]),
 ])
 
-
+#Graph 1: Planning and execution time
 @app.callback(
     Output('planning-execution-time', 'figure'),
     [Input('planning-execution-time-dropdown', 'value')]
@@ -265,7 +271,7 @@ def update_planning_execution_chart(episode):
         'layout': go.Layout(barmode='stack', xaxis={'title': ''}, yaxis={'title': 'Time'})
     }
 
-
+#Graph 2: Number of steps
 @app.callback(
     Output('number-of-steps', 'figure'),
     [Input('number-of-steps-dropdown', 'value')]
@@ -282,6 +288,26 @@ def update_number_of_steps_chart(episode):
                 go.Bar(x=['PRM'], y=[steps_values[2]], name='PRM Number of Steps', marker_color=colors[2]),
         ],
         'layout': go.Layout(xaxis={'title': ''}, yaxis={'title': 'Number of Steps'})
+    }
+
+#Graph 3: Distance to obstacles
+@app.callback(
+    Output('distance-to-obstacle', 'figure'),
+    [Input('distance-to-obstacle-dropdown', 'value')]
+)
+def update_distance_to_obstacle_chart(episode):
+    episode_index = int(episode.split(" ")[-1]) - 1
+
+    return {
+        'data': [
+            go.Scatter(x=list(range(1, 500)), y=distance_obst_DRL[episode_index], mode='lines+markers', name='DRL Distance', marker_color=colors[0]),
+            go.Scatter(x=list(range(1, 500)), y=distance_obst_RRT[episode_index], mode='lines+markers', name='RRT Distance', marker_color=colors[1]),
+            go.Scatter(x=list(range(1, 500)), y=distance_obst_PRM[episode_index], mode='lines+markers', name='PRM Distance', marker_color=colors[2])
+        ],
+        'layout': go.Layout(
+            xaxis={'title': 'Steps'},
+            yaxis={'title': 'Distance'}
+        )
     }
 
 if __name__ == '__main__':
