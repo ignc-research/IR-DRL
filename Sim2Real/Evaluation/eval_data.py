@@ -62,7 +62,6 @@ def planning_execution_average(csv_data,mode):
         lower_bound[i] = upper_bound[i-1]
         upper_bound[i] = upper_bound[i-1] + num_episodes[i]
        
-    #TODO: different modes for RRT, DRL or PRM and hybrid
     
     computation_time_per_episode = [None for _ in range(len(num_episodes))]
     exec_time_per_episode = [None for _ in range(len(num_episodes))]
@@ -83,6 +82,9 @@ def planning_execution_average(csv_data,mode):
     return computation_time_per_episode, exec_time_per_episode
 
 
+    
+    
+
 plan_DRL, exec_DRL = planning_execution_average(csv_DRL,1)
 plan_RRT, exec_RRT = planning_execution_average(csv_RRT,2)
 plan_PRM, exec_PRM = planning_execution_average(csv_PRM,2)
@@ -98,10 +100,18 @@ execution_2 = [exec_DRL[1], exec_RRT[1], exec_PRM[1]]
 
 
 #shaking part
+"""
 shaking_DRL = np.array([row["shaking_ur5_1"] for row in csv_DRL])
 steps_DRL = list(range(1, 200))
 steps_row = np.array([row[""] for row in csv_DRL])
 steps_DRL = list(range(1,int(steps_row[-1])))
+"""
+
+#dummy steps 
+# Dummy values
+steps_DRL = count_number_of_episodes(csv_DRL)
+steps_RRT = count_number_of_episodes(csv_RRT)
+steps_PRM = count_number_of_episodes(csv_PRM)
 
 
 #distance_to_obstacle
@@ -131,7 +141,7 @@ app.layout = dbc.Container(fluid=True, children=[
                         go.Bar(x=['PRM'], y=[planning[2]], name='Computation Time PRM', marker_color=colors[2]),
                         go.Bar(x=['DRL', 'RRT', 'PRM'], y=execution, name='Execution Time',marker_color='orange')
                     ],
-                    'layout': go.Layout(barmode='stack', xaxis={'title': 'Episode'}, yaxis={'title': 'Time'})
+                    'layout': go.Layout(barmode='stack', xaxis={'title': ''}, yaxis={'title': 'Time'})
                 }
             ),
             dcc.Dropdown(
@@ -143,24 +153,21 @@ app.layout = dbc.Container(fluid=True, children=[
             ),
         ], width=4),
         dbc.Col([
-            html.H3('Shaking', style={'textAlign': 'center', 'font-family': 'Arial, sans-serif'}),
+           html.H3('Number of Steps', style={'textAlign': 'center', 'font-family': 'Arial, sans-serif'}),
             dcc.Graph(
-                id='shaking',
+                id='number-of-steps',
                 figure={
                     'data': [
-                        go.Scatter(x=steps_DRL, y=shaking_DRL, mode='lines+markers', name='DRL')
+                        go.Bar(x=['DRL'], y=[steps_DRL[0]], name='DRL Number of Steps', marker_color=colors[0]),
+                        go.Bar(x=['RRT'], y=[steps_RRT[1]], name='RRT Number of Steps', marker_color=colors[1]),
+                        go.Bar(x=['PRM'], y=[steps_PRM[2]], name='PRM Number of Steps', marker_color=colors[2]),
                     ],
-                    'layout': go.Layout(xaxis={'title': 'Steps'}, yaxis={'title': 'Shaking'}, showlegend=True)
+                    'layout': go.Layout(xaxis={'title': ''}, yaxis={'title': 'Number of Steps'})
                 }
             ),
             dcc.Dropdown(
-                id='shaking-dropdown',
-                options=[
-                    {'label': 'Episode 1', 'value': 'Episode 1'},
-                    {'label': 'Episode 2', 'value': 'Episode 2'},
-                    {'label': 'Episode 3', 'value': 'Episode 3'},
-                    
-                ],
+                id='number-of-steps-dropdown',
+                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)],
                 value='Episode 1',
                 clearable=False,
                 style={'width': '100%', 'font-family': 'Arial, sans-serif'}
@@ -255,7 +262,26 @@ def update_planning_execution_chart(episode):
             go.Bar(x=['PRM'], y=[planning_values[2]], name='Computation Time PRM', marker_color=colors[2]),
             go.Bar(x=['DRL', 'RRT', 'PRM'], y=execution_values, name='Execution Time',marker_color='orange')
         ],
-        'layout': go.Layout(barmode='stack', xaxis={'title': 'Episode'}, yaxis={'title': 'Time'})
+        'layout': go.Layout(barmode='stack', xaxis={'title': ''}, yaxis={'title': 'Time'})
+    }
+
+
+@app.callback(
+    Output('number-of-steps', 'figure'),
+    [Input('number-of-steps-dropdown', 'value')]
+)
+def update_number_of_steps_chart(episode):
+    episode_index = int(episode.split(" ")[-1]) - 1
+
+    steps_values = [steps_DRL[episode_index], steps_RRT[episode_index], steps_PRM[episode_index]]
+
+    return {
+        'data': [
+                go.Bar(x=['DRL'], y=[steps_values[0]], name='DRL Number of Steps', marker_color=colors[0]),
+                go.Bar(x=['RRT'], y=[steps_values[1]], name='RRT Number of Steps', marker_color=colors[1]),
+                go.Bar(x=['PRM'], y=[steps_values[2]], name='PRM Number of Steps', marker_color=colors[2]),
+        ],
+        'layout': go.Layout(xaxis={'title': ''}, yaxis={'title': 'Number of Steps'})
     }
 
 if __name__ == '__main__':
