@@ -126,26 +126,17 @@ app.layout = dbc.Container(fluid=True, children=[
                 id='planning-execution-time',
                 figure={
                     'data': [
-                        go.Bar(x=list(range(1, 10)), y=planning, name='Planning Time'),
-                        go.Bar(x=list(range(1, 10)), y=execution, name='Execution Time')
+                        go.Bar(x=['DRL'], y=[planning[0]], name='Computation Time DRL', marker_color=colors[0]),
+                        go.Bar(x=['RRT'], y=[planning[1]], name='Computation Time RRT', marker_color=colors[1]),
+                        go.Bar(x=['PRM'], y=[planning[2]], name='Computation Time PRM', marker_color=colors[2]),
+                        go.Bar(x=['DRL', 'RRT', 'PRM'], y=execution, name='Execution Time',marker_color='orange')
                     ],
                     'layout': go.Layout(barmode='stack', xaxis={'title': 'Episode'}, yaxis={'title': 'Time'})
                 }
             ),
             dcc.Dropdown(
                 id='planning-execution-time-dropdown',
-                options=[
-                    {'label': 'Episode 1', 'value': 'Episode 1'},
-                    {'label': 'Episode 2', 'value': 'Episode 2'},
-                    {'label': 'Episode 3', 'value': 'Episode 3'},
-                    {'label': 'Episode 4', 'value': 'Episode 4'},
-                    {'label': 'Episode 5', 'value': 'Episode 5'},
-                    {'label': 'Episode 6', 'value': 'Episode 6'},
-                    {'label': 'Episode 7', 'value': 'Episode 7'},
-                    {'label': 'Episode 8', 'value': 'Episode 8'},
-                    {'label': 'Episode 9', 'value': 'Episode 9'},
-                    {'label': 'Episode 10', 'value': 'Episode 10'}
-                ],
+                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)],
                 value='Episode 1',
                 clearable=False,
                 style={'width': '100%', 'font-family': 'Arial, sans-serif'}
@@ -252,18 +243,17 @@ app.layout = dbc.Container(fluid=True, children=[
     [Input('planning-execution-time-dropdown', 'value')]
 )
 def update_planning_execution_chart(episode):
-    if episode == 'Episode 1':
-        planning_values = planning
-        execution_values = execution
-    elif episode == 'Episode 2':
-        planning_values = planning_2
-        execution_values = execution_2
-    
+    episode_index = int(episode.split(" ")[-1]) - 1
+
+    planning_values = [plan_DRL[episode_index], plan_RRT[episode_index], plan_PRM[episode_index]]
+    execution_values = [exec_DRL[episode_index], exec_RRT[episode_index], exec_PRM[episode_index]]
 
     return {
         'data': [
-            go.Bar(x=list(range(1, 4)), y=planning_values, name='Planning Time'),
-            go.Bar(x=list(range(1, 4)), y=execution_values, name='Execution Time')
+            go.Bar(x=['DRL'], y=[planning_values[0]], name='Computation Time DRL', marker_color=colors[0]),
+            go.Bar(x=['RRT'], y=[planning_values[1]], name='Computation Time RRT', marker_color=colors[1]),
+            go.Bar(x=['PRM'], y=[planning_values[2]], name='Computation Time PRM', marker_color=colors[2]),
+            go.Bar(x=['DRL', 'RRT', 'PRM'], y=execution_values, name='Execution Time',marker_color='orange')
         ],
         'layout': go.Layout(barmode='stack', xaxis={'title': 'Episode'}, yaxis={'title': 'Time'})
     }
