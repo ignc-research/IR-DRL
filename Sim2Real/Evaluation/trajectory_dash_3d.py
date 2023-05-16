@@ -11,7 +11,7 @@ from gen_obstacle import generate_obstacle
 
 
 #trajectory Points
-csv_data = load_csv.load_csv_data("/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV/episode_1.csv")
+csv_data = load_csv.load_csv_data("/home/moga/Desktop/IR-DRL/Sim2Real/Ev2/episode_1.csv")
 
 trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
 
