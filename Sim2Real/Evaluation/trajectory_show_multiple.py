@@ -26,24 +26,24 @@ csv_directory = "/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV"
 csv_filepaths = load_csv.get_csv_filepaths(csv_directory)
 
 csv_data = load_csv.load_csv_data(csv_filepaths[0])
-csv_data2 = load_csv.load_csv_data(csv_filepaths[1])
+#csv_data2 = load_csv.load_csv_data(csv_filepaths[1])
 
 csv_options = [{'label': f"{os.path.basename(file)} (+)", 'value': file} for file in csv_filepaths]
 
 
 trajectory = np.array([row["position_ee_link_ur5_1"] for row in csv_data])
-trajectory2 = np.array([row["position_ee_link_ur5_1"] for row in csv_data2])
+#trajectory2 = np.array([row["position_ee_link_ur5_1"] for row in csv_data2])
 
 
 
 
 # Extract x, y, and z arrays from the trajectory
 x, y, z = trajectory[:, 0], trajectory[:, 1], trajectory[:, 2]
-a,b,c = trajectory2[:,0], trajectory2[:,1], trajectory2[:,2]
+#a,b,c = trajectory2[:,0], trajectory2[:,1], trajectory2[:,2]
 
 fig = go.Figure()
 fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines', name='Trajectory'))
-fig.add_trace(go.Scatter3d(x=a, y=b, z=c, mode='lines', name='Trajectory2'))
+#fig.add_trace(go.Scatter3d(x=a, y=b, z=c, mode='lines', name='Trajectory2'))
 
 fig.update_layout(scene=dict(
     xaxis_title="X",

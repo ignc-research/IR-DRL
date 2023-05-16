@@ -12,15 +12,16 @@ def load_csv_data(file_path, columns=None):
         for row in reader:
             row_data = {}
             for column in row:
-                if columns is None or column in columns:
-                    if '[' in row[column] and ']' in row[column]:
-                        row_data[column] = string_to_list(row[column])
-                    else:
-                        try:
-                            row_data[column] = float(row[column])
-                        except ValueError:
-                            row_data[column] = row[column]
-            data.append(row_data)
+                if column != 'obstacles':
+                    if columns is None or column in columns:
+                        if '[' in row[column] and ']' in row[column]:
+                            row_data[column] = string_to_list(row[column])
+                        else:
+                            try:
+                                row_data[column] = float(row[column])
+                            except ValueError:
+                                row_data[column] = row[column]
+                data.append(row_data)
     return data
 
 

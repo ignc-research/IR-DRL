@@ -28,10 +28,11 @@ csv_directory = csv_directory = "/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/C
 
 csv_filepaths = load_csv.get_csv_filepaths(csv_directory)
 
-
-csv_PRM = load_csv.load_csv_data(csv_filepaths[0])
+csv_DRL = load_csv.load_csv_data(csv_filepaths[0])
 csv_RRT = load_csv.load_csv_data(csv_filepaths[1])
-csv_DRL = load_csv.load_csv_data(csv_filepaths[2])
+csv_PRM = load_csv.load_csv_data(csv_filepaths[2])
+
+
 
 def count_number_of_episodes(csv_data):
      # Array erstellen, in dem für jede indexstelle die anzahl der jeweiligen Zahlen i+1 gespeichert wird
@@ -54,6 +55,7 @@ def planning_execution_average(csv_data,mode):
     cpu_time_steps = np.array([row["cpu_time_steps"]for row in csv_data])
     cpu_time_full = np.array([row["cpu_time_full"]for row in csv_data])
     
+
     lower_bound = [None for _ in range(len(num_episodes))]
     upper_bound = [None for _ in range(len(num_episodes))]
     lower_bound[0] = 0
@@ -74,9 +76,10 @@ def planning_execution_average(csv_data,mode):
             exec_time_per_episode[i] = sim_time[upper_bound[i]]
     #RRT and PRM
     if (mode == 2):
-        #CPUtime_full - cputime_steps 
+        #Planner Time
+        planner_time = np.array([row["planner_time_ur5_1"]for row in csv_data])
         for i in range(len(num_episodes)):
-            computation_time_per_episode[i] = cpu_time_full[upper_bound[i]] - cpu_time_steps[upper_bound[i]]
+            computation_time_per_episode[i] = planner_time[upper_bound[i]]
             exec_time_per_episode[i] = sim_time[upper_bound[i]]
 
     return computation_time_per_episode, exec_time_per_episode
