@@ -168,8 +168,16 @@ execution = [exec_DRL[0], exec_RRT[0], exec_PRM[0]]
 
 #Number of Steps 
 steps_DRL = count_number_of_episodes(csv_DRL)
+steps_DRL.append(0.0)
+steps_DRL[-1] = calc_average(steps_DRL)
+
 steps_RRT = count_number_of_episodes(csv_RRT)
+steps_RRT.append(0.0)
+steps_RRT[-1] = calc_average(steps_RRT)
+
 steps_PRM = count_number_of_episodes(csv_PRM)
+steps_PRM.append(0.0)
+steps_PRM[-1] = calc_average(steps_PRM)
 
 
 #distance_to_obstacle
@@ -231,7 +239,7 @@ app.layout = dbc.Container(fluid=True, children=[
             dcc.Dropdown(
                 id='number-of-steps-dropdown',
                 options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)] + [{'label': 'Average', 'value': 'Episode 11'}],
-                value='Episode 1',
+                value='Episode 11',
                 clearable=False,
                 style={'width': '100%', 'font-family': 'Arial, sans-serif'}
             ),
