@@ -20,14 +20,17 @@ import random
 #gucken ob die werte für distance to obstacle stimmen 
 
 #TODO: 
-# Average per episode
-# tabular farben statt basic farben 
+# Average per episode ()
+# tabular farben statt basic farben ()
+# Farben anpassen ()
+# Goal und Ziel markieren () 
+# Aufnahme ()
 
 
 #DRL = Green,
-#RRT = red, 
-#PRM = blue
-colors = ['green', 'red', 'blue']
+#RRT = orange, 
+#PRM = light purple
+colors = ['#4E79A7', '#F28E2C', '#8E6BB4']
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -185,7 +188,7 @@ app.layout = dbc.Container(fluid=True, children=[
                         go.Bar(x=['DRL'], y=[planning[0]], name='Computation Time DRL', marker_color=colors[0]),
                         go.Bar(x=['RRT'], y=[planning[1]], name='Computation Time RRT', marker_color=colors[1]),
                         go.Bar(x=['PRM'], y=[planning[2]], name='Computation Time PRM', marker_color=colors[2]),
-                        go.Bar(x=['DRL', 'RRT', 'PRM'], y=execution, name='Execution Time',marker_color='orange')
+                        go.Bar(x=['DRL', 'RRT', 'PRM'], y=execution, name='Execution Time',marker_color='#5CB85C')
                     ],
                     'layout': go.Layout(barmode='stack', xaxis={'title': ''}, yaxis={'title': 'Time'})
                 }
@@ -304,7 +307,7 @@ def update_planning_execution_chart(episode):
             go.Bar(x=['DRL'], y=[planning_values[0]], name='Computation Time DRL', marker_color=colors[0]),
             go.Bar(x=['RRT'], y=[planning_values[1]], name='Computation Time RRT', marker_color=colors[1]),
             go.Bar(x=['PRM'], y=[planning_values[2]], name='Computation Time PRM', marker_color=colors[2]),
-            go.Bar(x=['DRL', 'RRT', 'PRM'], y=execution_values, name='Execution Time',marker_color='orange')
+            go.Bar(x=['DRL', 'RRT', 'PRM'], y=execution_values, name='Execution Time',marker_color='#5CB85C')
         ],
         'layout': go.Layout(barmode='stack', xaxis={'title': ''}, yaxis={'title': 'Time'})
     }
