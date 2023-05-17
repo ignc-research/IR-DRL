@@ -44,6 +44,16 @@ csv_DRL = load_csv.load_csv_data(csv_filepaths[0])
 csv_RRT = load_csv.load_csv_data(csv_filepaths[1])
 csv_PRM = load_csv.load_csv_data(csv_filepaths[2])
 
+#ignores last index of array as this is the one where the average is written down
+def calc_average(array):
+    if len(array) <= 1:
+        return None
+
+    sum_of_values = sum(array[:-1])
+    count_of_values = len(array) - 1
+    average = sum_of_values / count_of_values
+    return average
+
 
 
 def count_number_of_episodes(csv_data):
@@ -77,8 +87,8 @@ def planning_execution_average(csv_data,mode):
         upper_bound[i] = upper_bound[i-1] + num_episodes[i]
        
     
-    computation_time_per_episode = [None for _ in range(len(num_episodes))]
-    exec_time_per_episode = [None for _ in range(len(num_episodes))]
+    computation_time_per_episode = [None for _ in range(len(num_episodes)+1)]
+    exec_time_per_episode = [None for _ in range(len(num_episodes)+1)]
     # DRL
     if (mode == 1):
         #letzter Eintrag letzter eintrag cputime_steps
@@ -93,6 +103,10 @@ def planning_execution_average(csv_data,mode):
         for i in range(len(num_episodes)):
             computation_time_per_episode[i] = planner_time[upper_bound[i]]
             exec_time_per_episode[i] = sim_time[upper_bound[i]]
+
+    # averages berechnen
+    computation_time_per_episode[-1] = calc_average(computation_time_per_episode)
+    exec_time_per_episode[-1] = calc_average(exec_time_per_episode)
 
     return computation_time_per_episode, exec_time_per_episode
 
@@ -195,8 +209,8 @@ app.layout = dbc.Container(fluid=True, children=[
             ),
             dcc.Dropdown(
                 id='planning-execution-time-dropdown',
-                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)],
-                value='Episode 1',
+                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)] + [{'label': 'Average', 'value': 'Episode 11'}],
+                value='Episode 11',
                 clearable=False,
                 style={'width': '100%', 'font-family': 'Arial, sans-serif'}
             ),
@@ -216,7 +230,7 @@ app.layout = dbc.Container(fluid=True, children=[
             ),
             dcc.Dropdown(
                 id='number-of-steps-dropdown',
-                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)],
+                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)] + [{'label': 'Average', 'value': 'Episode 11'}],
                 value='Episode 1',
                 clearable=False,
                 style={'width': '100%', 'font-family': 'Arial, sans-serif'}
@@ -240,7 +254,7 @@ app.layout = dbc.Container(fluid=True, children=[
             ),
             dcc.Dropdown(
                 id='distance-to-obstacle-dropdown',
-                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)],
+                options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)] + [{'label': 'Average', 'value': 'Episode 11'}],
                 value='Episode 1',
                 clearable=False,
                 style={'width': '100%', 'font-family': 'Arial, sans-serif'}
@@ -281,7 +295,7 @@ app.layout = dbc.Container(fluid=True, children=[
 ),
 dcc.Dropdown(
     id='radar-chart-dropdown',
-    options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)],
+    options=[{'label': f'Episode {i}', 'value': f'Episode {i}'} for i in range(1, 11)] + [{'label': 'Average', 'value': 'Episode 11'}],
     value='Episode 1',
     clearable=False,
     style={'width': '100%', 'font-family': 'Arial, sans-serif'}
