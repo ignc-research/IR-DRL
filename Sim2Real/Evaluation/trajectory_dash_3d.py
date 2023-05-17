@@ -103,7 +103,7 @@ app.layout = dbc.Container([
                         dbc.Button('Play', id='play-button', n_clicks=0, color='primary', className='mr-1'),
                         dbc.Button('Pause', id='pause-button', n_clicks=0, color='primary', className='mr-1'),
                         dbc.Button('Repeat', id='repeat-button', n_clicks=0, color='primary', className='mr-1'),
-                        dcc.Interval(id='interval', interval=250),  # speed in which the red point moves
+                        dcc.Interval(id='interval', interval=100, max_intervals=len(x)-1) # speed in which the red point moves
                     ], style={'display': 'flex', 'justifyContent': 'center', 'margin-top': '0px'}),
                     html.Br(),
                     dcc.Dropdown(
@@ -161,12 +161,13 @@ def toggle_play_pause(play_clicks, pause_clicks, is_playing):
 # Callback to update the moving point, waypoints visibility, and handle repeat button
 
 @app.callback(
-    [Output('graph', 'figure'), Output('n_intervals', 'data'), Output('waypoints-table', 'data'), Output('waypoints-table', 'style_data_conditional')],
-    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks'),  Input('obstacle-dropdown', 'value')],
+    [Output('graph', 'figure'), Output('n_intervals', 'data'), Output('waypoints-table', 'data'),
+     Output('waypoints-table', 'style_data_conditional')],
+    [Input('interval', 'n_intervals'), Input('waypoints-dropdown', 'value'), Input('repeat-button', 'n_clicks'),
+     Input('obstacle-dropdown', 'value'), Input('play-button', 'n_clicks'), Input('pause-button', 'n_clicks')],
     [State('graph', 'figure'), State('is_playing', 'data'), State('n_intervals', 'data')]
 )
-
-def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, obstacle_dropdown_value, figure, is_playing, stored_n_intervals):
+def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, obstacle_dropdown_value, play_clicks, pause_clicks, figure, is_playing, stored_n_intervals):
 
     ctx = dash.callback_context
     if ctx.triggered:
@@ -198,7 +199,7 @@ def update_graph_and_csv(_, waypoints_dropdown_value, repeat_clicks, obstacle_dr
     data, style_data_conditional = update_table_data_and_highlight_active_waypoint(stored_n_intervals)
     return figure, stored_n_intervals, data, style_data_conditional
 
-
+"""
 def update_point_and_waypoints_visibility_and_repeat(_, dropdown_value, repeat_clicks, figure, is_playing, n_intervals):
     ctx = dash.callback_context
     if ctx.triggered:
@@ -223,7 +224,7 @@ def update_point_and_waypoints_visibility_and_repeat(_, dropdown_value, repeat_c
 
     data, style_data_conditional = update_table_data_and_highlight_active_waypoint(n_intervals)
     return figure, n_intervals, data, style_data_conditional
-
+"""
 
 
 
