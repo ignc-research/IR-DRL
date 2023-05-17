@@ -228,9 +228,9 @@ app.layout = dbc.Container(fluid=True, children=[
                 id='distance-to-obstacle',
                 figure={
                     'data': [
-                        go.Scatter(x=list(range(1, 500)), y=distance_obst_DRL[0], mode='lines+markers', name='DRL Distance', marker_color=colors[0]),
-                        go.Scatter(x=list(range(1, 500)), y=distance_obst_RRT[0], mode='lines+markers', name='RRT Distance',marker_color=colors[1]),
-                        go.Scatter(x=list(range(1, 500)), y=distance_obst_PRM[0], mode='lines+markers', name='PRM Distance',marker_color=colors[2])
+                        go.Scatter(x=list(range(1, 10000)), y=distance_obst_DRL[0], mode='lines+markers', name='DRL Distance', marker_color=colors[0]),
+                        go.Scatter(x=list(range(1, 10000)), y=distance_obst_RRT[0], mode='lines+markers', name='RRT Distance',marker_color=colors[1]),
+                        go.Scatter(x=list(range(1, 10000)), y=distance_obst_PRM[0], mode='lines+markers', name='PRM Distance',marker_color=colors[2])
                     ],
                     'layout': go.Layout(
                         xaxis={'title': 'Steps'},
@@ -341,9 +341,9 @@ def update_distance_to_obstacle_chart(episode):
 
     return {
         'data': [
-            go.Scatter(x=list(range(1, 500)), y=distance_obst_DRL[episode_index], mode='lines+markers', name='DRL Distance', marker_color=colors[0]),
-            go.Scatter(x=list(range(1, 500)), y=distance_obst_RRT[episode_index], mode='lines+markers', name='RRT Distance', marker_color=colors[1]),
-            go.Scatter(x=list(range(1, 500)), y=distance_obst_PRM[episode_index], mode='lines+markers', name='PRM Distance', marker_color=colors[2])
+            go.Scatter(x=list(range(1, 10000)), y=distance_obst_DRL[episode_index], mode='lines+markers', name='DRL Distance', marker_color=colors[0]),
+            go.Scatter(x=list(range(1, 10000)), y=distance_obst_RRT[episode_index], mode='lines+markers', name='RRT Distance', marker_color=colors[1]),
+            go.Scatter(x=list(range(1, 10000)), y=distance_obst_PRM[episode_index], mode='lines+markers', name='PRM Distance', marker_color=colors[2])
         ],
         'layout': go.Layout(
             xaxis={'title': 'Steps'},
