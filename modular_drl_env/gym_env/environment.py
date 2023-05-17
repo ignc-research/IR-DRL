@@ -69,6 +69,8 @@ class ModularDRLEnv(gym.Env):
         self.sim_time = 0
         self.cpu_time = 0
         self.cpu_epoch = process_time()
+        self.inference_time = 0
+        self.inference_epoch = 0
         self.log = []
         # init and fill the stats with a few entries to make early iterations a bit more robust
         self.success_stat = [False, False]
@@ -142,6 +144,7 @@ class ModularDRLEnv(gym.Env):
         self.steps_current_episode = 0
         self.sim_time = 0
         self.cpu_time = 0
+        self.inference_time = 0
         self.cpu_reset_epoch = process_time()
         self.reward = 0
         self.reward_cumulative = 0
@@ -168,6 +171,7 @@ class ModularDRLEnv(gym.Env):
 
         # render non-essential visual stuff
         if not self.train:
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
             if self.show_auxillary_geometry_goal:
                 for goal in self.goals:
                     goal.delete_visual_aux()
@@ -176,6 +180,7 @@ class ModularDRLEnv(gym.Env):
                 for sensor in self.sensors:
                     sensor.delete_visual_aux()
                     sensor.build_visual_aux()
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         return self._get_obs()
 
@@ -191,9 +196,16 @@ class ModularDRLEnv(gym.Env):
 
         # no normalizing here, that should be handled by the sensors and goals
 
+        # as this is the last method called before the DRL agent steps in, we can measure the
+        # inference time here and in step
+        self.inference_epoch = process_time()
+
         return obs_dict
 
     def step(self, action):
+
+        # measure inference time via the epoch, see above
+        self.inference_time += process_time() - self.inference_epoch
         
         if self.steps_current_episode == 0:
             self.cpu_epoch = process_time()
@@ -276,9 +288,11 @@ class ModularDRLEnv(gym.Env):
 
         # visual help, if enabled
         if self.show_auxillary_geometry_sensors:
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
             for sensor in self.sensors:
                 sensor.delete_visual_aux()
                 sensor.build_visual_aux()
+            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         # update tracking variables and stats
         self.cpu_time = process_time() - self.cpu_epoch
@@ -322,12 +336,18 @@ class ModularDRLEnv(gym.Env):
                     "cumulated_rewards": np.average(self.cumulated_rewards_stat),
                     "sim_time": self.sim_time,
                     "cpu_time_steps": self.cpu_time,
-                    "cpu_time_full": self.cpu_time + self.cpu_epoch - self.cpu_reset_epoch}
+                    "cpu_time_full": self.cpu_time + self.cpu_epoch - self.cpu_reset_epoch,
+                    "inference_time": self.inference_time}
             # get robot execution times
             for idx, robot in enumerate(self.robots):
                 if not self.active_robots[idx]:
                     continue
                 info["action_cpu_time_" + robot.name] = exec_times_cpu[idx] 
+            # get the planner times, if there are any
+            for idx, robot in enumerate(self.robots):
+                planner_time = pyb_u.get_planner_time(robot.object_id)
+                if planner_time:  # is 0 if no planner has planned on this robot
+                    info["planner_time_" + robot.name] = planner_time
             # get the log data from sensors
             for sensor in self.sensors:
                 if sensor.add_to_logging:
@@ -389,6 +409,7 @@ class ModularDRLEnv(gym.Env):
         """
         Debug method for controlling the robot.
         """
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 1)
         # code to manually control the robot in real time
         roll = pyb.addUserDebugParameter("r", -4.0, 4.0, 0)
         pitch = pyb.addUserDebugParameter("p", -4.0, 4.0, 0)
@@ -399,9 +420,9 @@ class ModularDRLEnv(gym.Env):
         x_base = 0
         y_base = 0
 
-        pyb.addUserDebugLine([0,0,0],[0,0,1],[0,0,1],parentObjectUniqueId=self.robots[0].object_id, parentLinkIndex= self.robots[0].end_effector_link_id)
-        pyb.addUserDebugLine([0,0,0],[0,1,0],[0,1,0],parentObjectUniqueId=self.robots[0].object_id, parentLinkIndex= self.robots[0].end_effector_link_id)
-        pyb.addUserDebugLine([0,0,0],[1,0,0],[1,0,0],parentObjectUniqueId=self.robots[0].object_id, parentLinkIndex= self.robots[0].end_effector_link_id)
+        pyb.addUserDebugLine([0,0,0],[0,0,1],[0,0,1],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
+        pyb.addUserDebugLine([0,0,0],[0,1,0],[0,1,0],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
+        pyb.addUserDebugLine([0,0,0],[1,0,0],[1,0,0],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
 
         lineID = 0
 
@@ -427,7 +448,7 @@ class ModularDRLEnv(gym.Env):
                 for i in range(self.sim_steps_per_env_step):
                     pyb.stepSimulation()
 
-            self.robots[0].position_rotation_sensor.update(0)
+            self.robots[0].position_rotation_sensor.reset()
             pos = self.robots[0].position_rotation_sensor.position
 
             lineID = pyb.addUserDebugLine([x,y,z], pos.tolist(), [0,0,0])
@@ -457,6 +478,7 @@ class ModularDRLEnv(gym.Env):
         world_config["assets_path"] = self.assets_path
         world_config["env_id"] = self.env_id
         world_config["sim_step"] = self.sim_step
+        world_config["sim_steps_per_env_step"] = self.sim_steps_per_env_step
         
         self.world:World = WorldRegistry.get(world_type)(**world_config)
         self.world.set_up()
@@ -485,7 +507,7 @@ class ModularDRLEnv(gym.Env):
                 jv = False
             joint_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
                                  "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "sim_steps_per_env_step": self.sim_steps_per_env_step, "robot": robot, "add_joint_velocities": jv}
-            posrot_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": True, 
+            posrot_sens_config = {"normalize": self.normalize_observations, "add_to_observation_space": False, 
                                  "add_to_logging": True, "sim_step": self.sim_step, "update_steps": 1, "sim_steps_per_env_step": self.sim_steps_per_env_step, "robot": robot,
                                  "link_id": robot.end_effector_link_id, "quaternion": True}
             new_rob_joints_sensor = SensorRegistry.get("Joints")(**joint_sens_config)

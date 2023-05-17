@@ -33,15 +33,17 @@ class TestcasesWorld(World):
         self.position_target_2 = np.array([-0.3, 0.45, 0.25])  # slightly changed from original
         self.position_target_3_1 = np.array([0, 0.4, 0.25])
         self.position_target_3_2 = np.array([-0.25 , 0.4, 0.25])
+        self.joint_target_1 = np.array([-1.53033923,  1.2582005 , -1.97472787, -0.89432315, -1.43816217,
+       -0.48620892])
 
-        self.active_obstacles = []
+        self.active_objects = []
 
         self.position_nowhere = np.array([0, 0, -10])
 
     def set_up(self):
         # add ground plate
-        plate = GroundPlate()
-        plate.build()
+        self.ground_plate = GroundPlate()
+        self.ground_plate.build()
         
         # set up testcase geometry
         self.obst1 = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
@@ -67,10 +69,10 @@ class TestcasesWorld(World):
         self.test3_phase = 0
 
 
-        for obst in self.active_obstacles:
+        for obst in self.active_objects[1:]:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
             obst.move_base(self.position_nowhere + offset)
-        self.active_obstacles = []
+        self.active_objects = [self.ground_plate]
         self.position_targets = []
         # first move everything into storage
         for obst in self.obstacle_objects:
@@ -78,23 +80,24 @@ class TestcasesWorld(World):
 
         if self.current_test_mode == 1:
             self.obst1.move_base(np.array([0, 0.4, 0.3]))
-            self.active_obstacles.append(self.obst1)
+            self.active_objects.append(self.obst1)
             self.position_targets = [self.position_target_1]
+            self.joints_targets = [self.joint_target_1]
         elif self.current_test_mode == 2:
             self.obst2.move_base(np.array([-0.3, 0.4, 0.3]))
-            self.active_obstacles.append(self.obst2)
+            self.active_objects.append(self.obst2)
             self.position_targets = [self.position_target_2]
         elif self.current_test_mode == 3:
             self.obst3a.move_base(np.array([-0.1, 0.4, 0.26]))
             self.obst3b.move_base(np.array([0.1, 0.4, 0.26]))
-            self.active_obstacles.append(self.obst3a)
-            self.active_obstacles.append(self.obst3b)
+            self.active_objects.append(self.obst3a)
+            self.active_objects.append(self.obst3b)
             self.position_targets = [self.position_target_3_1]
 
         self.robots[0].moveto_joints(self.robot_start_joint_angles[self.current_test_mode - 1], False)
 
     def update(self):
-        for obstacle in self.active_obstacles:
+        for obstacle in self.active_objects:
             obstacle.move_traj()
         if self.current_test_mode == 3:
             if self.test3_phase == 0:

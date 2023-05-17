@@ -12,7 +12,7 @@ class World(ABC):
     See the random obstacles world for examples.
     """
 
-    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int, assets_path: str):
+    def __init__(self, workspace_boundaries: list, sim_step: float, sim_steps_per_env_step: int, env_id: int, assets_path: str):
 
         # list that will contain all purely visual object ids like spheres and cubes without collision
         self.aux_objects = []
@@ -27,6 +27,7 @@ class World(ABC):
 
         # set sim step
         self.sim_step = sim_step
+        self.sim_steps_per_env_step = sim_steps_per_env_step
 
         # str that contains the asset path in case the world needs access to those resources
         self.assets_path = assets_path

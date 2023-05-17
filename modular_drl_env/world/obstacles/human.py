@@ -16,8 +16,6 @@ class Human(Obstacle):
         self.human = None
         self.scale = scale
 
-        # guard against using this class with engines other than Pybullet
-
         self.sim_step = sim_step
         self.trajectory_idx = 0
 

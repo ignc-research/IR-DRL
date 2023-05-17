@@ -34,7 +34,8 @@ class PositionCollisionGoal(Goal):
                        dist_threshold_increment_end=1e-3,
                        dist_threshold_overwrite: float=None,
                        dist_threshold_change: float=0.8,
-                       better_compatability_obs_space: bool=True):
+                       better_compatability_obs_space: bool=True,
+                       done_on_oob: bool=True):
         super().__init__(robot, normalize_rewards, normalize_observations, train, True, add_to_logging, max_steps, continue_after_success)
 
         # set output name for observation space
@@ -89,6 +90,9 @@ class PositionCollisionGoal(Goal):
         self.is_success = False
         self.done = False
         self.past_distances = []
+
+        # option to turn off episode end on oob, needed for the planner function elsewhere
+        self.done_on_oob = done_on_oob
 
         # performance metric name
         self.metric_names = ["distance_threshold"]
@@ -156,7 +160,7 @@ class PositionCollisionGoal(Goal):
 
         self.is_success = False
         if self.out_of_bounds:
-            self.done = True
+            self.done = True if self.done_on_oob else False
             reward += self.reward_collision
         elif self.collided:
             self.done = True

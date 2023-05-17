@@ -32,7 +32,7 @@ class PositionCollisionTrajectoryGoal(Goal):
                 angle_threshold_overwrite: float=None,
                 angle_threshold_change: float=0.8,
                 link_reward_weight: list=[1, 1, 1, 1, 1],
-                reward_too_close: float=0.225,
+                reward_too_close: float=0.1,
                 a_dot_threshold: float=0.2,
                 w_dist: float=-0.002,
                 w_delta: float=0.001,
@@ -104,13 +104,21 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.is_success = False
         self.done = False
         self.current_joints = None
+        self.current_position = None
+        self.previous_position = None
+        self.min_distance_to_trajectory = 0
         self.target_joints = None
         self.final = False
         self.joints_position_buffer = []
         self.joints_position_buffer_size = joints_position_buffer_size
         self.previous_action = None
 
-        self.sample_radius = 0.05
+        self.sample_radius = 0.03
+
+        # small lambda function for proximity reward
+        a = (-1 - (-15) * np.exp(self.d_min)) / (1 - np.exp(self.d_min))
+        b = -1 - a
+        self.proximity_reward = lambda x: a * np.exp(-(x - self.d_min)) + b
 
         # performance metric name
         self.metric_names = ["angle_threshold"]
@@ -121,24 +129,28 @@ class PositionCollisionTrajectoryGoal(Goal):
             if self.normalize_observations:
                 ret[self.output_name + "_JointsTarget"] = Box(low=-1, high=1, shape=(len(self.robot.controlled_joints_ids),), dtype=np.float32)
                 ret[self.output_name + "_JointsDelta"] = Box(low=-1, high=1, shape=(len(self.robot.controlled_joints_ids),), dtype=np.float32)
+                ret[self.output_name + "_MinDist"] = Box(low=0, high=1, shape=(1,), dtype=np.float32)
             else:
                 ret[self.output_name + "_JointsTarget"] = Box(low=self.robot.joints_limits_lower, high=self.robot.joints_limits_upper, shape=(len(self.robot.controlled_joints_ids),), dtype=np.float32)
                 ret[self.output_name + "_JointsDelta"] = Box(low=self.robot.joints_limits_lower, high=self.robot.joints_limits_upper, shape=(len(self.robot.controlled_joints_ids),), dtype=np.float32)
-            ret[self.output_name + "_final"] = Box(low=0, high=1, shape=(1,), dtype=int)
+                ret[self.output_name + "_MinDist"] = Box(low=0, high=self.obst_sensor.max_distance, shape=(1,), dtype=np.float32)
+            ret[self.output_name + "_final"] = Box(low=0, high=1, shape=(1,), dtype=np.float32)
             return ret
         else:
             return {}
         
     def get_observation(self) -> dict:
+        self.previous_position = self.current_position
+        self.current_position = self.robot.position_rotation_sensor.position
         self.current_joints = self.robot.joints_sensor.joints_angles
         if self.trajectory is not None:
             self.waypoint_joints = self.trajectory[self.trajectory_idx]
             if self.robot.control_mode == 3:
                 self.robot.control_target = self.waypoint_joints
-            self.final = np.array_equal(self.waypoint_joints, self.trajectory[-1])
+            self.final = self.trajectory_idx / (len(self.trajectory) - 1)
         else:
             self.waypoint_joints = np.zeros((len(self.current_joints),))
-            self.final = False
+            self.final = 0
         self.target_joints = self.robot.world.joints_targets[self.robot.mgt_id]
         
         ret = dict()
@@ -146,18 +158,15 @@ class PositionCollisionTrajectoryGoal(Goal):
             # normalize TODO
             ret[self.output_name + "_JointsTarget"] = np.multiply(self.normalizing_constant_a_obs, self.waypoint_joints) + self.normalizing_constant_b_obs
             ret[self.output_name + "_JointsDelta"] = np.multiply(self.normalizing_constant_a_obs, self.waypoint_joints - self.current_joints) + self.normalizing_constant_b_obs
+            ret[self.output_name + "_MinDist"] = [self.obst_sensor.min_dist / self.obst_sensor.max_distance]
         else:
             ret[self.output_name + "_JointsTarget"] = self.waypoint_joints
             ret[self.output_name + "_JointsDelta"] = self.waypoint_joints - self.current_joints
-        ret[self.output_name + "_final"] = [int(self.final)]
+            ret[self.output_name + "_MinDist"] = [self.obst_sensor.min_dist]
+        ret[self.output_name + "_final"] = [self.final]
         return ret
     
     def reward(self, step, action):
-        
-        if step == 100:
-            self.robot.moveto_joints(self.trajectory[-250], False)
-            self.robot.joints_sensor.update(0)
-            self.robot.position_rotation_sensor.update(0)
 
         if self.trajectory is None:
             return 0, False, True, False, False
@@ -168,93 +177,63 @@ class PositionCollisionTrajectoryGoal(Goal):
         # check collision status
         self.collided = pyb_u.collision
 
-        reward = 0
+        action_size_reward = -np.linalg.norm(action)
 
-        # Reward weights
-        close_distance_weight = -2.0
-        delta_joint_weight = 1.0
-        action_usage_weight = 1.5
-        rapid_action_weight = -0.2
-        collision_weight = -0.5
-        target_reached_weight = 0.05
+        # reward for completing part of the trajectory
+        trajectory_state_reward = self.trajectory_idx / (len(self.trajectory) - 1)
+        # penalty for not moving forward on the trajectory
+        if self.trajectory_idx_prev == self.trajectory_idx:
+            moving_forward_reward = -0.25
+        else:
+            moving_forward_reward = 0
+        # penalty for not moving in general
+        if np.linalg.norm(self.current_position - self.previous_position) < 0.0015:
+            moving_forward_cart_reward = -0.05
+        else:
+            moving_forward_cart_reward = 0
 
-        delta_joints = self.waypoint_joints - self.current_joints
-        for i in delta_joints:
-            if abs(i) < 0.8:
-                reward += delta_joint_weight * (1 - (np.abs(i) / 0.8)) * (1 / 1000) * (1 / len(delta_joints))
-
-        reward += action_usage_weight * (1 - (np.square(action).sum() / len(action))) * (1 / 1000)
-
-        for i in range(len(action)):
-            if abs(action[i] - self.previous_action[i]) > 0.4:
-                reward += rapid_action_weight * (1 / 1000)
-
-        if self.obst_sensor.min_dist < self.d_min:
-            reward += close_distance_weight * (1/1000)
-        
+        # reward for collision
         if self.collided:
             self.done = True
-            reward = collision_weight
-        else:
-            if self.final and np.all(np.absolute(self.current_joints - self.waypoint_joints) < self.angle_threshold):
-                reward += target_reached_weight
-                self.done = True
-                self.is_success = True
-
-        if step > self.max_steps:
-            self.timeout = True
+            self.is_success = False
+            reward = -30
+        # reward for goal reached
+        elif self.final == 1 and np.all(np.absolute(self.current_joints - self.waypoint_joints) < self.angle_threshold):
+            reward = 75
             self.done = True
-        """
-        # binary signal for when robot is too close to obstacle
-        if self.obst_sensor.min_dist < self.d_min:
-            r_dist = 1
+            self.is_success = True
         else:
-            r_dist = 0
-
-        # reward for staying close to the predefined trajectory
-        # joints_delta_sum = (np.absolute(self.waypoint_joints - self.current_joints) * self.link_reward_weight).sum()
-        # max_joints_delta_sum = (self.robot.joints_range * self.link_reward_weight).sum()
-        # r_delta = 1 - (joints_delta_sum/max_joints_delta_sum)**(1/3)
-
-        qt_qr_delta_sum = np.absolute(self.waypoint_joints - self.current_joints).sum()
-        threshhold_t = 10
-        r_delta = - (1/threshhold_t) * qt_qr_delta_sum + 1
-        r_delta = np.clip(r_delta, 0, 1)
-        #TODO: define buffer )0 actions e.g in which self.target_joints[0:5] should be closer to target_waypoint
-        # if after buffer, the joints are not closer to waypoint, move on to next joint
-        
-        # reward for action
-        r_a = np.mean(np.square(action)) #action 
-        r_a_dot = np.sum(np.where(np.absolute(action - self.previous_action) > self.a_dot_threshold, 1, 0))
-
-        # check end conditions
-        if self.collided:
-            self.done = True
-            r_collision = 1
-            r_reached = 0
-        else:
-            r_collision = 0
-            if self.final and np.all(np.absolute(self.current_joints - self.waypoint_joints) < self.angle_threshold):
-                r_reached = 1
-                self.is_success = True
-                self.done = True
+            #print("distance", self.obst_sensor.min_dist)
+            # reward for safe distance
+            if self.obst_sensor.min_dist < self.d_min:
+                proximity_reward = self.proximity_reward(self.obst_sensor.min_dist) / 5
             else:
-                r_reached = 0
+                proximity_reward = 0
+            # reward for being close to the next trajectory target
+            delta_joints = self.waypoint_joints - self.current_joints
+            waypoint_reward = -0.5 * np.sum(np.abs(delta_joints))
+            trajectory_reward = -0.1 * self.min_distance_to_trajectory
+            
+            reward = action_size_reward + trajectory_state_reward + moving_forward_reward + \
+                            moving_forward_cart_reward + proximity_reward + \
+                            waypoint_reward + trajectory_reward
+            
+            if step > self.max_steps:
+                self.done = True
+                self.is_success = False
+                self.timeout = True
 
-        # calculate reward from all the single components
-        reward = self.w_dist * r_dist + \
-                 self.w_delta * r_delta + \
-                 self.w_a * r_a + \
-                 self.w_a_dot * r_a_dot + \
-                 self.w_reached * r_reached + \
-                 self.w_collision * r_collision
-        
-        if step > self.max_steps:
-            self.timeout = True
-            self.done = True
-        """
+            # print("action_size", action_size_reward)
+            # print("trajectory_state", trajectory_state_reward)
+            # print("moving_forward", moving_forward_reward)
+            # print("moving_forward_cart", moving_forward_cart_reward)
+            # print("proximity", proximity_reward)
+            # print("waypoint", waypoint_reward)
+            # print("trajectory", trajectory_reward)
             
         self.reward_value = reward
+        
+        
 
         # remember action for next call
         self.previous_action = action
@@ -265,14 +244,19 @@ class PositionCollisionTrajectoryGoal(Goal):
         # b) the closest to the end waypoint along the trajectory
         ee_position = self.robot.position_rotation_sensor.position
         distances_to_ee = np.linalg.norm(self.trajectory_xyz -  ee_position, axis=1)
+        self.min_distance_to_trajectory = min(distances_to_ee)
         sphere_mask = distances_to_ee < self.sample_radius
+        self.trajectory_idx_prev = self.trajectory_idx
         if sphere_mask.any() == False:  # no points within radius, might happen if the agent goes too far off track
-            pass  # trajectory idx stays the same
+            # take the waypoint with the minimum distance to the robot
+            min_distance = np.min(distances_to_ee)
+            index_of_that_waypoint = np.where(distances_to_ee == min_distance)[0][0]
+            self.trajectory_idx = max(self.trajectory_idx, index_of_that_waypoint)  # keep old waypoint if it's further up in the trajectory
         else:
             waylengths_of_trajectory_points_within_the_sphere = self.trajectory_waylenghts[sphere_mask]
             min_waylength_within_sphere = min(waylengths_of_trajectory_points_within_the_sphere)
             index_of_that_waypoint = np.where(self.trajectory_waylenghts == min_waylength_within_sphere)[0][0]
-            self.trajectory_idx = index_of_that_waypoint
+            self.trajectory_idx = max(self.trajectory_idx, index_of_that_waypoint)  # we use the max here to make sure that the we don't go back in the trajectory
 
         return self.reward_value, self.is_success, self.done, self.timeout, False  # out of bounds always false, doesn't make sense for preplanned trajectory
             
@@ -286,14 +270,14 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.joints_position_buffer = []
         self.final = False
         self.current_joints = self.robot.joints_sensor.joints_angles
+        self.current_position = self.robot.position_rotation_sensor.position
+        self.previous_position = self.current_position
         self.target_joints = self.robot.world.joints_targets[self.robot.mgt_id]
         self.trajectory_idx = 0
+        self.trajectory_idx_prev = 0
 
         # plan new trajectory      
-        if hasattr(self.robot.world, 'active_obstacles'):  # if the class has this attribute this saves some collision checking
-            self.trajectory = self.planner.plan(self.target_joints, self.robot.world.active_obstacles)
-        else:
-            self.trajectory = self.planner.plan(self.target_joints, self.robot.world.obstacle_objects)
+        self.trajectory = self.planner.plan(self.target_joints, self.robot.world.active_objects)
         
         # calculate cartesian positions of trajectory waypoints
         self.trajectory_xyz = []
@@ -306,12 +290,10 @@ class PositionCollisionTrajectoryGoal(Goal):
         self.trajectory_waylenghts = np.linalg.norm(self.trajectory_xyz[:-1] - self.trajectory_xyz[1:], axis=1)
         self.trajectory_waylenghts = np.array(list(reversed(np.cumsum(list(reversed(self.trajectory_waylenghts))))) + [0])
         
-
-        
+        # move back to start position (just to be safe in case a planning method leaves the robot somewhere else)    
         self.robot.moveto_joints(self.current_joints, False)
 
-
-
+        
         if self.trajectory is not None:
             self.waypoint_joints = self.trajectory[0]
             if self.robot.control_mode == 3:  # joint target control mode
@@ -337,10 +319,11 @@ class PositionCollisionTrajectoryGoal(Goal):
     def build_visual_aux(self):
         if self.trajectory is not None:
             n_waypoints = len(self.trajectory)
-            n_draw_points = min(50, int(0.1 * n_waypoints))
+            n_draw_points = min(150, int(0.1 * n_waypoints))
             indices_to_drop = np.random.choice(len(self.trajectory), n_draw_points, replace=False)
             keep_mask = np.zeros(len(self.trajectory), dtype=bool)
             keep_mask[indices_to_drop] = True
+            keep_mask[-1] = True
             for waypoint in self.trajectory[keep_mask]:
                 waypoint = np.array(waypoint)
                 self.robot.moveto_joints(waypoint, False)
@@ -350,9 +333,3 @@ class PositionCollisionTrajectoryGoal(Goal):
                 goal_cylinder = pyb_u.create_cylinder(goal_pos, goal_rot, 0, radius=0.0125, height=0.06, color=color, collision=False)
                 self.aux_object_ids.append(goal_cylinder)
         self.robot.moveto_joints(self.current_joints, False)
-
-class PositionCollisionTrajectoryGoalCartesian(Goal):
-    """
-    Goal that gives the robot a trajectory to follow. In default mode, it will try to go to the target in a straight line.
-    TODO
-    """

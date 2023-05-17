@@ -5,13 +5,16 @@ from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 class Obstacle(ABC):
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float) -> None:
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, sim_steps_per_env_step: int, velocity: float=0) -> None:
 
         # current and initial position
         self.position = np.array(position)
         self.orientation = np.array(rotation)
         self.position_orig = np.array(position)
         self.orientation_orig = np.array(rotation)
+
+        # velocity vector, when moving
+        self.velocity = np.zeros(3)
 
         # pybullet object id, gets set through build method
         self.object_id = None
@@ -21,7 +24,9 @@ class Obstacle(ABC):
         # if this has one element, the obstalce will move towards it and stay there
         # for two or more elements the obstacle will loop between the two or more points
         self.trajectory = [np.array(ele) for ele in trajectory]
-        self.move_step = move_step  # this is the distance the obstlace moves within one env sim step
+        self.sim_step = sim_step  # amount of time that passes per physics step
+        self.sim_steps_per_env_step = sim_steps_per_env_step
+        self.move_step = velocity * (sim_step * sim_steps_per_env_step)  # distance that is travelled per env step
         self.trajectory_idx = -1
         self.closeness_threshold = 1e-3  # to determine if two positions are the same
 
@@ -50,6 +55,7 @@ class Obstacle(ABC):
             else:
                 move_step = self.move_step if diff_norm > self.move_step else diff_norm # ensures that we don't jump over the target destination
                 step = diff * (move_step / diff_norm)
+                self.velocity = step / (self.sim_step * self.sim_steps_per_env_step)
                 self.position = self.position + step
                 pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=self.position, orientation=self.orientation)
         else:  # looping trajectory
@@ -63,7 +69,8 @@ class Obstacle(ABC):
                     self.trajectory_idx = -1
             else:
                 move_step = self.move_step if diff_norm > self.move_step else diff_norm # ensures that we don't jump over the target destination
-                step = diff * (move_step / diff_norm)  
+                step = diff * (move_step / diff_norm) 
+                self.velocity = step / (self.sim_step * self.sim_steps_per_env_step) 
                 self.position = self.position + step
                 pyb_u.set_base_pos_and_ori(object_id=self.object_id, position=self.position, orientation=self.orientation)
 
@@ -75,3 +82,4 @@ class Obstacle(ABC):
         self.position = new_base_position
         self.orientation = new_base_rotation
         self.orientation_orig = new_base_rotation
+        self.velocity = np.zeros(3)

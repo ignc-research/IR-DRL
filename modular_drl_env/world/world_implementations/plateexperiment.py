@@ -8,8 +8,8 @@ from random import choice
 
 class PlateExperiment(World):
 
-    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int, assets_path: str, plate_dimensions: list):
-        super().__init__(workspace_boundaries, sim_step, env_id, assets_path)
+    def __init__(self, workspace_boundaries: list, sim_step: float, sim_steps_per_env_step: int, env_id: int, assets_path: str, plate_dimensions: list):
+        super().__init__(workspace_boundaries, sim_step, sim_steps_per_env_step, env_id, assets_path)
         # note: all the code in this class assumes that there is a single UR5 robot located at 0, 0, 0
 
         # storage position
@@ -28,22 +28,22 @@ class PlateExperiment(World):
 
     def set_up(self):
         # ground plate
-        plate = GroundPlate()
-        plate.build()
+        self.ground_plate = GroundPlate()
+        self.ground_plate.build()
 
         for _ in range(self.num_pre_gen):
             random_dims = np.random.uniform(low=self.plate_dimensions[0], high=self.plate_dimensions[1], size=(2,))
-            plate = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, np.hstack([self.plate_width, random_dims]))
+            plate = Box(self.position_nowhere, [0, 0, 0, 1], [], self.sim_step, 1, 0, np.hstack([self.plate_width, random_dims]))
             plate.build()
             self.obstacle_objects.append(plate)
 
     def reset(self, success_rate: float):
         # reset attributes
         self.ee_starting_points = []
-        for obst in self.active_objects:
+        for obst in self.active_objects[1:]:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
             obst.move_base(self.position_nowhere + offset)
-        self.active_objects = []
+        self.active_objects = [self.ground_plate]
         self.position_targets = []
         self.rotation_targets = []
         self.joints_targets = []
@@ -98,6 +98,9 @@ class PlateExperiment(World):
                 b = b / np.linalg.norm(b)
                 c = np.cross(random_direction / np.linalg.norm(random_direction),b)
                 c = c / np.linalg.norm(b)
+                # add movement
+                random_obst.trajectory = [0.25 * c, 0.25 * b]
+                random_obst.move_step = 0.25 * self.sim_step * self.sim_steps_per_env_step
                 rot_mat = np.eye(3)
                 rot_mat[:3, 0] = random_direction / np.linalg.norm(random_direction)
                 rot_mat[:3, 1] = b
@@ -124,6 +127,7 @@ class PlateExperiment(World):
                 break
         # now we can set all the attributes
         self.active_objects.append(random_obst)
+        #random_obst.move_base(self.position_nowhere, np.array([0, 0, 0, 1]))
         #print(self.active_obstacles)
         self.ee_starting_points.append((random_start, rotation_start, joints_start))
         self.position_targets.append(random_goal)
@@ -132,7 +136,8 @@ class PlateExperiment(World):
         self.robots[0].moveto_joints(joints_start, False)
 
     def update(self):
-        pass
+        for obst in self.active_objects:
+            obst.move_traj()
         
 
 

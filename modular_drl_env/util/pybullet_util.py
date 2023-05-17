@@ -23,6 +23,10 @@ class pybullet_util:
     spawn_counter = 0
     # list of pybullet ids for all objects that are robots for convenient access
     robot_pyb_ids = []
+    # list of planner times per robot
+    # info: this is a somewhat hacky solution to log planning times for the global planners like RRT, PRM etc.
+    # a planner will write its time for planning into this variable from where it can be accesed by the environment and logged
+    planner_times = []
 
     ##########
     # basics #
@@ -105,6 +109,7 @@ class pybullet_util:
             else:
                 pyb_id = pyb.loadURDF(urdf_path, basePosition=position.tolist(), baseOrientation=orientation.tolist(), useFixedBase=fixed_base, globalScaling=scale)
             name = "robot_" + str(cls.spawn_counter) 
+            cls.planner_times.append(0)
             joints_info = [pyb.getJointInfo(pyb_id, i) for i in range(pyb.getNumJoints(pyb_id))]
             for joint_info in joints_info:
                 link_name, link_pyb_id = joint_info[12].decode('UTF-8'), joint_info[0]
@@ -339,7 +344,7 @@ class pybullet_util:
             maxNumIterations=max_iterations,
             residualThreshold=threshold
         )
-        return np.float64(joints)
+        return np.float64(joints)  # we need the 64 float precision here due to some unfortunate problems with float precision
     
     ########
     # misc #
@@ -360,3 +365,15 @@ class pybullet_util:
         pyb_robot_id = cls.pybullet_object_ids[robot_id]
         pyb_joint_id = cls.pybullet_joints_ids[robot_id, joint_id]
         pyb.changeDynamics(pyb_robot_id, pyb_joint_id, maxJointVelocity=joint_velocity, jointLowerLimit=joint_lower_limit, jointUpperLimit=joint_upper_limit)
+
+    @classmethod
+    def log_planner_time(cls, robot_id: str, time: float) -> None:
+        pybullet_id = cls.pybullet_object_ids[robot_id]
+        idx = cls.robot_pyb_ids.index(pybullet_id)
+        cls.planner_times[idx] = time
+
+    @classmethod
+    def get_planner_time(cls, robot_id) -> float:
+        pybullet_id = cls.pybullet_object_ids[robot_id]
+        idx = cls.robot_pyb_ids.index(pybullet_id)
+        return cls.planner_times[idx]

@@ -5,8 +5,8 @@ from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 class Sphere(Obstacle):
 
-    def __init__(self, position: Union[list, np.ndarray], trajectory: list, move_step: float, radius: float, color: list=[0.75,0.75,0.75,1]) -> None:
-        super().__init__(position, np.array([0, 0, 0, 1]), trajectory, move_step)
+    def __init__(self, position: Union[list, np.ndarray], trajectory: list, sim_step: float, sim_steps_per_env_step: int, velocity: float=0, radius: float=1, color: list=[0.75,0.75,0.75,1]) -> None:
+        super().__init__(position, np.array([0, 0, 0, 1]), trajectory, sim_step, sim_steps_per_env_step, velocity)
 
         self.radius = radius
         self.color = color
@@ -20,8 +20,8 @@ class Sphere(Obstacle):
 
 class Box(Obstacle):
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, halfExtents=[1, 1, 1], color=[0.5,0.5,0.5,1]) -> None:
-        super().__init__(position, rotation, trajectory, move_step)
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, sim_steps_per_env_step: int, velocity: float=0, halfExtents=[1, 1, 1], color=[0.5,0.5,0.5,1]) -> None:
+        super().__init__(position, rotation, trajectory, sim_step, sim_steps_per_env_step, velocity)
 
         self.color = color
         self.halfExtents = halfExtents
@@ -36,8 +36,8 @@ class Box(Obstacle):
 
 class Cylinder(Obstacle):
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, radius: float, height: float, color: list=[0.65,0.65,0.65,1]) -> None:
-        super().__init__(position, rotation, trajectory, move_step)
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, sim_steps_per_env_step: int, velocity: float=0, radius: float=1, height: float=1, color: list=[0.65,0.65,0.65,1]) -> None:
+        super().__init__(position, rotation, trajectory, sim_step, sim_steps_per_env_step, velocity)
 
         self.radius = radius
         self.color = color
