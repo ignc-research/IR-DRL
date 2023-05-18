@@ -18,10 +18,10 @@ class SensorRegistry:
             return wrapped_class
         return inner_wrapper
 
-# Pybullet sensors
 SensorRegistry.register('PositionRotation')(PositionRotationSensor)
 SensorRegistry.register('Joints')(JointsSensor)
 SensorRegistry.register('Obstacle')(ObstacleSensor)
+SensorRegistry.register('RobotSkeleton')(RobotSkeletonSensor)
 SensorRegistry.register('LidarSensorGeneric')(LidarSensorGeneric)
 SensorRegistry.register('LidarSensorUR5')(LidarSensorUR5)
 SensorRegistry.register('LidarSensorUR5_Explainable')(LidarSensorUR5_Explainable)
