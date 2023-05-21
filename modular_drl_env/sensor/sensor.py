@@ -68,7 +68,6 @@ class Sensor(ABC):
         """
         pass
 
-    @abstractmethod
     def _normalize(self) -> dict:
         """
         Returns the sensor data in normalized format.

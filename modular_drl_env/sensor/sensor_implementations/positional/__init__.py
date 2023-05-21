@@ -1,4 +1,4 @@
 from .joints_sensor import JointsSensor
 from .position_and_rotation_sensor import PositionRotationSensor
-from .obstacle_sensor import ObstacleSensor
+from .obstacle_sensor import ObstacleSensor, ObstacleAbsoluteSensor
 from .robot_skeleton_sensor import RobotSkeletonSensor

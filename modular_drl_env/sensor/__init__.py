@@ -21,6 +21,7 @@ class SensorRegistry:
 SensorRegistry.register('PositionRotation')(PositionRotationSensor)
 SensorRegistry.register('Joints')(JointsSensor)
 SensorRegistry.register('Obstacle')(ObstacleSensor)
+SensorRegistry.register('ObstacleAbsolute')(ObstacleAbsoluteSensor)
 SensorRegistry.register('RobotSkeleton')(RobotSkeletonSensor)
 SensorRegistry.register('LidarSensorGeneric')(LidarSensorGeneric)
 SensorRegistry.register('LidarSensorUR5')(LidarSensorUR5)
