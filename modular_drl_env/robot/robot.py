@@ -275,6 +275,8 @@ class Robot(ABC):
         
         # returns execution time, gets used in gym env to log the times here
         elif self.control_mode == 3:
+            if len(self.control_target) == 0:
+                raise Exception("You are using control mode 3 while not control target is set! Your goal class must set a control target for robot " + self.name +"!")
             # control via a pre-set joint angle target
             # in this control mode we have joint angles and actions correspond to deviations from it
             # the robot will then try to move to set joint angles + deviation

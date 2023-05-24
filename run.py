@@ -21,6 +21,7 @@ run_config, env_config = parse_config(args.configfile, args.train)
 from modular_drl_env.gym_env.environment import ModularDRLEnv
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
+from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise, NormalActionNoise
 from modular_drl_env.callbacks.callbacks import MoreLoggingCustomCallback
 from time import sleep
 import signal
@@ -49,6 +50,11 @@ planner_map = {
     "PRM": PRM
 }
 
+noise_map = {
+    "OrnsteinUhlenbeck": OrnsteinUhlenbeckActionNoise,
+    "Gaussian": NormalActionNoise
+}
+
 if __name__ == "__main__":
     if args.planner == "":
         algorithm = algo_map[run_config["algorithm"]["type"]][0]
@@ -73,10 +79,13 @@ if __name__ == "__main__":
 
             # create or load model
             if not run_config["algorithm"]["load_model"]:       
+                if "action_noise" in run_config["algorithm"]["config"]:
+                    import numpy as np
+                    run_config["algorithm"]["config"]["action_noise"] = noise_map[run_config["algorithm"]["config"]["action_noise"][0]](mean=np.zeros(run_config["algorithm"]["config"]["action_noise"][1]), sigma=np.ones(run_config["algorithm"]["config"]["action_noise"][1]))
                 model = algorithm(policy, envs, policy_kwargs=run_config["custom_policy"], verbose=1, tensorboard_log="./models/tensorboard_logs", **run_config["algorithm"]["config"])
                 print(model.policy)
             else:
-                model = algorithm.load(run_config["algorithm"]["model_path"], env=envs, tensorboard_log="./models/tensorboard_logs")
+                model = algorithm.load(run_config["algorithm"]["model_path"], env=envs, tensorboard_log="./models/tensorboard_logs", custom_objects=run_config["algorithm"]["config"])
                 # needs to be set on some PCs when loading a model, dont know why, might not be needed on yours
                 if run_config["algorithm"]["type"] == "PPO":
                     model.policy.optimizer.param_groups[0]["capturable"] = True

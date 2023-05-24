@@ -303,6 +303,8 @@ class ObstacleAbsoluteSensor(Sensor):
             if self.ignore_ground and type(obstacle) == GroundPlate:
                 continue
             pyb_data = pyb.getClosestPoints(pyb_u.to_pb(self.robot.object_id), pyb_u.to_pb(obstacle.object_id), self.max_distance)
+            if len(pyb_data) == 0:
+                continue
             closest_element = min(pyb_data, key=lambda x: x[8])
             closestDist = closest_element[8]
             candidates.append((closestDist, obstacle))
@@ -314,6 +316,8 @@ class ObstacleAbsoluteSensor(Sensor):
         candidates.sort(key=lambda x: x[0])
         if len(candidates) != 0:
             self.min_dist = candidates[0][0]
+        else:
+            self.min_dist = self.max_distance
         for idx, obst in enumerate(candidates[:self.num_obstacles]):
             self.positions[idx * 3: (idx + 1) * 3] = obst[1].position
             self.velocities[idx * 3: (idx + 1) * 3] = obst[1].velocity

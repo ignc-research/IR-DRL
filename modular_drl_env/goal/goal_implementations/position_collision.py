@@ -3,13 +3,15 @@ import numpy as np
 from modular_drl_env.robot.robot import Robot
 from gym.spaces import Box
 from modular_drl_env.util.quaternion_util import quaternion_similarity
+from modular_drl_env.sensor.sensor_implementations.positional.obstacle_sensor import ObstacleSensor, ObstacleAbsoluteSensor
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'PositionCollisionGoal',
     'PositionRotationCollisionGoal',
     'PositionCollisionBetterSmoothingGoal',
-    'PositionCollisionGoalNoShaking'
+    'PositionCollisionGoalNoShaking',
+    'PositionCollisionGoalNoShakingProximity'
 ]
 
 class PositionCollisionGoal(Goal):
@@ -618,3 +620,55 @@ class PositionCollisionGoalNoShaking(PositionCollisionGoal):
         logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
 
         return logging_dict
+    
+class PositionCollisionGoalNoShakingProximity(PositionCollisionGoalNoShaking):
+
+    def __init__(self, 
+                 robot: Robot, 
+                 normalize_rewards: bool, 
+                 normalize_observations: bool, 
+                 train: bool, 
+                 add_to_logging: bool, 
+                 max_steps: int, 
+                 continue_after_success: bool, 
+                 reward_success=10, 
+                 reward_collision=-10, 
+                 reward_distance_mult=-0.01, 
+                 dist_threshold_start=0.3, 
+                 dist_threshold_end=0.01, 
+                 dist_threshold_increment_start=0.01, 
+                 dist_threshold_increment_end=0.001, 
+                 dist_threshold_overwrite: float = None, 
+                 dist_threshold_change: float = 0.8, 
+                 better_compatability_obs_space: bool = True, 
+                 done_on_oob: bool = True,
+                 d_min: float= 0.05):
+        super().__init__(robot, normalize_rewards, normalize_observations, train, add_to_logging, max_steps, continue_after_success, reward_success, reward_collision, reward_distance_mult, dist_threshold_start, dist_threshold_end, dist_threshold_increment_start, dist_threshold_increment_end, dist_threshold_overwrite, dist_threshold_change, better_compatability_obs_space, done_on_oob)
+        self.obst_sensor = None
+        for sensor in self.robot.sensors:
+            if type(sensor) == ObstacleSensor or type(sensor) == ObstacleAbsoluteSensor:
+                self.obst_sensor = sensor
+                break
+        self.d_min = d_min
+        if self.obst_sensor is None:
+            raise Exception("This goal type needs an obstacle sensor to be present for its robot!")
+        a = ((self.reward_collision) - (0)) / (np.exp(self.d_min) - 1)
+        b = (0) - a
+        self.proximity_reward = lambda x: a * np.exp(-(x - self.d_min)) + b
+        a = ((self.reward_collision) - (0)) / (np.exp(0.05) - 1)
+        b = (0) - a
+        self.joint_limit_reward = lambda x: a * np.exp(-(x - 0.05)) + b
+
+    def reward(self, step, action):
+        reward, is_success, done, timeout, oob = super().reward(step, action)
+        # penalty for being close to obstacles
+        if self.obst_sensor.min_dist <= self.d_min:
+            reward += self.proximity_reward(self.obst_sensor.min_dist)
+        self.reward_value = reward
+        # penalty for being very close to joint limits
+        dist_to_max = abs(self.robot.joints_limits_upper - self.robot.joints_sensor.joints_angles)
+        dist_to_min = abs(self.robot.joints_sensor.joints_angles - self.robot.joints_limits_lower)
+        dist_both = max(max(dist_to_max), max(dist_to_min))
+        if dist_both <= 0.05:
+            reward += self.joint_limit_reward(dist_both)
+        return reward, is_success, done, timeout, oob

@@ -52,7 +52,7 @@ class RobotSkeletonSensor(Sensor):
         # extra points via linear interpolation between selected links
         self.extra_points_link_pairs = extra_points_link_pairs
         if self.extra_points_link_pairs:
-            print("[WARNING] You've activated extra points for the robot skeleton sensor. Check via Pybullet GUI if their placement (red bubbles) makes sense as they're automated via simple linear intepolation!")
+            print("[WARNING] You've activated extra points for the robot skeleton sensor of " + self.robot.name + ". Check via Pybullet GUI if their placement (red bubbles) makes sense as they're automated via simple linear intepolation!")
         self.num_extra = sum([tup[2] for tup in self.extra_points_link_pairs])
         self.extra_points_coordinates = np.zeros((self.num_extra, 3))
 

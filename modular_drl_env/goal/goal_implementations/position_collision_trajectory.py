@@ -4,7 +4,7 @@ from modular_drl_env.robot.robot import Robot
 from gym.spaces import Box, MultiBinary
 from modular_drl_env.util.quaternion_util import quaternion_similarity
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
-from modular_drl_env.sensor.sensor_implementations.positional.obstacle_sensor import ObstacleSensor
+from modular_drl_env.sensor.sensor_implementations.positional.obstacle_sensor import ObstacleSensor, ObstacleAbsoluteSensor
 from modular_drl_env.planner.planner_implementations.rrt import BiRRT, RRT
 
 #TODO: 
@@ -47,7 +47,7 @@ class PositionCollisionTrajectoryGoal(Goal):
         # check if necessary sensor is there
         self.obst_sensor = None
         for sensor in self.robot.sensors:
-            if type(sensor) == ObstacleSensor:
+            if type(sensor) == ObstacleSensor or type(sensor) == ObstacleAbsoluteSensor:
                 self.obst_sensor = sensor
                 break
         if self.obst_sensor is None:
@@ -119,6 +119,7 @@ class PositionCollisionTrajectoryGoal(Goal):
         a = (-1 - (-15) * np.exp(self.d_min)) / (1 - np.exp(self.d_min))
         b = -1 - a
         self.proximity_reward = lambda x: a * np.exp(-(x - self.d_min)) + b
+        self.proximity_reward = lambda x: (1/((1 - self.d_min) + x))**18
 
         # performance metric name
         self.metric_names = ["angle_threshold"]
@@ -177,21 +178,6 @@ class PositionCollisionTrajectoryGoal(Goal):
         # check collision status
         self.collided = pyb_u.collision
 
-        action_size_reward = -np.linalg.norm(action)
-
-        # reward for completing part of the trajectory
-        trajectory_state_reward = self.trajectory_idx / (len(self.trajectory) - 1)
-        # penalty for not moving forward on the trajectory
-        if self.trajectory_idx_prev == self.trajectory_idx:
-            moving_forward_reward = -0.25
-        else:
-            moving_forward_reward = 0
-        # penalty for not moving in general
-        if np.linalg.norm(self.current_position - self.previous_position) < 0.0015:
-            moving_forward_cart_reward = -0.05
-        else:
-            moving_forward_cart_reward = 0
-
         # reward for collision
         if self.collided:
             self.done = True
@@ -203,10 +189,26 @@ class PositionCollisionTrajectoryGoal(Goal):
             self.done = True
             self.is_success = True
         else:
+            goal_distance_reward = -0.01 * np.linalg.norm(self.trajectory_xyz[-1] - self.current_position)
+            
+            action_size_reward = -np.linalg.norm(action)
+
+            # reward for completing part of the trajectory
+            trajectory_state_reward = (self.trajectory_idx / (len(self.trajectory) - 1)) * 2.5
+            # penalty for not moving forward on the trajectory
+            if self.trajectory_idx_prev == self.trajectory_idx:
+                moving_forward_reward = -1.5
+            else:
+                moving_forward_reward = 0
+            # penalty for not moving in general
+            if np.linalg.norm(self.current_position - self.previous_position) < 0.0015:
+                moving_forward_cart_reward = -0.15
+            else:
+                moving_forward_cart_reward = 0
             #print("distance", self.obst_sensor.min_dist)
             # reward for safe distance
-            if self.obst_sensor.min_dist < self.d_min:
-                proximity_reward = self.proximity_reward(self.obst_sensor.min_dist) / 5
+            if self.obst_sensor.min_dist < self.d_min * 2:
+                proximity_reward = self.proximity_reward(self.obst_sensor.min_dist)
             else:
                 proximity_reward = 0
             # reward for being close to the next trajectory target
@@ -215,8 +217,16 @@ class PositionCollisionTrajectoryGoal(Goal):
             trajectory_reward = -0.1 * self.min_distance_to_trajectory
             
             reward = action_size_reward + trajectory_state_reward + moving_forward_reward + \
-                            moving_forward_cart_reward + proximity_reward + \
-                            waypoint_reward + trajectory_reward
+                            moving_forward_cart_reward + waypoint_reward + trajectory_reward
+            
+            # weight all the trajectory related rewards down when near an obstacle
+            if self.obst_sensor.min_dist < self.d_min:
+                reward *= (self.d_min - self.obst_sensor.min_dist)**2
+                reward += 5 * goal_distance_reward
+            else:
+                reward += goal_distance_reward
+            # add proximity reward on top
+            reward += proximity_reward
             
             if step > self.max_steps:
                 self.done = True

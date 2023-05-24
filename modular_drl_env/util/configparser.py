@@ -79,14 +79,17 @@ def parse_config(filepath, train):
         else:
             raise Exception("Unsupported activation function!")
         pol_dict = dict(activation_fn=activation_function)
-        net_arch = []
-        vf_pi_dict = dict(vf=[], pi=[])
+        if config_raw["run"]["algorithm"] in ["PPO", "A2C", "TRPO"]:
+            vf_pi_dict = dict(vf=[], pi=[])
+            q_name = "vf"
+        else:
+            vf_pi_dict = dict(qf=[], pi=[])
+            q_name = "qf"
         for layer in config_raw["run"]["algorithm"]["custom_policy"]["value_function"]:
-            vf_pi_dict["vf"].append(layer)
+            vf_pi_dict[q_name].append(layer)
         for layer in config_raw["run"]["algorithm"]["custom_policy"]["policy_function"]:
             vf_pi_dict["pi"].append(layer)    
-        net_arch.append(vf_pi_dict)
-        pol_dict["net_arch"] = net_arch
+        pol_dict["net_arch"] = vf_pi_dict
         config_raw["run"]["custom_policy"] = pol_dict
 
     # set some defaults for train or eval
