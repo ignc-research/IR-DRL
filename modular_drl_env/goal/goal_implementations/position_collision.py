@@ -671,4 +671,6 @@ class PositionCollisionGoalNoShakingProximity(PositionCollisionGoalNoShaking):
         dist_both = max(max(dist_to_max), max(dist_to_min))
         if dist_both <= 0.05:
             reward += self.joint_limit_reward(dist_both)
+        if step > self.max_steps:
+            reward += self.reward_collision
         return reward, is_success, done, timeout, oob

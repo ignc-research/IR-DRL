@@ -48,6 +48,7 @@ class GeneratedWorld(World):
 
     def __init__(self, workspace_boundaries: list,
                        sim_step: float,
+                       sim_steps_per_env_step: int,
                        env_id: int,
                        assets_path: str,
                        obstacles: dict,
@@ -57,7 +58,7 @@ class GeneratedWorld(World):
         :param workspace_boundaries: List of 6 floats containing the bounds of the workspace in the following order: xmin, xmax, ymin, ymax, zmin, zmax
         :param sim_step: float for the time per sim step
         """
-        super().__init__(workspace_boundaries, sim_step, env_id, assets_path)
+        super().__init__(workspace_boundaries, sim_step, sim_steps_per_env_step, env_id, assets_path)
         self.config = obstacles 
         self.start_override = start_override
 
@@ -76,25 +77,25 @@ class GeneratedWorld(World):
             generator = MazeGenerator(obstacle["params"])
             urdf_name = self.assets_path + "/runtime/maze_" + str(self.env_id) + ".urdf"
             generator.generate_to_file(urdf_name)
-            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, vel * self.sim_step, urdf_name, scale))
+            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, self.sim_step, self.sim_steps_per_env_step, vel, urdf_name, scale))
         elif obstacle_name == "shelf":
             generator = ShelfGenerator(obstacle["params"])
             urdf_name = self.assets_path + "/runtime/shelf_" + str(self.env_id) + ".urdf"
             generator.generate_to_file(urdf_name)
-            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, vel * self.sim_step, urdf_name, scale))
+            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, self.sim_step, self.sim_steps_per_env_step, vel, urdf_name, scale))
         elif obstacle_name == "box":
-            self.obstacle_objects.append(Box(position, rotation, trajectory, self.sim_step * vel, **obstacle["params"]))
+            self.obstacle_objects.append(Box(position, rotation, trajectory, self.sim_step, self.sim_steps_per_env_step, vel, **obstacle["params"]))
         elif obstacle_name == "sphere":
-            self.obstacle_objects.append(Sphere(position, rotation, trajectory, vel * self.sim_step, **obstacle["params"]))
+            self.obstacle_objects.append(Sphere(position, rotation, trajectory, self.sim_step, self.sim_steps_per_env_step, vel, **obstacle["params"]))
         elif obstacle_name == "cylinder":
-            self.obstacle_objects.append(Cylinder(position, rotation, trajectory, vel * self.sim_step, **obstacle["params"]))
+            self.obstacle_objects.append(Cylinder(position, rotation, trajectory, self.sim_step, self.sim_steps_per_env_step, vel, **obstacle["params"]))
         elif obstacle_name == "basic":
             urdfs = findUrdfs(obstacle["urdf"])
             if len(urdfs) > 0:
                 urdf_name = urdfs[0]
             else:
                 urdf_name = f"{urdf_name}.urdf"
-            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, vel * self.sim_step, urdf_name, scale))
+            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, self.sim_step, self.sim_steps_per_env_step, vel, urdf_name, scale))
 
     def set_up(self):
         # load obstacle configs

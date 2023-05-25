@@ -36,14 +36,14 @@ class TimeSensor(Sensor):
         ret = dict()
         if self.report_time:
             if self.normalize:
-                ret["time"] = Box(low=0, high=1, dtype=np.float32)
+                ret["time"] = Box(low=0, high=1, shape=(1,), dtype=np.float32)
             else:
-                ret["time"] = Box(low=0, high=self.max_time, dtype=np.float32)
+                ret["time"] = Box(low=0, high=self.max_time, shape=(1,), dtype=np.float32)
         if self.report_steps:
             if self.normalize:
-                ret["steps"] = Box(low=0, high=1, dtype=np.float32)
+                ret["steps"] = Box(low=0, high=1, shape=(1,), dtype=np.float32)
             else:
-                ret["steps"] = Box(low=0, high=self.max_env_steps, dtype=np.int32)
+                ret["steps"] = Box(low=0, high=self.max_env_steps, shape=(1,), dtype=np.int32)
         return ret
     
     def update(self, step) -> dict:
@@ -55,14 +55,14 @@ class TimeSensor(Sensor):
         ret = dict()
         if self.report_time:
             if self.normalize:
-                ret["time"] = self.time / self.max_time
+                ret["time"] = [self.time / self.max_time]
             else:
-                ret["time"] = self.time
+                ret["time"] = [self.time]
         if self.report_steps:
             if self.normalize:
-                ret["steps"] = self.steps / self.max_env_steps
+                ret["steps"] = [self.steps / self.max_env_steps]
             else:
-                ret["steps"] = self.steps
+                ret["steps"] = [self.steps]
         return ret
     
     def reset(self):

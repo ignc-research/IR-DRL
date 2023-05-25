@@ -197,7 +197,7 @@ class PositionCollisionTrajectoryGoal(Goal):
             trajectory_state_reward = (self.trajectory_idx / (len(self.trajectory) - 1)) * 2.5
             # penalty for not moving forward on the trajectory
             if self.trajectory_idx_prev == self.trajectory_idx:
-                moving_forward_reward = -1.5
+                moving_forward_reward = -15
             else:
                 moving_forward_reward = 0
             # penalty for not moving in general

@@ -19,7 +19,7 @@ run:
     display_delay: 0.00416666666 
     show_world_aux: True
     show_goal_aux: True
-    show_sensor_aux: False
+    show_sensor_aux: True
 
 env:
   max_steps_per_episode: 1024  
@@ -39,10 +39,8 @@ env:
         resting_angles: [-180, -45, -90, -135, 90, 0]
         control_mode: 0
       sensors:
-        - type: "LiDAR"
+        - type: "LidarSensorGeneric"
           config:
-            position: [0, 0, 0]
-            rotation: [0, 0, 0]
             update_steps: 1
             add_to_observation_space: True
             add_to_logging: True
@@ -50,6 +48,8 @@ env:
             ray_start: 0
             ray_end: 0.3
             indicator: True
+            ray_setup:
+              ee_link: 10
       goal:
         type: "PositionCollision"
         config:
