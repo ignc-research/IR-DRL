@@ -17,6 +17,7 @@ This repo implements a modular DRL Gym env for training policies for robots. Maj
 - mazelib
 
 Once python is installed, you can use ```pip install -r requirements.txt``` to install the above packages in versions that work with the code in this repo.
+Due to a problem with a dependency being tethered to an old numpy version that breaks our code it is necessary to run ```pip install numpy==1.24.1``` afterwards.
 
 ## State of the code & plans
 
