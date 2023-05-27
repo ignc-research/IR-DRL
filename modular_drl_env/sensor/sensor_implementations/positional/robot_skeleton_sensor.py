@@ -24,17 +24,19 @@ class RobotSkeletonSensor(Sensor):
     Adapted from the code written by Amir.
     """
 
-    def __init__(self, normalize: bool, 
-                 add_to_observation_space: bool, 
-                 add_to_logging: bool, 
-                 sim_step: float, 
-                 update_steps: int, 
-                 sim_steps_per_env_step: int,
+    def __init__(self, 
                  robot: Robot,
                  reference_link_ids: List[str],
+                 sim_step: float,
+                 sim_steps_per_env_step: int,
                  extra_points_link_pairs: List=[],
-                 report_velocities: bool=False):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step)
+                 report_velocities: bool=False,
+                 normalize: bool=False, 
+                 add_to_observation_space: bool=True, 
+                 add_to_logging: bool=False,          
+                 update_steps: int=1,                       
+                 ):
+        super().__init__(sim_step, sim_steps_per_env_step, normalize, add_to_observation_space, add_to_logging,  update_steps)
 
         # set associated robot
         self.robot = robot

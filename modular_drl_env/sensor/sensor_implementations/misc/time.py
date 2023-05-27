@@ -8,15 +8,16 @@ class TimeSensor(Sensor):
     """
 
     def __init__(self, 
-                 normalize: bool, 
-                 add_to_observation_space: bool, 
-                 add_to_logging: bool, 
-                 sim_step: float, 
+                 max_env_steps: int,
+                 sim_step: float,
                  sim_steps_per_env_step: int,
-                 max_env_steps: int, 
                  report_steps: bool=True, 
-                 report_time: bool=False):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, 1, sim_steps_per_env_step)
+                 report_time: bool=False,
+                 normalize: bool=False, 
+                 add_to_observation_space: bool=True, 
+                 add_to_logging: bool=False
+                 ):
+        super().__init__(sim_step, sim_steps_per_env_step, normalize, add_to_observation_space, add_to_logging,  1)
 
         self.max_env_steps = max_env_steps
         self.max_time = self.max_env_steps * self.sim_step * self.sim_steps_per_env_step

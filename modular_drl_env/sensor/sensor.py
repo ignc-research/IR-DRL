@@ -8,7 +8,13 @@ class Sensor(ABC):
     See the joint or position sensor for examples.
     """
 
-    def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int):
+    def __init__(self, 
+                 sim_step: float, 
+                 sim_steps_per_env_step: int, 
+                 normalize: bool=False, 
+                 add_to_observation_space: bool=True, 
+                 add_to_logging: bool=False,  
+                 update_steps: int=1):
         
         super().__init__()
 
