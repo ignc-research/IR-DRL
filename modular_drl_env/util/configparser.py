@@ -79,7 +79,7 @@ def parse_config(filepath, train):
         else:
             raise Exception("Unsupported activation function!")
         pol_dict = dict(activation_fn=activation_function)
-        if config_raw["run"]["algorithm"]["type"] in ["PPO", "A2C", "TRPO"]:
+        if config_raw["run"]["algorithm"]["type"] in ["PPO", "A2C", "TRPO", "AttentionPPO", "RecurrentPPO"]:
             vf_pi_dict = dict(vf=[], pi=[])
             q_name = "vf"
         else:
