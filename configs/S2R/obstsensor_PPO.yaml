@@ -1,0 +1,122 @@
+run:
+  algorithm:
+    load_model: True  
+    model_path: "./models/weights/PPO_platexperiment_end2end_1/model_interrupt"  
+    #model_path: "./models/weights/PPO_platexperiment_trajectory_dyn6/model_138728640_steps"
+    type: "PPO"
+    config:
+      batch_size: 4048
+      n_steps: 1024
+      gamma: 0.9999
+      ent_coef: 0.0002
+    # type: "SAC"
+    # config:
+    #   tau: 0.001
+    #   learning_rate: 0.001
+    #   action_noise: ["OrnsteinUhlenbeck", 5]
+    #   train_freq: 1024
+    #   batch_size: 1024
+    #   use_sde: True
+    custom_policy:
+      activation_function: "tanh"
+      value_function:
+        - 600
+        - 500
+        - 400
+        - 300
+        - 150
+      policy_function:
+        - 600
+        - 300
+        - 150
+        - 75
+        - 50
+    # type: "TD3"
+    # gamma: 0.995
+    # learning_rate: 0.001
+    # config:
+    #   train_freq: 8
+    #   tau: 0.001
+  train:
+    num_envs : 24  
+    logging: 0
+    timesteps: 150000000 
+    save_freq : 90000
+    save_folder: "./models/weights"  
+    save_name: "platexperiment_end2end_2"
+  eval:
+    max_episodes: -1
+    logging: 1
+    display_delay: 0.00816666666  
+    show_world_aux: True
+    show_goal_aux: True
+    show_sensor_aux: True
+
+env:
+  max_steps_per_episode: 999999 
+  stat_buffer_size: 25  
+  normalize_observations: False
+  normalize_rewards: False
+  use_physics_sim: True
+  gravity: [0, 0, -9.8]
+  sim_step: 0.00416666666 
+  sim_steps_per_env_step: 1 
+  robots:
+    - type: "UR5_Gripper" 
+      config:
+        name: "ur5_1"
+        base_position: [0, 0, 0.01]
+        base_orientation: [0, 0, -180]
+        resting_angles: [-180, -45, -90, -135, 90, 0]
+        control_mode: 2
+        self_collision: True
+        controlled_joints: ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint"]
+      sensors:
+        - type: "Obstacle"
+          config:
+            update_steps: 1
+            add_to_observation_space: True
+            add_to_logging: False
+            num_obstacles: 1
+            max_distance: 0.2
+            sphere_coordinates: False
+            report_velocities: True
+            reference_link_ids: ["ee_link", "forearm_link", "wrist_1_link", "wrist_3_link"]
+        - type: "ObstacleAbsolute"
+          config:
+            update_steps: 1
+            add_to_observation_space: True
+            add_to_logging: False
+            num_obstacles: 1
+            max_distance: 0.4
+            report_velocities: True
+        - type: "RobotSkeleton"
+          config:
+            update_steps: 1
+            add_to_observation_space: True
+            add_to_logging: False
+            report_velocities: False
+            reference_link_ids: ["ee_link", "forearm_link", "wrist_1_link", "wrist_2_link", "wrist_3_link"]
+            extra_points_link_pairs: [["forearm_link", "wrist_1_link", 2]]
+      goal:
+        type: PositionCollisionNoShakingProximity
+        config:
+          add_to_logging: True
+          continue_after_success: True
+          dist_threshold_start: 0.4
+          dist_threshold_end : 0.05
+          dist_threshold_increment_start: 0.01
+          dist_threshold_increment_end: 0.001
+          dist_threshold_overwrite: 0.145
+          reward_success: 25
+          reward_distance_mult: -0.1
+  world:
+    type: "Generated"
+    config:
+      workspace_boundaries: [-2, 2, -2, 2, 0, 2]
+      obstacles:
+      - type: "box"  # tisch
+        position: [0.25, 0.25, -0.5]
+        rotation: [0, 0, 0]
+        params:
+          halfExtents: [0.3, 0.3, 0.5]

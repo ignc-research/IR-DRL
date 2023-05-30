@@ -1,10 +1,10 @@
 camera_transform_to_pyb_origin:
-- 0.24
-- 1.82
-- 0.57
+- 0.1
+- 1.78
+- 0.3
 dist_threshold: 0.03
 drl_horizon: 5
 enable_PC: false
 max_inference_steps: 5000
-robot_voxel_safe_distance: 0.1
+robot_voxel_safe_distance: 0.05
 voxel_size: 0.035

@@ -26,7 +26,7 @@ class ShelfGenerator:
         xy_offset = element_size / 2
         wall_offset = wall_thickness
 
-        urdf_wall_generator = UrdfWallGenerator()
+        urdf_wall_generator = UrdfWallGenerator(self.params.get("color", [.5, .5, .5, 1]))
         for row_idx in range(rows):
             for col_idx in range(columns):
                 urdf_wall_generator.add_wall(element_size + wall_offset, wall_thickness, shelf_depth, wall_offset + xy_offset + col_idx * element_size, wall_offset + row_idx * element_size, shelf_depth / 2)
@@ -39,3 +39,7 @@ class ShelfGenerator:
                     urdf_wall_generator.add_wall(element_size + wall_offset, wall_thickness, shelf_depth, wall_offset + xy_offset + col_idx * element_size, wall_offset + (row_idx + 1) * element_size, shelf_depth / 2)
         
         return urdf_wall_generator.get_urdf()
+    
+    def generate_to_file(self, output_path):
+        with open(output_path, "w") as outfile:
+            outfile.write(self.generate())

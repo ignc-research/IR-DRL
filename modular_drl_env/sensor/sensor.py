@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from time import time
-from modular_drl_env.engine.engine import get_instance
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 class Sensor(ABC):
     """
@@ -11,9 +11,6 @@ class Sensor(ABC):
     def __init__(self, normalize: bool, add_to_observation_space: bool, add_to_logging: bool, sim_step: float, update_steps: int, sim_steps_per_env_step: int):
         
         super().__init__()
-        
-        # get engine
-        self.engine = get_instance()
 
         # determines whether the output of the sensor is normalized to be between -1 and 1 (or alternatively between 0 and 1, if that makes more sense for a particular type of sensor)
         # note: class variables as well as the logging output should still be unnormalized, only the output of get_data() should be changed by this
@@ -41,7 +38,8 @@ class Sensor(ABC):
         self.update_steps = update_steps
 
         # list of auxillary visual objects, this gets purged every env step!
-        self.aux_visual_objects = []
+        self.aux_visual_objects = []  # for spheres, cubes etc.
+        self.aux_lines = []  # specifically for lines
 
     @abstractmethod
     def update(self, step) -> dict:
@@ -70,7 +68,6 @@ class Sensor(ABC):
         """
         pass
 
-    @abstractmethod
     def _normalize(self) -> dict:
         """
         Returns the sensor data in normalized format.
@@ -108,6 +105,8 @@ class Sensor(ABC):
         Deletes all visual aides created by this sensor.
         """
         for aux_object in self.aux_visual_objects:
-            self.engine.remove_aux_object(aux_object)
+            pyb_u.remove_object(aux_object)
+        if self.aux_lines: pyb_u.delete_lines(self.aux_lines)
         self.aux_visual_objects = []
+        self.aux_lines = []
 

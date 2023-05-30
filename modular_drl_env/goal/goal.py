@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from modular_drl_env.robot.robot import Robot
-from modular_drl_env.engine.engine import get_instance
 from typing import Tuple
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 class Goal(ABC):
     """
@@ -10,9 +10,6 @@ class Goal(ABC):
     """
 
     def __init__(self, robot:Robot, normalize_rewards:bool, normalize_observations:bool, train:bool, add_to_observation_space: bool, add_to_logging:bool, max_steps:int, continue_after_success:bool=False):
-
-        # get engine
-        self.engine = get_instance()
 
         # each goal needs to have a robot assigned for which it is valid
         self.robot = robot
@@ -51,7 +48,8 @@ class Goal(ABC):
         self.needs_a_joints_position = False  # goal needs a target joint position in configuration space
 
         # set of visual aux objects
-        self.aux_object_ids = []
+        self.aux_object_ids = []  # spheres, cubes, etc.
+        self.aux_lines = []  # lines only
 
     @abstractmethod
     def get_observation_space_element(self) -> dict:
@@ -107,12 +105,16 @@ class Goal(ABC):
         like marking the target zone. 
         """
         pass
-
+        
     def delete_visual_aux(self):
         """
         Should delete all visual aux objects built by this goal.
         """
-        pass
+        for object_id in self.aux_object_ids:
+            pyb_u.remove_object(object_id)
+        if self.aux_lines: pyb_u.delete_lines(self.aux_lines)
+        self.aux_object_ids = []
+        self.aux_lines = []
 
     def get_data_for_logging(self) -> dict:
         """

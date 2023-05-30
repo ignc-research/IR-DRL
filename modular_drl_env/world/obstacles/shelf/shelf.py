@@ -7,7 +7,7 @@ from modular_drl_env.shared.shelf_generator import ShelfGenerator
 
 class ShelfObstacle(URDFObjectGenerated):
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, env_id: int, params: dict, scale=[1, 1, 1]) -> None:
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, move_step: float, env_id: int, params: dict, scale=1) -> None:
         self.env_id = env_id
         self.params = params 
         self.file_name = self.generate()

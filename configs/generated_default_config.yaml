@@ -1,55 +1,35 @@
 # config that builds the env using the World Generator
 run:
-  load_model: False  
-  model_path: ""  
+  algorithm:
+    load_model: False  
+    model_path: ""  
+    type: "PPO"
+    gamma: 0.99
+    learning_rate: 0.0003
   train:
     num_envs : 16  
+    logging: 0
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"  
-    save_name: "PPO_default"
-    recurrent: False
-    ppo_steps: 1024  
-    batch_size: 512
-    gamma: 0.99  
-    tensorboard_folder: "./models/tensorboard_logs"
-    custom_policy:
-      use: False
-      activation_function: "ReLU"  
-      layers:
-        - 128
-        - 128
-        - value_function:
-          - 64
-        - policy_function:
-          - 32
-          - 32
-          - 16   
-      lstm:
-        lstm_hidden_size: 512
-        n_lstm_layers: 2
-        shared_lstm: False
-        enable_critic_lstm: True
-
+    save_name: "generated_default"
   eval:
     max_episodes: -1  
     logging: 1  
     display_delay: 0.00416666666 
     show_world_aux: True
     show_goal_aux: True
-    show_sensor_aux: False
+    show_sensor_aux: True
 
 env:
   max_steps_per_episode: 1024  
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
-  engine:
-    type: "Pybullet"
-    use_physics_sim: True
-    gravity: [0, 0, -9.8]
-    sim_step: 0.00416666666 
-    sim_steps_per_env_step: 1 
+  use_physics_sim: True
+  gravity: [0, 0, -9.8]
+  sim_step: 0.00416666666 
+  sim_steps_per_env_step: 1 
   robots:
     - type: "UR5" 
       config:
@@ -58,10 +38,8 @@ env:
         base_orientation: [0, 0, 0]
         resting_angles: [-180, -45, -90, -135, 90, 0]
         control_mode: 0
-        xyz_delta: 0.005
-        rpy_delta: 0.005
       sensors:
-        - type: "LidarSensorUR5"
+        - type: "LidarSensorGeneric"
           config:
             update_steps: 1
             add_to_observation_space: True
@@ -69,13 +47,9 @@ env:
             indicator_buckets: 6
             ray_start: 0
             ray_end: 0.3
-            ray_setup:
-              ee_forward: [1, 1]
-              wrist3_circle: [10, 10]
-              wrist2_circle: [10, 10]
-              wrist1_circle: [10, 10]
-              upper_arm: [10, 10]
             indicator: True
+            ray_setup:
+              ee_link: 10
       goal:
         type: "PositionCollision"
         config:
@@ -107,7 +81,7 @@ env:
       - type: "shelf"
         position: [-1.25, 1.5, 0]
         rotation: [90, 0, 0]
-        scale: [1, 1, 1]
+        scale: 1
         params:
           rows: 5
           cols: 5

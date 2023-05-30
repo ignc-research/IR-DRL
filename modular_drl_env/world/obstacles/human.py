@@ -1,5 +1,6 @@
 from modular_drl_env.world.obstacles.obstacle import Obstacle
 import pybullet as pyb
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 import numpy as np 
 from typing import Union
 from .human_lib.human.man.man import Man
@@ -11,13 +12,9 @@ class Human(Obstacle):
     """
 
     def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, thresh: float, scale: float=1):
-        super().__init__(position, rotation, trajectory, 0)
+        super().__init__(position, rotation, trajectory, sim_step, 1, 0)
         self.human = None
         self.scale = scale
-
-        # guard against using this class with engines other than Pybullet
-        if self.engine.engine_type != "Pybullet":
-            raise Exception("Human obstacles cannot be used with engines other than Pybullet!")
 
         self.sim_step = sim_step
         self.trajectory_idx = 0
@@ -33,13 +30,14 @@ class Human(Obstacle):
         #self.human.resetGlobalTransformation(self.position_orig, pyb.getEulerFromQuaternion(self.rotation_orig.tolist()))
         self.human.advance(self.position_orig, self.orientation_orig.tolist())
         self.internal_id = self.human.body_id
-        # ultra hacky solution to make this work with the new engine abstraction, but should be fine because this human model will only ever work with pybullet
-        name = "human_" + str(len(self.engine._geometry))
-        self.engine._geometry[name] = self.internal_id
+        # ultra hacky solution to make this work with the new pyb util abstraction, but should be fine
+        name = "human_" + str(len(pyb_u.pybullet_object_ids))
+        pyb_u.pybullet_object_ids[name] = self.internal_id
+        pyb_u.gym_env_str_names[self.internal_id] = name
         self.object_id = name
         return name
 
-    def move(self):
+    def move_traj(self):
         if not self.trajectory:
             pass  # empty trajectory, do nothing
         elif len(self.trajectory) == 1:

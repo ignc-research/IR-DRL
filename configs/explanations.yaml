@@ -7,66 +7,55 @@
 # run attributes
 # these are meta attributes about how we interact with the gym env from the outside
 run:
-  # bool, determines whether a model is loaded
-  load_model: False  
-  # str, relative path of the model which is to be loaded if load_model is True
-  model_path: ""    
-  # attributes for training
-  train:
-    # int, number of parallel executions for training
-    num_envs : 16  
-    # int, maximum timesteps for this run
-    timesteps: 15000000  
-    # int, steps after which a checkpoint of the current agent is saved (this is calculated per env even when multiple ones are run in parallel, after the first env reaches this value a save will occur)
-    save_freq : 30000
-    # str, folder in which saved checkpoints will be stored
-    save_folder: "./models/weights"  
-    # str, name of the model under which it will be saved
-    save_name: "PPO_default"
-    # bool, whether to use a recurrent PPO model (True) or not (False)
-    recurrent: False
-    # int, steps until PPO updates the agent (this is per env, meaning if one env reaches this value the agent updates)
-    ppo_steps: 1024  
-    # int, batch size of the PPO update, note: the PPO buffer is of size num_envs * ppo_steps, so best choose batch size as a natural divisor for that number for even batches
-    batch_size: 512
-    # float between 0 and 1, discount factor for DRL, the higher the more the trained agent will tend to weigh future rewards  
-    gamma: 0.99  
-    # str, folder in which tensorboard will log data during training
-    tensorboard_folder: "./models/tensorboard_logs"
-    # custom policy definition using the stable_baselines3 interface
+  # settings for the algorithm that is to be used
+  algorithm:
+    # bool, determines whether a saved model will be loaded
+    load_model: False  
+    # str, if the above is true, this is the path that will be loaded from
+    model_path: ""  
+    # str, algorithm type, can be PPO, RecurrentPPO, AttentionPPO, TD3, SAC, A2C or DDPG
+    type: "PPO"
+    # float, gamma value for RL
+    gamma: 0.99
+    # float, learning rate for the model
+    learning_rate: 0.0003
+    # algorithm specific custom configuration
+    # here you can change the parameters of the chosen algorithm, you can find them and what they do in the official stable baselines documentation
+    # below, we give a few examples
+    config:
+      n_steps: 2048
+      batch_size: 4096
+    # this defines a custom policy network for the RL agent
+    # you can leave this section out entirely, in that case the default policy by SB3 will be used
     custom_policy:
-      # bool, whether to use this custom policy or not
-      use: False
-      # str, determines the activation function in the policy, can be "ReLU" or "tanh"  TODO: add more options
-      activation_function: "ReLU"  
-      # layers: 
-      # directly under the layers header, write an integer for each common layer you want, the integer will be the number of neurons in that layer
-      # under the value function and policy headers, write an integer for each layer you want
-      # there don't need to be common layers, but both value function and policy function need at least one
-      # example: the following defines a custom policy with two shared layers, a value function end with one and a policy function end with three layers
-      # FYI: the standard PPO model is no common layers and both value and policy function having two layers of 64, the activation function is tanh
-      layers:
-        - 128
-        - 128
-        - value_function:
-          - 64
-        - policy_function:
-          - 32
-          - 32
-          - 16
-      # lstm settings
-      # if you set recurrent (see above) to True, these settings govern the shape of the LSTM part of the custom network
-      # if no custom policy is used, the default settings are instead hidden_size=256, n_lstm_layers=1, shared_lstm=False and enable_critic_lstm=True
-      lstm:
-        # int, neurons in lstm layers
-        lstm_hidden_size: 512  
-        # int, number of lstm layers
-        n_lstm_layers: 2
-        # bool, whether policy and value function parts of the policy share their lstms or each has their own
-        shared_lstm: False
-        # bool, whether the value function has its own lstm layers
-        enable_critic_lstm: True
-
+      # str, name of the activation function, can be ReLU or tanh
+      activation_function: "ReLU"
+      # list, each entry must be an int and determines the amount of neurons in that layer of the value function, the list must have at least one entry
+      value_function:
+        - 256
+        - 256
+        - 256
+        - 256
+      # list, same as above but for the policy function
+      policy_function:
+        - 256
+        - 256
+        - 256
+        - 256
+  # training config
+  train:
+    # int, number of training envs working in parallel
+    num_envs : 16  
+    # int, logging level, see explanation down in the eval section
+    logging: 0
+    # int, amount of env steps total across all parallel envs after which training will stop
+    timesteps: 15000000 
+    # int, amount of steps that need to pass in one env such that a checkpoint of the current model is saved (again, this is per env, so if you have 16 parallel envs and a save freq of 1000, the first saved model will have seen ~16000 steps of experience)
+    save_freq : 30000
+    # str, name of the folder in which models will be saved
+    save_folder: "./models/weights"  
+    # str, name of the save files, the algorithm name will be added as a prefix and the number of timesteps as a suffix
+    save_name: "randomobstacles_default"
   # attributes for evaluation
   eval:
     # int, number of episodes for this eval run, infinitely many if -1

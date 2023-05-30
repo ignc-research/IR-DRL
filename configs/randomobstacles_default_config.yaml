@@ -1,36 +1,30 @@
 # config that builds the env as Yifan had it
 run:
-  load_model: False  
-  model_path: ""  
+  algorithm:
+    load_model: False  
+    model_path: ""  
+    type: "PPO"
+    gamma: 0.99
+    learning_rate: 0.0003
+    custom_policy:
+      activation_function: "ReLU"
+      value_function:
+        - 256
+        - 256
+        - 256
+        - 256
+      policy_function:
+        - 256
+        - 256
+        - 256
+        - 256
   train:
     num_envs : 16  
+    logging: 0
     timesteps: 15000000 
     save_freq : 30000
     save_folder: "./models/weights"  
-    save_name: "PPO_default"
-    recurrent: False
-    ppo_steps: 1024  
-    batch_size: 512
-    gamma: 0.99  
-    tensorboard_folder: "./models/tensorboard_logs"
-    custom_policy:
-      use: False
-      activation_function: "ReLU"  
-      layers:
-        - 128
-        - 128
-        - value_function:
-          - 64
-        - policy_function:
-          - 32
-          - 32
-          - 16   
-      lstm:
-        lstm_hidden_size: 512
-        n_lstm_layers: 2
-        shared_lstm: False
-        enable_critic_lstm: True
-
+    save_name: "randomobstacles_default"
   eval:
     max_episodes: -1  
     logging: 1  
@@ -44,12 +38,10 @@ env:
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: False
-  engine:
-    type: "Pybullet"
-    use_physics_sim: True
-    gravity: [0, 0, -9.8]
-    sim_step: 0.00416666666 
-    sim_steps_per_env_step: 1 
+  use_physics_sim: True
+  gravity: [0, 0, -9.8]
+  sim_step: 0.00416666666 
+  sim_steps_per_env_step: 1 
   robots:
     - type: "UR5" 
       config:
@@ -58,8 +50,7 @@ env:
         base_orientation: [0, 0, 0]
         resting_angles: [0, 90, -30, -120, -80, 90]
         control_mode: 0
-        xyz_delta: 0.005
-        rpy_delta: 0.005
+        self_collision: False
       sensors:
         - type: "LidarSensorUR5"
           config:
@@ -99,5 +90,4 @@ env:
       box_measurements: [0.025, 0.075, 0.025, 0.075, 0.00075, 0.00125]
       sphere_measurements: [0.005, 0.02]
       moving_obstacles_vels: [0.5, 2]
-      moving_obstacles_directions: []
       moving_obstacles_trajectory_length: [0.05, 0.75]

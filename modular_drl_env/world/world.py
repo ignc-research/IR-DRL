@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
-from modular_drl_env.engine.engine import get_instance
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
+import pybullet as pyb
 import numpy as np
+from modular_drl_env.world.obstacles.shapes import *
+from modular_drl_env.world.obstacles.urdf_object import URDFObject
 
 
 class World(ABC):
@@ -9,17 +12,25 @@ class World(ABC):
     See the random obstacles world for examples.
     """
 
-    def __init__(self, workspace_boundaries: list, sim_step: float, env_id: int):
+    def __init__(self, workspace_boundaries: list, sim_step: float, sim_steps_per_env_step: int, env_id: int, assets_path: str):
 
-        # list that will contain all self.engineullet object ids with collision managed by this world simulation
-        self.objects_ids = []
-        # list that will contain all purely visual self.engineullet object ids (e.g. explicatory lines, workspace boundaries etc.)
-        self.aux_object_ids = []
-        # list that will contain all obstacle objects used in this world
+        # list that will contain all purely visual object ids like spheres and cubes without collision
+        self.aux_objects = []
+        # same, but for lines
+        self.aux_lines = []
+        # list that will contain all obstacle objects used in this world, even those that are not being used for the current episode
         self.obstacle_objects = []
+        # this list should contain those objects that are used in the current episode, this is important to manage as
+        # a) our logging will only take these objects into account and b) some collision checks like the RRT planner
+        # will only check for objects in this list
+        self.active_objects = []
 
         # set sim step
         self.sim_step = sim_step
+        self.sim_steps_per_env_step = sim_steps_per_env_step
+
+        # str that contains the asset path in case the world needs access to those resources
+        self.assets_path = assets_path
 
         # set env id, this is a number that differentiates multiple envs running in parallel in training, necessary for file related stuff
         self.env_id = env_id
@@ -37,18 +48,7 @@ class World(ABC):
         self.ee_starting_points = []
 
         # list of robots, gets filled by register method down below
-        self.robots_in_world = []  # all robots in world
-
-        # collision attribute, for convenient outside access
-        self.collision = False
-
-        # flags such that the automated processes elsewhere can recognize what sort of goals this world can support
-        # set these yourself if they apply in a subclass
-        self.gives_a_position = False
-        self.gives_a_rotation = False
-
-        # save engine to allow accessing it
-        self.engine = get_instance()
+        self.robots = []  # all robots in world
 
     def register_robots(self, robots):
         """
@@ -57,82 +57,80 @@ class World(ABC):
         """
         id_counter = 0
         for robot in robots:
-            self.robots_in_world.append(robot)
-            robot.id = id_counter
+            self.robots.append(robot)
+            robot.mgt_id = id_counter
             id_counter += 1
 
-    def perform_collision_check(self):
-        """
-        Performs a collision check 
-        1. between all robots and all obstacles in the world and
-        2. between each robot
-        
-        Stores the result in a class variable.
-        """
-        self.collision = self.engine.perform_collision_check(self.robots_in_world, self.objects_ids)
-
     @abstractmethod
-    def build(self, success_rate: float):
+    def set_up(self):
         """
-        This method should build all the components that make up the world simulation aside from the robot.
-        This includes URDF files as well as objects created by self.engineullet code.
-        This method should also generate valid targets for all robots that need them, valid starting points and it should also move them there to start the episode.
-        Additionally, this method receives the success rate of the gym env as a value between 0 and 1. You could use this to
-        set certain parameters, e.g. to the make world become more complex as the agent's success rate increases.
-
-        All object ids loaded in by this method must be added to the self.object_ids list! Otherwise they will be ignored in collision detection.
-        If you use our Obstacle objects, add them (the objects themselves, not just their self.engineullet ids) to self.obstacle_objects. You will want to have in them in a list anyway and doing it via this variable ensures compatability with our self.engineullet recorder.
+        This method should:
+        - build all the components that make up the 3D scene aside from the robots, including meshes, geometric shapes like boxes or other things
+            - it should ideally do this in a way that no other geometry needs to be spawned ever again, e.g. if you want a scenario where randomized geometry is spawned on every episode start
+              generate enough random variations in this method and then use the reset method (see below) to move a share of the pre-generated geometry to its position on episode start
+              while leaving the rest of the pre-generated stuff in some inaccessible location
+              (this will save massive amounts of performance, however if necessary you can also delete old and spawn new geometry in reset)
+              (look at random_obstacles for an example of how to do it)
+            - further, you MUST use the obstacle class for spawning stuff and put all obstacles into the self.obstacle_objects list
+        - generate valid goal targets for all robots that need them, e.g. xyz target coordinates, target rotations or target joint configurations
         """
         pass
 
     @abstractmethod
     def reset(self, success_rate: float):
         """
-        This method should reset all lists, arrays, variables etc. that handle the world to such a state that a new episode can be run.
-        Meaning that after this method is done, build() can be called again.
-        Don't reset the self.engineullet simulation itself, that will be handled by the gym env.
-        Additionally, this method receives the success rate of the gym env as a value between 0 and 1. You could use this to
-        set certain parameters, e.g. to the make world become more complex as the agent's success rate increases.
+        This method should:
+        - set up the scene such that a new episode can start
+            - if some change to the geometry of the scene is necessary, then ideally (see set_up method comments) any such change should rely on pre-generated geometry,
+              e.g. by existing moving obstacles to new places or using pre-generated ones that were put in some storage location
+            - if absolutely necessary, it's okay to spawn new or delete old geometry, but this should be kept to a minimum to avoid performance impacts
+            - ideally, whatever set up, movement and spawning you do perform should lead to a valid starting position of everything, i.e. meaning that there are no immediate collisions and all robots' goals are achievable 
+        - move robots into their starting positions
+        - generate valid targets as needed by the robots' goals
+        - use, if wanted, the success rate in some way
+            - this is a number between 0 and 1 that expresses the average rate of success of a number of past episodes, you could use it to progressively make the scenario harder for the robot for example
         """
         pass
 
     def build_visual_aux(self):
         """
-        This method should add objects that are not necessary to the purpose of the world and useful only for visual quality.
-        By default, this method will mark the workspace boundaries, but you can extend it in your subclasses as you need.
-        Visual objects related to a goal should be implemented by that goal.
-        (This is because the world should be usable with all sorts of goals, even those that need different visualizations for their goals,
-        e.g. a target sphere vs. a target cube)
-        Objects built here should NOT be added to self.object_ids but to self.aux_object_ids. Dont forget to reset self.aux_object_ids in your reset methods.
+        This method should:
+        - add objects that are not necessary for the purpose of scenario and useful only visualizing some aspect of it for the user
+        - add any such objects to the self.aux_lines if it's lines or self.aux_objects if it's anything else (pybullet handles these differently)
+        By default, this method will draw the workspace boundaries, you can overwrite with additional or entirely new functionality in your subclass.
+        Note: this method will only be called once, so stuff done here will last for the entire runtime.
         """
-        a = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_min], 
-                                         lineToXYZ=[self.x_min, self.y_min, self.z_max])
-        b = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
-                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
-        c = self.engine.add_aux_line(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
-        d = self.engine.add_aux_line(lineFromXYZ=[self.x_max, self.y_max, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
+        line_starts = [
+            [self.x_min, self.y_min, self.z_min],
+            [self.x_min, self.y_max, self.z_min],
+            [self.x_max, self.y_min, self.z_min],
+            [self.x_max, self.y_max, self.z_min],
+            [self.x_min, self.y_min, self.z_max],
+            [self.x_min, self.y_max, self.z_max],
+            [self.x_min, self.y_min, self.z_max],
+            [self.x_max, self.y_min, self.z_max],
+            [self.x_min, self.y_min, self.z_min],
+            [self.x_min, self.y_max, self.z_min],
+            [self.x_min, self.y_min, self.z_min],
+            [self.x_max, self.y_min, self.z_min]
+        ]
+        line_ends = [
+            [self.x_min, self.y_min, self.z_max],
+            [self.x_min, self.y_max, self.z_max],
+            [self.x_max, self.y_min, self.z_max],
+            [self.x_max, self.y_max, self.z_max],
+            [self.x_max, self.y_min, self.z_max],
+            [self.x_max, self.y_max, self.z_max],
+            [self.x_min, self.y_max, self.z_max],
+            [self.x_max, self.y_max, self.z_max],
+            [self.x_max, self.y_min, self.z_min],
+            [self.x_max, self.y_max, self.z_min],
+            [self.x_min, self.y_max, self.z_min],
+            [self.x_max, self.y_max, self.z_min]
+        ]
+        colors = [[1, 1, 1] for _ in line_starts]
 
-        e = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
-                            lineToXYZ=[self.x_max, self.y_min, self.z_max])
-        f = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_max, self.z_max],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
-        g = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_max],
-                            lineToXYZ=[self.x_min, self.y_max, self.z_max])
-        h = self.engine.add_aux_line(lineFromXYZ=[self.x_max, self.y_min, self.z_max],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_max])
-        
-        i = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_min, self.z_min])
-        j = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_max, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
-        k = self.engine.add_aux_line(lineFromXYZ=[self.x_min, self.y_min, self.z_min],
-                            lineToXYZ=[self.x_min, self.y_max, self.z_min])
-        l = self.engine.add_aux_line(lineFromXYZ=[self.x_max, self.y_min, self.z_min],
-                            lineToXYZ=[self.x_max, self.y_max, self.z_min])
-
-        self.aux_object_ids += [a, b, c, d, e, f, g, h, i, j, k , l]
+        self.aux_lines += pyb_u.draw_lines(line_starts, line_ends, colors)
     
     @abstractmethod
     def update(self):
@@ -141,7 +139,39 @@ class World(ABC):
         """
         pass
 
-    def _create_ee_starting_points(self, robots, custom_joints_limits=[], factor=-1, base_dist=7.5e-2) -> None:
+    def get_data_for_logging(self):
+        """
+        This method logs the position and sizes of all active geometry. Additionally, it will report the closest distance of all robots to the obstacles.
+        """
+        log_dict = dict()
+        for robot in self.robots:
+            log_dict[robot.name + "_closestObstDistance_robot"] = np.inf
+            log_dict[robot.name + "_closestObstDistance_ee"] = np.inf
+        obstacle_log_list = []
+        for obstacle in self.active_objects:
+            # check distance of obstacle to all robots
+            for robot in self.robots:
+                obstacle_pyb_id = pyb_u.to_pb(obstacle.object_id)
+                robot_pyb_id = pyb_u.to_pb(robot.object_id)
+                closestDistances_robot = pyb.getClosestPoints(robot_pyb_id, obstacle_pyb_id, 99)
+                closestDistance_robot = min([value[8] for value in closestDistances_robot])
+                closestDistance_ee = pyb.getClosestPoints(robot_pyb_id, obstacle_pyb_id, 99, pyb_u.pybullet_link_ids[robot.object_id, robot.end_effector_link_id])[0][8]
+                log_dict[robot.name + "_closestObstDistance_robot"] = min(closestDistance_robot, log_dict[robot.name + "_closestObstDistance_robot"])
+                log_dict[robot.name + "_closestObstDistance_ee"] = min(closestDistance_ee, log_dict[robot.name + "_closestObstDistance_ee"])
+
+            if type(obstacle) == Sphere:
+                obstacle_log_list.append(["Sphere", obstacle.radius, obstacle.position])
+            elif type(obstacle) == Box:
+                obstacle_log_list.append(["Box", obstacle.halfExtents, obstacle.position, obstacle.orientation])
+            elif type(obstacle) == Cylinder:
+                obstacle_log_list.append(["Cylinder", obstacle.radius, obstacle.height, obstacle.position, obstacle.orientation])
+            elif type(obstacle) == URDFObject:
+                obstacle_log_list.append(["URDF", obstacle.urdf_path, obstacle.position, obstacle.orientation])
+        log_dict["obstacles"] = obstacle_log_list
+
+        return log_dict
+
+    def _create_ee_starting_points(self, robots, factor=-1, base_dist=7.5e-2) -> None:
         """
         This is a helper method to generate valid starting points for all robots in the env. You can use this within your build method to generate starting positions at random.
         The robots parameter is a list of all robots that should be touched by this method.
@@ -159,28 +189,17 @@ class World(ABC):
             oob = False
             too_close_to_base = False
             for idx, robot in enumerate(robots):
-                joint_dim = robot.get_action_space_dims()[0]
-                if custom_joints_limits:
-                    lower_limits = custom_joints_limits[idx][0]
-                    lower_limits = robot.joints_limits_lower if lower_limits is None else lower_limits
-                    upper_limits = custom_joints_limits[idx][1]
-                    upper_limits = robot.joints_limits_upper if upper_limits is None else upper_limits
-                else:
-                    lower_limits = robot.joints_limits_lower
-                    upper_limits = robot.joints_limits_upper
+                joint_dim = len(robot.all_joints_ids)
                 if factor == -1:
-                    random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
+                    random_joints = robot.sample_valid_configuration()
                 else:
-                    random_joints = (1 - factor) * robot.resting_pose_angles + factor * np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
-                    upper_limit_mask = random_joints > upper_limits
-                    lower_limit_mask = random_joints < lower_limits
-                    random_joints[upper_limit_mask] = upper_limits[upper_limit_mask]
-                    random_joints[lower_limit_mask] = lower_limits[lower_limit_mask]
+                    random_joints = (1 - factor) * robot.resting_pose_angles + factor * robot.sample_valid_configuration()
+                    upper_limit_mask = random_joints > robot.joints_limits_upper
+                    lower_limit_mask = random_joints < robot.joints_limits_lower
+                    random_joints[upper_limit_mask] = robot.joints_limits_upper[upper_limit_mask]
+                    random_joints[lower_limit_mask] = robot.joints_limits_lower[lower_limit_mask]
                 joints.append(random_joints)
-                robot.moveto_joints(random_joints, False)
-
-                # step engine to move joints to specified location
-                self.engine.step()
+                robot.moveto_joints(random_joints, False, robot.controlled_joints_ids)
 
                 # check if robot is out of bounds directly
                 robot.position_rotation_sensor.reset()  # refresh position data for oob calculation below
@@ -194,15 +213,16 @@ class World(ABC):
             if oob or too_close_to_base:
                 continue
             # now check if there's a collision
-            self.perform_collision_check()
+            pyb_u.perform_collision_check()
+            pyb_u.get_collisions()
             # if so, start over
-            if self.collision:
+            if pyb_u.collision:
                 continue
             # if we reached this line, then everything works out
             val = True
         if val:
             counter = 0
-            for robot in self.robots_in_world:
+            for robot in self.robots:
                 if robot in robots:  # robot is to be considered
                     pos = robot.position_rotation_sensor.position
                     rot = robot.position_rotation_sensor.rotation
@@ -212,7 +232,7 @@ class World(ABC):
                     self.ee_starting_points.append((None, None, None))    
         return val
 
-    def _create_position_and_rotation_targets(self, robots, min_dist=0, custom_joints_limits=[], base_dist=7.5e-2) -> None:
+    def _create_position_and_rotation_targets(self, robots, min_dist=0, base_dist=7.5e-2) -> None:
         """
         This is a helper method to generate valid targets for your robots with goals at random. You can use this in your build method to generate targets.
         The min_dist parameter will enforce a minimum cartesian distance to the respective robots starting point.
@@ -226,20 +246,10 @@ class World(ABC):
             oob_or_too_close = False
             too_close_to_base = False
             for idx, robot in enumerate(robots):
-                joint_dim = robot.get_action_space_dims()[0]
-                if custom_joints_limits:
-                    lower_limits = custom_joints_limits[idx][0]
-                    lower_limits = robot.joints_limits_lower if lower_limits is None else lower_limits
-                    upper_limits = custom_joints_limits[idx][1]
-                    upper_limits = robot.joints_limits_upper if upper_limits is None else upper_limits
-                else:
-                    lower_limits = robot.joints_limits_lower
-                    upper_limits = robot.joints_limits_upper
-                random_joints = np.random.uniform(low=lower_limits, high=upper_limits, size=(joint_dim,))
+                random_joints = robot.sample_valid_configuration()
+                if True:  # replace by some condition that checks if a robot has an aliased joint range
+                    random_joints = (random_joints + np.pi) % (2 * np.pi) - np.pi
                 robot.moveto_joints(random_joints, False)
-
-                # step engine to move joints to specified location
-                self.engine.step()
 
                 # check if robot is out of bounds directly
                 robot.position_rotation_sensor.reset()  # refresh position data for oob calculation below
@@ -248,7 +258,7 @@ class World(ABC):
                     oob_or_too_close = True
                     break
                 # check if position is too close to starting position
-                if np.linalg.norm(robot.position_rotation_sensor.position - self.ee_starting_points[robot.id][0]) < min_dist:
+                if np.linalg.norm(robot.position_rotation_sensor.position - self.ee_starting_points[robot.mgt_id][0]) < min_dist:
                     oob_or_too_close = True
                     break
                 if np.linalg.norm(robot.position_rotation_sensor.position - robot.base_position) < base_dist:
@@ -258,14 +268,15 @@ class World(ABC):
             if oob_or_too_close or too_close_to_base:
                 continue
             # now check if there's a collision
-            self.perform_collision_check()
+            pyb_u.perform_collision_check()
+            pyb_u.get_collisions()
             # if so, start over
-            if self.collision:
+            if pyb_u.collision:
                 continue
             # if we reached this line, then everything works out
             val = True
         if val:
-            for idx, robot in enumerate(self.robots_in_world):
+            for idx, robot in enumerate(self.robots):
                 if robot in robots:  # robot is to be considered
                     pos = robot.position_rotation_sensor.position
                     rot = robot.position_rotation_sensor.rotation
@@ -274,7 +285,7 @@ class World(ABC):
                     self.rotation_targets.append(rot)
                     self.joints_targets.append(joints)
                     # reset robot back to starting position
-                    robot.moveto_joints(self.ee_starting_points[idx][2], False)
+                    robot.moveto_joints(self.ee_starting_points[idx][2], False, robot.controlled_joints_ids)
                 else:  # other robots (e.g. camera arm robot)
                     self.position_targets.append(None)
                     self.rotation_targets.append(None)   

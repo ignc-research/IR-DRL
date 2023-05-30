@@ -3,11 +3,15 @@ import numpy as np
 from modular_drl_env.robot.robot import Robot
 from gym.spaces import Box
 from modular_drl_env.util.quaternion_util import quaternion_similarity
+from modular_drl_env.sensor.sensor_implementations.positional.obstacle_sensor import ObstacleSensor, ObstacleAbsoluteSensor
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 __all__ = [
     'PositionCollisionGoal',
     'PositionRotationCollisionGoal',
-    'PositionCollisionBetterSmoothingGoal'
+    'PositionCollisionBetterSmoothingGoal',
+    'PositionCollisionGoalNoShaking',
+    'PositionCollisionGoalNoShakingProximity'
 ]
 
 class PositionCollisionGoal(Goal):
@@ -22,7 +26,7 @@ class PositionCollisionGoal(Goal):
                        train: bool,
                        add_to_logging: bool,
                        max_steps: int,
-                       continue_after_success:bool, 
+                       continue_after_success: bool, 
                        reward_success=10, 
                        reward_collision=-10,
                        reward_distance_mult=-0.01,
@@ -30,8 +34,10 @@ class PositionCollisionGoal(Goal):
                        dist_threshold_end=1e-2,
                        dist_threshold_increment_start=1e-2,
                        dist_threshold_increment_end=1e-3,
-                       dist_threshold_overwrite:float=None,
-                       dist_threshold_change:float=0.8):
+                       dist_threshold_overwrite: float=None,
+                       dist_threshold_change: float=0.8,
+                       better_compatability_obs_space: bool=True,
+                       done_on_oob: bool=True):
         super().__init__(robot, normalize_rewards, normalize_observations, train, True, add_to_logging, max_steps, continue_after_success)
 
         # set output name for observation space
@@ -87,8 +93,14 @@ class PositionCollisionGoal(Goal):
         self.done = False
         self.past_distances = []
 
+        # option to turn off episode end on oob, needed for the planner function elsewhere
+        self.done_on_oob = done_on_oob
+
         # performance metric name
         self.metric_names = ["distance_threshold"]
+
+        # see get obs space element
+        self.better_compatability_obs_space = better_compatability_obs_space
 
     def get_observation_space_element(self) -> dict:
         if self.add_to_observation_space:
@@ -96,8 +108,14 @@ class PositionCollisionGoal(Goal):
             if self.normalize_observations:
                 ret[self.output_name ] = Box(low=-1, high=1, shape=(4,), dtype=np.float32)
             else:
-                high = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min, 1], dtype=np.float32)
-                low = np.array([-self.robot.world.x_max + self.robot.world.x_min, -self.robot.world.y_max + self.robot.world.y_min, -self.robot.world.z_max + self.robot.world.z_min, 0], dtype=np.float32)
+                if self.better_compatability_obs_space:
+                    # set borders to arbitrarily high value to make model usable in other contexts
+                    # stable baselines enforces that the obs space boundaries are always the same which obviously sucks if you want to try your agent elsewhere with different workspace boundaries
+                    high = np.array([50, 50, 50, 1], dtype=np.float32)
+                    low = np.array([-50, -50, -50, 0], dtype=np.float32)
+                else:
+                    high = np.array([self.robot.world.x_max - self.robot.world.x_min, self.robot.world.y_max - self.robot.world.y_min, self.robot.world.z_max - self.robot.world.z_min, 1], dtype=np.float32)
+                    low = np.array([-self.robot.world.x_max + self.robot.world.x_min, -self.robot.world.y_max + self.robot.world.y_min, -self.robot.world.z_max + self.robot.world.z_min, 0], dtype=np.float32)
                 ret[self.output_name ] = Box(low=low, high=high, shape=(4,), dtype=np.float32)
 
             return ret
@@ -107,7 +125,7 @@ class PositionCollisionGoal(Goal):
     def get_observation(self) -> dict:
         # get the data
         self.position = self.robot.position_rotation_sensor.position
-        self.target = self.robot.world.position_targets[self.robot.id]
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
         dif = self.target - self.position
         self.distance = np.linalg.norm(dif)
 
@@ -129,7 +147,7 @@ class PositionCollisionGoal(Goal):
         reward = 0
 
         self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
-        self.collided = self.robot.world.collision
+        self.collided = pyb_u.collision
 
         shaking = 0
         if len(self.past_distances) >= 10:
@@ -144,8 +162,8 @@ class PositionCollisionGoal(Goal):
 
         self.is_success = False
         if self.out_of_bounds:
-            self.done = True
-            reward += self.reward_collision / 2
+            self.done = True if self.done_on_oob else False
+            reward += self.reward_collision
         elif self.collided:
             self.done = True
             reward += self.reward_collision
@@ -197,12 +215,9 @@ class PositionCollisionGoal(Goal):
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
-        self.target = self.robot.world.position_targets[self.robot.id]
-        self.aux_object_ids.append(self.engine.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
-
-    def delete_visual_aux(self):
-        for aux_object_id in self.aux_object_ids:
-            self.engine.remove_geom_object(aux_object_id)
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
+        self.aux_object_ids.append(pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
+        #self.aux_lines += pyb_u.draw_lines([self.robot.world.position_targets[0]], [self.robot.world.ee_starting_points[0][0]], [[0, 0, 1]])
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
@@ -232,7 +247,7 @@ class PositionCollisionBetterSmoothingGoal(PositionCollisionGoal):
         reward = 0
 
         self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
-        self.collided = self.robot.world.collision
+        self.collided = pyb_u.collision
 
         shaking = 0
         current_velocity = self.robot.joints_sensor.joints_velocities
@@ -398,8 +413,8 @@ class PositionRotationCollisionGoal(Goal):
         # get the data
         self.position = self.robot.position_rotation_sensor.position
         self.rotation = self.robot.position_rotation_sensor.rotation
-        self.target_position = self.robot.world.position_targets[self.robot.id]
-        self.target_rotation = self.robot.world.rotation_targets[self.robot.id]
+        self.target_position = self.robot.world.position_targets[self.robot.mgt_id]
+        self.target_rotation = self.robot.world.rotation_targets[self.robot.mgt_id]
         dif = self.target_position - self.position
         self.position_distance = np.linalg.norm(dif)
         #print(self.rotation, self.target_rotation)
@@ -431,7 +446,7 @@ class PositionRotationCollisionGoal(Goal):
         reward = 0
 
         self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
-        self.collided = self.robot.world.collision
+        self.collided = pyb_u.collision
 
         shaking = 0
         if len(self.past_position_distances) >= 10:
@@ -515,8 +530,8 @@ class PositionRotationCollisionGoal(Goal):
 
     def build_visual_aux(self):
         # build a sphere of distance_threshold size around the target
-        self.target = self.robot.world.position_targets[self.robot.id]
-        self.engine.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False)
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
+        self.aux_object_ids.append(pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
 
     def get_data_for_logging(self) -> dict:
         logging_dict = dict()
@@ -529,3 +544,133 @@ class PositionRotationCollisionGoal(Goal):
         logging_dict["rotation_threshold_" + self.robot.name] = self.rotation_threshold
 
         return logging_dict
+    
+class PositionCollisionGoalNoShaking(PositionCollisionGoal):
+
+    def reward(self, step, action):
+
+        reward = 0
+
+        self.out_of_bounds = self.robot.world.out_of_bounds(self.position)
+        self.collided = pyb_u.collision
+
+        self.is_success = False
+        if self.out_of_bounds:
+            self.done = True
+            reward += self.reward_collision
+        elif self.collided:
+            self.done = True
+            reward += self.reward_collision
+        elif self.distance < self.distance_threshold:
+            self.done = True
+            self.is_success = True
+            reward += self.reward_success
+        elif step > self.max_steps:
+            self.done = True
+            self.timeout = True
+            reward += self.reward_distance_mult * self.distance
+        else:
+            self.done = False
+            reward += self.reward_distance_mult * self.distance
+        
+        self.reward_value = reward
+        if self.normalize_rewards:
+            self.reward_value = self.normalizing_constant_a_reward * self.reward_value + self.normalizing_constant_b_reward
+        
+        # return
+        return self.reward_value, self.is_success, self.done, self.timeout, self.out_of_bounds    
+
+    def on_env_reset(self, success_rate):
+        
+        self.timeout = False
+        self.is_success = False
+        self.is_done = False
+        self.collided = False
+        self.out_of_bounds = False
+        
+        # set the distance threshold according to the success of the training
+        if self.train: 
+
+            # calculate increment
+            ratio_start_end = (self.distance_threshold - self.distance_threshold_end) / (self.distance_threshold_start - self.distance_threshold_end)
+            increment = (self.distance_threshold_increment_start - self.distance_threshold_increment_end) * ratio_start_end + self.distance_threshold_increment_end
+            if success_rate > self.distance_threshold_change and self.distance_threshold > self.distance_threshold_end:
+                self.distance_threshold -= increment
+            elif success_rate < self.distance_threshold_change and self.distance_threshold < self.distance_threshold_start:
+                #self.distance_threshold += increment / 25  # upwards movement should be slower # DISABLED
+                pass
+            if self.distance_threshold > self.distance_threshold_start:
+                self.distance_threshold = self.distance_threshold_start
+            if self.distance_threshold < self.distance_threshold_end:
+                self.distance_threshold = self.distance_threshold_end
+
+        return [("distance_threshold", self.distance_threshold, True, True)]
+
+    def build_visual_aux(self):
+        # build a sphere of distance_threshold size around the target
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
+        self.aux_object_ids.append(pyb_u.create_sphere(position=self.target, mass=0, radius=self.distance_threshold, color=[0, 1, 0, 0.65], collision=False))
+        #self.aux_lines += pyb_u.draw_lines([self.robot.world.position_targets[0]], [self.robot.world.ee_starting_points[0][0]], [[0, 0, 1]])
+
+    def get_data_for_logging(self) -> dict:
+        logging_dict = dict()
+
+        logging_dict["reward_" + self.robot.name] = self.reward_value
+        logging_dict["distance_" + self.robot.name] = self.distance
+        logging_dict["distance_threshold_" + self.robot.name] = self.distance_threshold
+
+        return logging_dict
+    
+class PositionCollisionGoalNoShakingProximity(PositionCollisionGoalNoShaking):
+
+    def __init__(self, 
+                 robot: Robot, 
+                 normalize_rewards: bool, 
+                 normalize_observations: bool, 
+                 train: bool, 
+                 add_to_logging: bool, 
+                 max_steps: int, 
+                 continue_after_success: bool, 
+                 reward_success=10, 
+                 reward_collision=-10, 
+                 reward_distance_mult=-0.01, 
+                 dist_threshold_start=0.3, 
+                 dist_threshold_end=0.01, 
+                 dist_threshold_increment_start=0.01, 
+                 dist_threshold_increment_end=0.001, 
+                 dist_threshold_overwrite: float = None, 
+                 dist_threshold_change: float = 0.8, 
+                 better_compatability_obs_space: bool = True, 
+                 done_on_oob: bool = True,
+                 d_min: float= 0.05):
+        super().__init__(robot, normalize_rewards, normalize_observations, train, add_to_logging, max_steps, continue_after_success, reward_success, reward_collision, reward_distance_mult, dist_threshold_start, dist_threshold_end, dist_threshold_increment_start, dist_threshold_increment_end, dist_threshold_overwrite, dist_threshold_change, better_compatability_obs_space, done_on_oob)
+        self.obst_sensor = None
+        for sensor in self.robot.sensors:
+            if type(sensor) == ObstacleSensor or type(sensor) == ObstacleAbsoluteSensor:
+                self.obst_sensor = sensor
+                break
+        self.d_min = d_min
+        if self.obst_sensor is None:
+            raise Exception("This goal type needs an obstacle sensor to be present for its robot!")
+        a = ((self.reward_collision) - (0)) / (np.exp(self.d_min) - 1)
+        b = (0) - a
+        self.proximity_reward = lambda x: a * np.exp(-(x - self.d_min)) + b
+        a = ((self.reward_collision) - (0)) / (np.exp(0.05) - 1)
+        b = (0) - a
+        self.joint_limit_reward = lambda x: a * np.exp(-(x - 0.05)) + b
+
+    def reward(self, step, action):
+        reward, is_success, done, timeout, oob = super().reward(step, action)
+        # penalty for being close to obstacles
+        if self.obst_sensor.min_dist <= self.d_min:
+            reward += self.proximity_reward(self.obst_sensor.min_dist)
+        self.reward_value = reward
+        # penalty for being very close to joint limits
+        dist_to_max = abs(self.robot.joints_limits_upper - self.robot.joints_sensor.joints_angles)
+        dist_to_min = abs(self.robot.joints_sensor.joints_angles - self.robot.joints_limits_lower)
+        dist_both = max(max(dist_to_max), max(dist_to_min))
+        if dist_both <= 0.05:
+            reward += self.joint_limit_reward(dist_both)
+        if step > self.max_steps:
+            reward += self.reward_collision
+        return reward, is_success, done, timeout, oob

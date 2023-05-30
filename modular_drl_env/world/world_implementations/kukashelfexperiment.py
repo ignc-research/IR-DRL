@@ -2,9 +2,12 @@ from modular_drl_env.world.world import World
 import numpy as np
 from modular_drl_env.world.obstacles.human import Human
 from modular_drl_env.world.obstacles.shapes import Box
-from modular_drl_env.world.obstacles.shelf.shelf import ShelfObstacle
+from modular_drl_env.world.obstacles.urdf_object import URDFObject
+from modular_drl_env.world.obstacles.ground_plate import GroundPlate
 from random import choice, sample
 from modular_drl_env.util.quaternion_util import rotate_vector
+from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
+from modular_drl_env.shared.shelf_generator import ShelfGenerator
 
 __all__ = [
     'KukaShelfExperiment'
@@ -18,24 +21,13 @@ class KukaShelfExperiment(World):
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
                        env_id: int,
+                       assets_path: str,
                        shelves: dict,
-                       shuffle_humans: int,
-                       humans: dict,
-                       obstacles: dict,
                        shelf_params: dict={}):
-        super().__init__(workspace_boundaries, sim_step, env_id)
-
-        # overrides for the target positions, useful for eval, a random one will be chosen
+        super().__init__(workspace_boundaries, sim_step, env_id, assets_path)
 
         # get the obstacle setup
         self.shelf_list = shelves
-        self.human_list = humans
-        self.obstacle_list = obstacles
-
-        # set shuffle mode
-        # if shuffle is larger than 0, instead of spawning all entries in humans
-        # we will spawn a random pick from the available positions
-        self.shuffle_humans = shuffle_humans
 
         # shelf params
         if not shelf_params:
@@ -49,63 +41,39 @@ class KukaShelfExperiment(World):
         else:
             self.shelf_params = shelf_params
 
-        # keep track of objects
-        self.shelves = []
-        self.humans = []
-        self.obstacle_objects = []
 
-        # pre initialize the shelves to prevent their URDFs from being generated over and over
-        for shelf_entry in self.shelf_list:
-            shelf = ShelfObstacle(shelf_entry["position"], shelf_entry["rotation"], [], 0, self.env_id, self.shelf_params)
-            self.shelves.append(shelf)
+    def set_up(self):
+        # check if the goal we're working with uses only position targets
+        for robot in self.robots:
+            if robot.goal.needs_a_rotation or robot.goal.needs_a_joint_position:
+                raise Exception("Shelf Experiment does not support rotation or joint position goals.")
 
-    def build(self, success_rate: float):
-        # ground plate
-        self.objects_ids.append(self.engine.add_ground_plane(np.array([0, 0, -0.01])))
+        # ground plane
+        plate = GroundPlate()
+        plate.build()
 
-        # build shelves
-        for shelf in self.shelves:
-            self.objects_ids.append(shelf.build())
+        # generate an appropriate URDF
+        urdf_name = self.assets_path + "/runtime/shelf_" + str(self.env_id) + ".urdf"
+        generator = ShelfGenerator(self.shelf_params)
+        generator.generate_to_file(urdf_name)
         
-        # build humans
-        if self.shuffle_humans == 0:
-            humans_to_build = self.human_list
-        else:
-            num = choice(list(range(self.shuffle_humans))) + 1
-            humans_to_build = sample(self.human_list, num)
-        for entry in humans_to_build:
-            human = Human(entry["position"], entry["rotation"], entry["trajectory"], self.sim_step * 2, 0.2)
-            self.humans.append(human)
-            self.objects_ids.append(human.build()) 
+        # instantiante as obstacle as many times as needed
+        for shelf_entry in self.shelf_list:
+            shelf = URDFObject(shelf_entry["position"], shelf_entry["rotation"], [], 0, urdf_name)
+            self.obstacle_objects.append(shelf)
+            shelf.build()
 
-        # build obstacles
-        for entry in self.obstacle_list:
-            x_min, x_max, y_min, y_max, z_min, z_max = entry["zone"]
-            zone_low = [x_min, y_min, z_min]
-            zone_high = [x_max, y_max, z_max]
-            v_min, v_max = entry["velocity"]
-            b_min, b_max, l_min, l_max, h_min, h_max = entry["extents"]
-            extent_low = [b_min, l_min, h_min]
-            extent_high = [b_max, l_max, h_max]
-            random_num = choice(list(range(entry["num"]))) + 1
-            for i in range(random_num):
-                v = np.random.uniform(low=v_min, high=v_max)
-                pos = np.random.uniform(low=zone_low, high=zone_high, size=(3,))
-                traj = []
-                for i in range(3):
-                    traj.append(np.random.uniform(low=zone_low, high=zone_high, size=(3,)))
-                extents = np.random.uniform(low=extent_low, high=extent_high, size=(3,))
-                box = Box(pos, np.array([0, 0, 0, 1]), traj, v * self.sim_step, extents)
-                self.obstacle_objects.append(box)
-                self.objects_ids.append(box.build())
+        # TODO: add obstacles and humans again
+
+    def reset(self, success_rate: float):
 
         # starting points
-        for robot in self.robots_in_world:
+        for robot in self.robots:
             robot.moveto_joints(robot.resting_pose_angles, False)
         # create targets
         targets = []
         taken_shelf_pos = []
-        for robot in self.robots_in_world:
+        for robot in self.robots:
             shelf = choice(self.shelf_list)
             shelf_pos = shelf["position"]
             shelf_rot = shelf["rotation"]
@@ -124,24 +92,8 @@ class KukaShelfExperiment(World):
             local_target = np.array([x, y, z])
             target = rotate_vector(local_target, shelf_rot) + shelf_pos
             targets.append(target)
-        self.position_targets = targets
-
-    def reset(self, success_rate):
-        self.objects_ids = []
-        self.position_targets = []
-        self.rotation_targets = []
-        self.joints_targets = []
-        self.ee_starting_points = []
-        for human in self.humans:
-            del human
-        self.humans = []
-        for object in self.obstacle_objects:
-            del object
-        self.obstacle_objects = []
-        self.aux_object_ids = []
+        self.position_targets = targets       
     
     def update(self):
         for obstacle in self.obstacle_objects:
-            obstacle.move()
-        for human in self.humans:
-            human.move()
+            obstacle.move_traj()

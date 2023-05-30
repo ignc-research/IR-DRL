@@ -5,3 +5,4 @@ from .generated import GeneratedWorld
 from .kukashelfexperiment import KukaShelfExperiment
 from .random_boxes import RandomBoxesWorld
 from .avoid_obstacle import AvoidObstacle
+from .plateexperiment import PlateExperiment
