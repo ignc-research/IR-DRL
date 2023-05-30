@@ -283,6 +283,13 @@ class ObstacleSensor(Sensor):
             colors = [[0, 0, 1] for _ in range(len(self.data_raw[idx]))]
 
             self.aux_lines += pyb_u.draw_lines(line_starts, line_ends, colors)
+        # draw extra lines
+        for extra in self.data_raw[idx+1:]:
+            line_starts = [extra[i][0:3] for i in range(len(extra))]
+            line_ends = [extra[i][3:6] for i in range(len(extra))]
+            colors = [[0, 0, 1] for _ in range(len(extra))]
+
+            self.aux_lines += pyb_u.draw_lines(line_starts, line_ends, colors)
 
 class ObstacleAbsoluteSensor(Sensor):
 

@@ -11,7 +11,8 @@ __all__ = [
     'PositionRotationCollisionGoal',
     'PositionCollisionBetterSmoothingGoal',
     'PositionCollisionGoalNoShaking',
-    'PositionCollisionGoalNoShakingProximity'
+    'PositionCollisionGoalNoShakingProximity',
+    'PositionCollisionGoalNoShakingProximityV2'
 ]
 
 class PositionCollisionGoal(Goal):
@@ -674,3 +675,80 @@ class PositionCollisionGoalNoShakingProximity(PositionCollisionGoalNoShaking):
         if step > self.max_steps:
             reward += self.reward_collision
         return reward, is_success, done, timeout, oob
+    
+class PositionCollisionGoalNoShakingProximityV2(PositionCollisionGoalNoShaking):
+    def __init__(self, 
+                 robot: Robot, 
+                 normalize_rewards: bool, 
+                 normalize_observations: bool, 
+                 train: bool, 
+                 add_to_logging: bool, 
+                 max_steps: int, 
+                 continue_after_success: bool, 
+                 reward_success=100, 
+                 reward_collision=-100, 
+                 dist_threshold_start=0.3, 
+                 dist_threshold_end=0.01, 
+                 dist_threshold_increment_start=0.01, 
+                 dist_threshold_increment_end=0.001, 
+                 dist_threshold_overwrite: float = None, 
+                 dist_threshold_change: float = 0.8, 
+                 better_compatability_obs_space: bool = True, 
+                 done_on_oob: bool = True,
+                 d_min: float= 0.2,
+                 k: int=6,
+                 dirac: float=0.1,
+                 lambda_1: float=1000,
+                 lambda_2: float=500,
+                 lambda_3: float=10):
+        super().__init__(robot, normalize_rewards, normalize_observations, train, add_to_logging, max_steps, continue_after_success, reward_success, reward_collision, 0, dist_threshold_start, dist_threshold_end, dist_threshold_increment_start, dist_threshold_increment_end, dist_threshold_overwrite, dist_threshold_change, better_compatability_obs_space, done_on_oob)
+        self.obst_sensor = None
+        for sensor in self.robot.sensors:
+            if type(sensor) == ObstacleSensor or type(sensor) == ObstacleAbsoluteSensor:
+                self.obst_sensor = sensor
+                break
+        self.d_min = d_min
+        if self.obst_sensor is None:
+            raise Exception("This goal type needs an obstacle sensor to be present for its robot!")
+        
+        # create the partial reward functions as small anonymous functions
+        self.dist_reward = lambda x: (0.5 * (x**2)) if x < dirac else (dirac * (x - 0.5 * dirac))
+        self.obst_reward = lambda x: (d_min / (x + d_min)) ** k
+
+        # reward weights
+        self.lambda_1 = lambda_1
+        self.lambda_2 = lambda_2
+        self.lambda_3 = lambda_3
+
+    def reward(self, step, action):
+        reward = 0
+
+        dist_reward = -self.dist_reward(self.distance)
+        obst_reward = -self.obst_reward(self.obst_sensor.min_dist)
+        action_reward = -np.sum(np.square(action))
+
+        self.is_success = False
+        self.collided = pyb_u.collision
+        self.done = False
+        self.out_of_bounds = False
+        self.timeout = False
+
+        if self.collided:
+            self.done = True
+            reward += self.reward_collision
+        elif self.distance < self.distance_threshold:
+            self.done = True
+            self.is_success = True
+            reward += self.reward_success
+        elif step > self.max_steps:
+            self.done = True
+            self.timeout = True
+            reward += self.reward_collision/2
+        else:
+            if self.normalize_rewards:
+                reward = (self.lambda_1 * dist_reward + self.lambda_2 * obst_reward + self.lambda_3 * action_reward) / self.lambda_1
+            else:
+                reward = self.lambda_1 * dist_reward + self.lambda_2 * obst_reward + self.lambda_3 * action_reward
+
+        self.reward_value = reward
+        return self.reward_value, self.is_success, self.done, self.timeout, self.out_of_bounds 

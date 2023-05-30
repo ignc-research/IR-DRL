@@ -25,3 +25,4 @@ GoalRegistry.register('PositionRotationBetterSmoothingCollision')(PositionCollis
 GoalRegistry.register('PositionCollisionTrajectory')(PositionCollisionTrajectoryGoal)
 GoalRegistry.register('PositionCollisionNoShaking')(PositionCollisionGoalNoShaking)
 GoalRegistry.register('PositionCollisionNoShakingProximity')(PositionCollisionGoalNoShakingProximity)
+GoalRegistry.register('PositionCollisionNoShakingProximityV2')(PositionCollisionGoalNoShakingProximityV2)

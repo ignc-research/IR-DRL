@@ -127,8 +127,32 @@ class PlateExperiment(World):
                 break
         # now we can set all the attributes
         self.active_objects.append(random_obst)
-        #random_obst.move_base(self.position_nowhere, np.array([0, 0, 0, 1]))
+        # with some random chance, move the plate out of the way, such that it's purely a navigation problem
+        if np.random.random() > 0.8:
+            random_obst.move_base(self.position_nowhere, np.array([0, 0, 0, 1]))
         #print(self.active_obstacles)
+        # with some small chance, create a goal that sits near or in front of the plate
+        if np.random.random() > 0.5:
+            tries = 0
+            while tries < 200:
+                tries += 1
+                new_random_mod = np.random.uniform(low=0, high=1)
+                new_goal_pos = random_start + random_direction * new_random_mod * random_length / np.linalg.norm(random_direction)
+                b_mod = np.random.uniform(low=0, high=0.2)
+                c_mod = np.random.uniform(low=0, high=0.2)
+                # move the goal to the sides slightly?
+                new_goal_pos = new_goal_pos + b_mod * b + c_mod * c
+                self.robots[0].moveto_xyz(new_goal_pos, False)
+                random_goal2, rotation_goal2, _, _ = pyb_u.get_link_state(self.robots[0].object_id, "ee_link")
+                joints_goal2, _ = pyb_u.get_joint_states(self.robots[0].object_id, self.robots[0].controlled_joints_ids)
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                if pyb_u.collision:
+                    continue
+                random_goal = random_goal2
+                rotation_goal = rotation_goal2
+                joints_goal = joints_goal2
+                break
         self.ee_starting_points.append((random_start, rotation_start, joints_start))
         self.position_targets.append(random_goal)
         self.rotation_targets.append(rotation_goal)

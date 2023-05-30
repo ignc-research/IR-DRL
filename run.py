@@ -121,7 +121,7 @@ if __name__ == "__main__":
                 offset = 0
                 while not done:
                     sleep(run_config["display_delay"])
-                    act, state = model.predict(obs, state=state, episode_start=episode_start)
+                    act, state = model.predict(obs, state=state, episode_start=episode_start, deterministic=True)
                     obs, reward, done, info = env.step(act)
                     episode_starts = done
                     steps += 1
