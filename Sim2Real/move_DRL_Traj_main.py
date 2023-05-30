@@ -33,6 +33,8 @@ from collections import deque
 
 import pybullet as pyb
 
+from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx
+
 #
 #TODO: 
 #Memory Modell für Cluster, die am gleichen Ort bleiben nicht bewegen
@@ -381,23 +383,7 @@ class listener_node_one:
             v = 10e-2
             self.durations = [self.dist_threshold * (1/v) for _ in self.actions]
             
-            
-            #print(self.durations)
-            # for idx, waypoint in enumerate(self.actions):
-            #     point = JointTrajectoryPoint()
-            #     point.positions = waypoint
-            #     point.time_from_start = rospy.Duration(sum(self.durations[:idx+1]))
-            #     goal.trajectory.points.append(point)
-            # print("This is actions")
-            # act = self.actions[self.real_step % self.actions.shape[0]]
-            # for act in self.actions:
-                # print("act :", act)
-            # print("#"*20)
-            # print("real_step :", self.real_step,"sim_step :", self.sim_step,  "act :", act)
-            # print("sim_step", self.sim_step)
-            # print("real_step", self.real_step)
-            #Clear cb action
-            # self.trajectory_client.send_goal(goal)       
+                  
             duration = 2*self.dist_threshold * (1/v)
             # act = self.actions.pop(0)
             # act = self.actions[i]
