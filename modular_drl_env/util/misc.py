@@ -46,4 +46,34 @@ def fibonacci_sphere(N):
 
     return np.array(points)
 
-regular_equidistant_sphere_points(5, 1)
+def analyse_obs_spaces(env_obs_space, model_obs_space):
+    # method to check which elements of the observation space don't match when loading a model fails
+    entries_only_in_env = []
+    entries_only_in_model = []
+    entries_in_both_but_with_different_values = []
+    for key in env_obs_space.keys():
+        if key not in model_obs_space.keys():
+            entries_only_in_env.append(key)
+        elif key in model_obs_space.keys() and model_obs_space[key]!=env_obs_space[key]:
+            entries_in_both_but_with_different_values.append((key, model_obs_space[key], env_obs_space[key]))
+    for key in model_obs_space.keys():
+        if key not in env_obs_space.keys():
+            entries_only_in_model.append(key)
+    print("[Error] Your model failed to load due to incompatible observation spaces!")
+    print("This is a list of all elements that were only found in the env observation space:")
+    print("#"*15)
+    for entry in entries_only_in_env:
+        print(entry)
+    print("#"*15)
+    print("This is a list of all elements that were only found in the model's observation space:")
+    print("#"*15)
+    for entry in entries_only_in_model:
+        print(entry)
+    print("#"*15)
+    print("This is a list of all elements that were found in both, but have mismatching definitions:")
+    print("#"*15)
+    for entry in entries_in_both_but_with_different_values:
+        print("Entry: ", entry[0])
+        print("Value in model: ", entry[1])
+        print("Value in env: ", entry[2])
+    print("#"*15)

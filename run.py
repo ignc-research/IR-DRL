@@ -23,6 +23,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise, NormalActionNoise
 from modular_drl_env.callbacks.callbacks import MoreLoggingCustomCallback
+from modular_drl_env.util.misc import analyse_obs_spaces
 from time import sleep
 import signal
 import sys
@@ -108,8 +109,17 @@ if __name__ == "__main__":
                 # we use PPO here, but as its completely untrained might just be any model really
                 model = PPO("MultiInputPolicy", env, verbose=1)
             else:
-                model = algorithm.load(run_config["algorithm"]["model_path"], env=env)
-
+                # this try except will fail if the env's observation space doesn't match with the one from the model
+                # the standard error message by sb3 isn't very helpful, so this piece of code will pinpoint exactly what
+                try:
+                    model = algorithm.load(run_config["algorithm"]["model_path"], env=env)
+                except ValueError:
+                    from stable_baselines3.common.save_util import load_from_zip_file
+                    data, _, _ = load_from_zip_file(
+                        run_config["algorithm"]["model_path"]
+                    )
+                    analyse_obs_spaces(env.observation_space, data["observation_space"])
+                    exit(0)
             while True:
                 obs = env.reset()
                 done = False
