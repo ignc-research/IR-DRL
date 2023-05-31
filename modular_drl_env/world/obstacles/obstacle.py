@@ -83,3 +83,4 @@ class Obstacle(ABC):
         self.orientation = new_base_rotation
         self.orientation_orig = new_base_rotation
         self.velocity = np.zeros(3)
+        self.trajectory_idx = -1
