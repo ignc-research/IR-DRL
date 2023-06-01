@@ -9,7 +9,7 @@ import rospy
 from sensor_msgs.msg import JointState
 from tf2_msgs.msg import TFMessage
 import numpy as np
-from time import process_time
+from time import process_time, time
 import actionlib
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
 from trajectory_msgs.msg import JointTrajectoryPoint
@@ -33,7 +33,9 @@ from collections import deque
 
 import pybullet as pyb
 
-from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx
+import pickle
+
+#from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx
 
 #
 #TODO: 
@@ -109,11 +111,15 @@ class listener_node_one:
         
         #part for voxel clustering
         self.enable_clustering = True #enable or disable clustering for performance reasons
-        self.robot_voxel_cluster_distance = 0.2 #TODO:
+        self.robot_voxel_cluster_distance = 0.2 #TODO: optiomize this
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
         self.voxel_cluster_threshold = 50
         self.voxel_centers = None
 
+        #Optional for recording voxels
+        #self.all_frames = [] 
+        
+        #self.recording_no = 1
          
 
         
@@ -182,7 +188,8 @@ class listener_node_one:
         # rospy.Timer(rospy.Duration(secs=1/200), self.cbAction)
         rospy.Timer(rospy.Duration(secs=1/100), self.cbSimSync) # sync der Simulation mit dem echten Roboter so schnell wie möglich
         print("[Listener] Started callback for pointcloud voxelization")
-        rospy.Timer(rospy.Duration(secs=1/200), self.cbPointcloudToPybullet)
+        self.start_time = time() #for recording voxel purposes
+        rospy.Timer(rospy.Duration(secs=1/240), self.cbPointcloudToPybullet)    
         sleep(1)
         print("[Listener] Started callback for controlling robot")
         rospy.Timer(rospy.Duration(secs=1/control_rate), self.cbControl)
@@ -439,6 +446,8 @@ class listener_node_one:
         # callback for PointcloudToPybullet
         # static = only one update
         # dynamic = based on update frequency
+        
+
         if self.points_raw is not None and not self.running_inference:  # catch first time execution scheduling problems
             if self.point_cloud_static:
                 if self.static_done:
@@ -446,11 +455,23 @@ class listener_node_one:
                 else:
                     self.static_done = True
                     self.PointcloudToVoxel()
+                    #self.all_frames.append(self.voxel_centers.copy()) # Optional for recording
                     self.VoxelsToPybullet()
             else:
                 self.PointcloudToVoxel()
+                #self.all_frames.append(self.voxel_centers.copy()) # Optional for recording
                 self.VoxelsToPybullet()
-        
+        #np.save("./voxels.npy", self.all_frames)
+        #Optional for recording:
+        """if time() - self.start_time > 20:
+            with open('./voxels_' + str(self.recording_no) + '.pkl', 'wb') as outfile:
+                pickle.dump(self.all_frames, outfile)
+                
+            self.recording_no += 1
+            self.all_frames = []
+            self.start_time = time()
+            print("Dumped new frames")"""
+
     def PointcloudToVoxel(self):
         if self.joints is not None:
             # prefilter data
@@ -509,7 +530,11 @@ class listener_node_one:
                 pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
             pyb_u.set_base_pos_and_ori(self.probe_voxel.object_id, self.pos_nowhere, np.array([0, 0, 0, 1])) # TODO: Find out why this causes trouble, MOVES away probe voxel
             self.probe_voxel.position = self.pos_nowhere
-            #np.save("./voxels.npy",voxel_centers)
+            
+            # Save voxels.npy
+            np.save("./voxels.npy",voxel_centers)
+            #pickle.
+
 
             if self.enable_clustering:
             # get voxel_clusters
