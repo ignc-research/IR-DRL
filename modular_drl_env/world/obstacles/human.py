@@ -11,7 +11,13 @@ class Human(Obstacle):
     Implements a movable human as an obstacle as coded by Kolja and Kai.
     """
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, thresh: float, scale: float=1):
+    def __init__(self, 
+                 position: Union[list, np.ndarray], 
+                 rotation: Union[list, np.ndarray], 
+                 trajectory: list, 
+                 sim_step: float, 
+                 thresh: float, 
+                 scale: float=1):
         super().__init__(position, rotation, trajectory, sim_step, 1, 0)
         self.human = None
         self.scale = scale

@@ -232,6 +232,8 @@ class ObstacleSensor(Sensor):
         res = []
         # get nearest robots
         for object in self.robot.world.active_objects:
+            if not obstacle.seen_by_obstacle_sensor:
+                continue
             closestPoints = pyb.getClosestPoints(pyb_u.to_pb(self.probe), pyb_u.to_pb(object.object_id), self.max_distance)
             if not closestPoints:
                 continue
@@ -300,7 +302,6 @@ class ObstacleAbsoluteSensor(Sensor):
                  sim_step: float, 
                  sim_steps_per_env_step: int, 
                  report_velocities: bool=False,
-                 ignore_ground: bool=True, 
                  normalize: bool=False, 
                  add_to_observation_space: bool=True, 
                  add_to_logging: bool=False, 
@@ -331,8 +332,6 @@ class ObstacleAbsoluteSensor(Sensor):
         self.distances = np.zeros(self.num_obstacles, dtype=np.float32)
 
         self.min_dist = np.inf
-
-        self.ignore_ground = ignore_ground
 
     def get_observation_space_element(self) -> dict:
         ret = dict()
@@ -376,7 +375,7 @@ class ObstacleAbsoluteSensor(Sensor):
         # check the distances of all active obstacles
         candidates = []
         for obstacle in self.robot.world.active_objects:
-            if self.ignore_ground and type(obstacle) == GroundPlate:
+            if not obstacle.seen_by_obstacle_sensor:
                 continue
             pyb_data = pyb.getClosestPoints(pyb_u.to_pb(self.robot.object_id), pyb_u.to_pb(obstacle.object_id), self.max_distance)
             if len(pyb_data) == 0:
