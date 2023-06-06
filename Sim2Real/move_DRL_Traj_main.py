@@ -135,7 +135,7 @@ class listener_node_one:
         
         # custom sim2real config parsen
         #_, env_config = parse_config("/home/moga/Desktop/IR-DRL/configs/S2R/obstsensor_trajectory_PPO.yaml", False) #False = kein Training
-        _, env_config = parse_config("/home/moga/Desktop/IR-DRL/configs/S2R/obstsensor_PPO.yaml", False)
+        _, env_config = parse_config("/home/moga/Desktop/IR-DRL/configs/S2R/s2rexperiment_benno_config_voxels.yaml", False)
         env_config["env_id"] = 0
         # mit der config env starten
         self.env = ModularDRLEnv(env_config)
@@ -156,7 +156,7 @@ class listener_node_one:
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         #self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt.zip")
-        self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_drl.zip")
+        self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip")
 
         print("[Listener] Moving robot into resting pose")
         # move robot to start position #TODO: solve through Training
