@@ -63,8 +63,8 @@ class RandomObstacleWorld(World):
 
     def set_up(self):
         # add ground plate
-        plate = GroundPlate()
-        plate.build()
+        self.ground_plate = GroundPlate()
+        self.ground_plate.build()
 
         # pre-generate all the obstacles we're going to use
         for i in range(self.num_static_obstacles + self.num_moving_obstacles):
@@ -104,10 +104,10 @@ class RandomObstacleWorld(World):
         self.joints_targets = []
         self.ee_starting_points = []
         # move currently used obstacles into storage
-        for obst in self.active_objects:
+        for obst in self.active_objects[1:]:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
             obst.move_base(self.obstacle_storage_location + offset)
-        self.active_objects = []
+        self.active_objects = [self.ground_plate]
 
         # get number of obstacles for this run
         if self.randomize_number_of_obstacles:

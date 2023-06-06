@@ -38,10 +38,10 @@ run:
     display_delay: 0.00816666666  
     show_world_aux: True
     show_goal_aux: True
-    show_sensor_aux: True
+    show_sensor_aux: False
 
 env:
-  max_steps_per_episode: 1024 
+  max_steps_per_episode: 99999999 
   stat_buffer_size: 25  
   normalize_observations: False
   normalize_rewards: True

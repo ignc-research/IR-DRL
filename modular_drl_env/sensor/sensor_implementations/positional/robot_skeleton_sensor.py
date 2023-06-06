@@ -24,17 +24,19 @@ class RobotSkeletonSensor(Sensor):
     Adapted from the code written by Amir.
     """
 
-    def __init__(self, normalize: bool, 
-                 add_to_observation_space: bool, 
-                 add_to_logging: bool, 
-                 sim_step: float, 
-                 update_steps: int, 
-                 sim_steps_per_env_step: int,
+    def __init__(self, 
                  robot: Robot,
                  reference_link_ids: List[str],
+                 sim_step: float,
+                 sim_steps_per_env_step: int,
                  extra_points_link_pairs: List=[],
-                 report_velocities: bool=False):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step)
+                 report_velocities: bool=False,
+                 normalize: bool=False, 
+                 add_to_observation_space: bool=True, 
+                 add_to_logging: bool=False,          
+                 update_steps: int=1,                       
+                 ):
+        super().__init__(sim_step, sim_steps_per_env_step, normalize, add_to_observation_space, add_to_logging,  update_steps)
 
         # set associated robot
         self.robot = robot
@@ -123,7 +125,16 @@ class RobotSkeletonSensor(Sensor):
             idx = 0
             for tup in self.extra_points_link_pairs:
                 link1, link2, num = tup
-                self.extra_points_coordinates[idx:idx + num] = interpolate_3d(self.positions[link1], self.positions[link2], num)
+                # in case we don't track the links but still want to have extra points, check and get the position if needed
+                if link1 in self.positions:
+                    pos1 = self.positions[link1]
+                else:
+                    pos1, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link1)
+                if link2 in self.positions:
+                    pos2 = self.positions[link2]
+                else:
+                    pos2, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link2)
+                self.extra_points_coordinates[idx:idx + num] = interpolate_3d(pos1, pos2, num)
                 idx += num       
         self.cpu_time = process_time() - self.cpu_epoch
 
@@ -140,7 +151,15 @@ class RobotSkeletonSensor(Sensor):
             idx = 0
             for tup in self.extra_points_link_pairs:
                 link1, link2, num = tup
-                self.extra_points_coordinates[idx:idx + num] = interpolate_3d(self.positions[link1], self.positions[link2], num)
+                if link1 in self.positions:
+                    pos1 = self.positions[link1]
+                else:
+                    pos1, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link1)
+                if link2 in self.positions:
+                    pos2 = self.positions[link2]
+                else:
+                    pos2, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link2)
+                self.extra_points_coordinates[idx:idx + num] = interpolate_3d(pos1, pos2, num)
                 idx += num
 
     def get_data_for_logging(self) -> dict:

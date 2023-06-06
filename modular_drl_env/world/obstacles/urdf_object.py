@@ -9,8 +9,17 @@ class URDFObject(Obstacle):
     This implements an obstacle that is based off a URDF.
     """
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, sim_steps_per_env_step: int, velocity: float, urdf_path: str, scale: float=1) -> None:
-        super().__init__(position, rotation, trajectory, sim_step, sim_steps_per_env_step, velocity)
+    def __init__(self, 
+                 position: Union[list, np.ndarray], 
+                 rotation: Union[list, np.ndarray], 
+                 trajectory: list, 
+                 sim_step: float, 
+                 sim_steps_per_env_step: int, 
+                 velocity: float, 
+                 urdf_path: str, 
+                 scale: float=1,
+                 seen_by_obstacle_sensor: bool=True) -> None:
+        super().__init__(position, rotation, trajectory, sim_step, sim_steps_per_env_step, velocity, seen_by_obstacle_sensor)
 
         self.urdf_path = urdf_path
         self.scale = scale
@@ -25,8 +34,18 @@ class URDFObjectGenerated(URDFObject):
     Has a few adaptions to make parallel environments running at the same time work.
     """
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, sim_steps_per_env_step: int, velocity: float, urdf_path: str, env_id:int, scale: float=1) -> None:
-        super().__init__(position, rotation, trajectory, sim_step, sim_steps_per_env_step, velocity, urdf_path, scale)
+    def __init__(self, 
+                 position: Union[list, np.ndarray], 
+                 rotation: Union[list, np.ndarray], 
+                 trajectory: list, 
+                 sim_step: float, 
+                 sim_steps_per_env_step: int, 
+                 velocity: float, 
+                 urdf_path: str, 
+                 env_id:int, 
+                 scale: float=1,
+                 seen_by_obstacle_sensor: bool=True) -> None:
+        super().__init__(position, rotation, trajectory, sim_step, sim_steps_per_env_step, velocity, urdf_path, scale, seen_by_obstacle_sensor)
         self.file_name = None  # see below
         self.env_id = env_id  # to prevent parallel file write access
 

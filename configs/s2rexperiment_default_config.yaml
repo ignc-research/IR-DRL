@@ -1,0 +1,73 @@
+run:
+  algorithm:
+    load_model: False  
+    model_path: ""  
+    type: "PPO"
+  train:
+    num_envs : 24  
+    logging: 0
+    timesteps: 150000000 
+    save_freq : 90000
+    save_folder: "./models/weights"  
+    save_name: "s2rexperiment"
+  eval:
+    max_episodes: -1
+    logging: 1
+    display_delay: 0.00816666666  
+    show_world_aux: True
+    show_goal_aux: True
+    show_sensor_aux: True
+
+env:
+  max_steps_per_episode: 1024 
+  stat_buffer_size: 25  
+  normalize_observations: False
+  normalize_rewards: True
+  use_physics_sim: True
+  gravity: [0, 0, -9.8]
+  sim_step: 0.00416666666 
+  sim_steps_per_env_step: 1 
+  robots:
+    - type: "UR5" 
+      config:
+        name: "ur5_1"
+        base_position: [0, 0, 0.01]
+        base_orientation: [0, 0, -180]
+        resting_angles: [-180, -45, -90, -135, 90, 0]
+        control_mode: 2
+        self_collision: True
+        controlled_joints: ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint"]
+      sensors:
+        - type: "Obstacle"
+          config:
+            num_obstacles: 1
+            max_distance: 0.2
+            sphere_coordinates: False
+            report_velocities: False
+            reference_link_ids: ["ee_link", "forearm_link", "wrist_1_link", "wrist_3_link"]
+            extra_points_link_pairs: [["forearm_link", "wrist_1_link", 1]]
+        - type: "ObstacleAbsolute"
+          config:
+            num_obstacles: 1
+            max_distance: 0.4
+            report_velocities: True
+        - type: "RobotSkeleton"
+          config:
+            report_velocities: False
+            reference_link_ids: ["ee_link", "forearm_link", "wrist_1_link", "wrist_2_link", "wrist_3_link"]
+            extra_points_link_pairs: [["forearm_link", "wrist_1_link", 1]]
+      goal:
+        type: "PositionCollisionNoShakingProximityV2"
+        config:
+          add_to_logging: True
+          continue_after_success: True
+          dist_threshold_start: 0.4
+          dist_threshold_end : 0.05
+          dist_threshold_increment_start: 0.01
+          dist_threshold_increment_end: 0.001
+          dist_threshold_overwrite: 0.05
+          reward_success: 500
+  world:
+    type: "S2RExperiment"
+    config:
+      max_num_obstacles: 1

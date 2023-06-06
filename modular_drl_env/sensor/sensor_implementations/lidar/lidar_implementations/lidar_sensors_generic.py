@@ -12,21 +12,23 @@ class LidarSensorGeneric(LidarSensor):
     Implements a generic lidar setup that will send 
     """
 
-    def __init__(self, normalize: bool, 
-                 add_to_observation_space: bool, 
-                 add_to_logging: bool, 
-                 sim_step: float, 
-                 update_steps: int, 
-                 sim_steps_per_env_step: int, 
-                 robot: Robot, 
+    def __init__(self, 
+                 robot: Robot,
                  indicator_buckets: int,
                  ray_start: float, 
                  ray_end: float, 
                  ray_setup: dict, 
-                 indicator: bool = True,
-                 ignore_self: bool = True,
-                 report_points: bool = False):
-        super().__init__(normalize, add_to_observation_space, add_to_logging, sim_step, update_steps, sim_steps_per_env_step, robot, indicator_buckets, indicator)
+                 sim_step: float,
+                 sim_steps_per_env_step: int,
+                 indicator: bool=True,
+                 ignore_self: bool=True,
+                 report_points: bool=False,
+                 normalize: bool=False,
+                 add_to_observation_space: bool=True, 
+                 add_to_logging: bool=False, 
+                 update_steps: int=1
+                 ):
+        super().__init__(robot, indicator_buckets, sim_step, sim_steps_per_env_step, indicator, normalize, add_to_observation_space, add_to_logging, update_steps)
 
         # this is a dict which will contain link names as keys and number of rays distributed in a sphere around the link as value
         self.ray_setup = ray_setup

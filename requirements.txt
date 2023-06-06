@@ -1,5 +1,7 @@
-numpy
+wheel==0.38.4
+setuptools==65.5.1
 pandas
+numpy
 gym
 stable-baselines3
 sb3-contrib @ git+https://github.com/RemiG3/stable-baselines3-contrib/@feat/ppo_attention
@@ -7,4 +9,6 @@ torch
 pybullet
 tensorboard
 zennit
+pyaml
+pybullet-planning
 mazelib

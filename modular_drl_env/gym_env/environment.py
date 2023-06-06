@@ -100,6 +100,7 @@ class ModularDRLEnv(gym.Env):
         # init pybullet from config
         pyb_u.init(self.assets_path, env_config["display"], env_config["sim_step"], env_config["gravity"])
 
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
         # init world from config
         self._world_setup(env_config)
 
@@ -108,6 +109,7 @@ class ModularDRLEnv(gym.Env):
         self.sensors:list[Sensor] = []
         self.goals:list[Goal] = []
         self._robot_setup(env_config)
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         # construct observation space from sensors and goals
         # each sensor and goal will add elements to the observation space with fitting names
@@ -136,6 +138,7 @@ class ModularDRLEnv(gym.Env):
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(sum(self.action_space_dims),), dtype=np.float32)
 
     def reset(self):
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
         # end execution if max episodes is reached
         if self.max_episodes != -1 and self.episode >= self.max_episodes:
             exit(0)
@@ -153,9 +156,8 @@ class ModularDRLEnv(gym.Env):
             self.log = []  
 
         # toggle pybullet rendering off
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        
         self.world.reset(np.average(self.success_stat))
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         # set all robots to active
         self.active_robots = [True for robot in self.robots]
@@ -171,7 +173,6 @@ class ModularDRLEnv(gym.Env):
 
         # render non-essential visual stuff
         if not self.train:
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
             if self.show_auxillary_geometry_goal:
                 for goal in self.goals:
                     goal.delete_visual_aux()
@@ -180,8 +181,8 @@ class ModularDRLEnv(gym.Env):
                 for sensor in self.sensors:
                     sensor.delete_visual_aux()
                     sensor.build_visual_aux()
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
         return self._get_obs()
 
     def _get_obs(self):
@@ -405,53 +406,90 @@ class ModularDRLEnv(gym.Env):
             info_string += key + ": " + to_print + ", "
         return info_string[:-1]  # cut off last space
 
-    def manual_control(self):
+    def manual_control(self, joints=False):
         """
-        Debug method for controlling the robot.
+        Debug method for controlling the robot at position 0 in the self.robots list.
         """
         pyb.configureDebugVisualizer(pyb.COV_ENABLE_GUI, 1)
         # code to manually control the robot in real time
-        roll = pyb.addUserDebugParameter("r", -4.0, 4.0, 0)
-        pitch = pyb.addUserDebugParameter("p", -4.0, 4.0, 0)
-        yaw = pyb.addUserDebugParameter("y", -4.0, 4.0, 0)
-        fwdxId = pyb.addUserDebugParameter("fwd_x", -4, 8, 0)
-        fwdyId = pyb.addUserDebugParameter("fwd_y", -4, 8, 0)
-        fwdzId = pyb.addUserDebugParameter("fwd_z", -1, 3, 0)
-        x_base = 0
-        y_base = 0
+        if not joints:
+            roll = pyb.addUserDebugParameter("r", -4.0, 4.0, 0)
+            pitch = pyb.addUserDebugParameter("p", -4.0, 4.0, 0)
+            yaw = pyb.addUserDebugParameter("y", -4.0, 4.0, 0)
+            fwdxId = pyb.addUserDebugParameter("fwd_x", -4, 8, 0)
+            fwdyId = pyb.addUserDebugParameter("fwd_y", -4, 8, 0)
+            fwdzId = pyb.addUserDebugParameter("fwd_z", -1, 3, 0)
+            x_base = 0
+            y_base = 0
 
-        pyb.addUserDebugLine([0,0,0],[0,0,1],[0,0,1],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
-        pyb.addUserDebugLine([0,0,0],[0,1,0],[0,1,0],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
-        pyb.addUserDebugLine([0,0,0],[1,0,0],[1,0,0],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
+            pyb.addUserDebugLine([0,0,0],[0,0,1],[0,0,1],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
+            pyb.addUserDebugLine([0,0,0],[0,1,0],[0,1,0],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
+            pyb.addUserDebugLine([0,0,0],[1,0,0],[1,0,0],parentObjectUniqueId=pyb_u.to_pb(self.robots[0].object_id), parentLinkIndex= pyb_u.pybullet_link_ids[self.robots[0].object_id ,self.robots[0].end_effector_link_id])
 
-        lineID = 0
+            lineID = 0
+            textID = 0
 
-        while True:
-            if lineID:
-                pyb.removeUserDebugItem(lineID)
+            while True:
+                if lineID:
+                    pyb.removeUserDebugItem(lineID)
+                    pyb.removeUserDebugItem(textID)
 
-            # read inputs from GUI
-            qrr = pyb.readUserDebugParameter(roll)
-            qpr = pyb.readUserDebugParameter(pitch)
-            qyr = pyb.readUserDebugParameter(yaw)
-            x = pyb.readUserDebugParameter(fwdxId)
-            y = pyb.readUserDebugParameter(fwdyId)
-            z = pyb.readUserDebugParameter(fwdzId)
-            oldxbase = x_base
-            oldybase = y_base
+                # read inputs from GUI
+                qrr = pyb.readUserDebugParameter(roll)
+                qpr = pyb.readUserDebugParameter(pitch)
+                qyr = pyb.readUserDebugParameter(yaw)
+                x = pyb.readUserDebugParameter(fwdxId)
+                y = pyb.readUserDebugParameter(fwdyId)
+                z = pyb.readUserDebugParameter(fwdzId)
+                oldxbase = x_base
+                oldybase = y_base
 
-            # build quaternion from user input
-            command_quat = pyb.getQuaternionFromEuler([qrr,qpr,qyr])
+                # build quaternion from user input
+                command_quat = pyb.getQuaternionFromEuler([qrr,qpr,qyr])
 
-            self.robots[0].moveto_xyzquat(np.array([x,y,z]),np.array(command_quat), self.use_physics_sim)
-            if self.use_physics_sim:
-                for i in range(self.sim_steps_per_env_step):
-                    pyb.stepSimulation()
+                self.robots[0].moveto_xyzquat(np.array([x,y,z]),np.array(command_quat), self.use_physics_sim)
+                if self.use_physics_sim:
+                    for i in range(self.sim_steps_per_env_step):
+                        pyb.stepSimulation()
 
-            self.robots[0].position_rotation_sensor.reset()
-            pos = self.robots[0].position_rotation_sensor.position
+                self.robots[0].position_rotation_sensor.reset()
+                self.robots[0].joints_sensor.reset()
+                pos = self.robots[0].position_rotation_sensor.position
 
-            lineID = pyb.addUserDebugLine([x,y,z], pos.tolist(), [0,0,0])
+                lineID = pyb.addUserDebugLine([x,y,z], pos.tolist(), [0,0,0])
+                joints_str = ' '.join([str(round(ele, 2)) for ele in self.robots[0].joints_sensor.joints_angles])
+                textID = pyb.addUserDebugText(joints_str, pos)
+        else:
+            q0 = pyb.addUserDebugParameter("q0", -np.pi, np.pi, 0)
+            q1 = pyb.addUserDebugParameter("q1", -np.pi, np.pi, 0)
+            q2 = pyb.addUserDebugParameter("q2", -np.pi, np.pi, 0)
+            q3 = pyb.addUserDebugParameter("q3", -np.pi, np.pi, 0)
+            q4 = pyb.addUserDebugParameter("q4", -np.pi, np.pi, 0)
+            q5 = pyb.addUserDebugParameter("q5", -np.pi, np.pi, 0)
+            
+            textID = 0
+            while True:
+                if textID:
+                    pyb.removeUserDebugItem(textID)
+                q0r = pyb.readUserDebugParameter(q0)
+                q1r = pyb.readUserDebugParameter(q1)
+                q2r = pyb.readUserDebugParameter(q2)
+                q3r = pyb.readUserDebugParameter(q3)
+                q4r = pyb.readUserDebugParameter(q4)
+                q5r = pyb.readUserDebugParameter(q5)
+
+                command_quat = np.array([q0r, q1r, q2r, q3r, q4r, q5r])
+                self.robots[0].moveto_joints(command_quat, self.use_physics_sim, self.robots[0].all_joints_ids)
+                if self.use_physics_sim:
+                    for i in range(self.sim_steps_per_env_step):
+                        pyb.stepSimulation()
+
+                self.robots[0].joints_sensor.reset()
+                self.robots[0].position_rotation_sensor.reset()
+
+                pos_text = ' '.join([str(round(ele, 3)) for ele in self.robots[0].position_rotation_sensor.position])
+
+                textID = pyb.addUserDebugText(pos_text, self.robots[0].position_rotation_sensor.position)
 
     ####################
     # callback methods #

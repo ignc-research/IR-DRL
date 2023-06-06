@@ -111,7 +111,7 @@ class listener_node_one:
         
         #part for voxel clustering
         self.enable_clustering = True #enable or disable clustering for performance reasons
-        self.robot_voxel_cluster_distance = 0.2 #TODO: optiomize this
+        self.robot_voxel_cluster_distance = 0.4 #TODO: optimize this
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
         self.voxel_cluster_threshold = 50
         self.voxel_centers = None
@@ -159,17 +159,7 @@ class listener_node_one:
         self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip")
 
         print("[Listener] Moving robot into resting pose")
-        # move robot to start position #TODO: solve through Training
-        goal = FollowJointTrajectoryGoal()
-        goal.trajectory.joint_names = JOINT_NAMES
-        duration = rospy.Duration(3)  
-        point = JointTrajectoryPoint()
-        #point.positions = [i*np.pi/180 for i in [-81.25, -90, -90, 0, 0, 0]]
-        point.positions = [i*np.pi/180 for i in [-180, -45, -90, -135, 90, 0]]
-        point.time_from_start = duration
-        goal.trajectory.points.append(point)
-        self.trajectory_client.send_goal(goal) 
-        self.trajectory_client.wait_for_result()
+        self._move_to_resting_pose()
         sleep(1)
 
         # init ros stuff
@@ -197,6 +187,18 @@ class listener_node_one:
         print("[Listener] initialized node")
         rospy.spin() #Lässt rospy immer weiter laufen
 
+    def _move_to_resting_pose(self):
+        # move robot to start position #TODO: solve through Training
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory.joint_names = JOINT_NAMES
+        duration = rospy.Duration(3)  
+        point = JointTrajectoryPoint()
+        #point.positions = [i*np.pi/180 for i in [-81.25, -90, -90, 0, 0, 0]]
+        point.positions = [i*np.pi/180 for i in [-180, -45, -90, -135, 90, 0]]
+        point.time_from_start = duration
+        goal.trajectory.points.append(point)
+        self.trajectory_client.send_goal(goal) 
+        self.trajectory_client.wait_for_result()
 
     # verwerten Daten, wandeln in das Format vom NN, fragen NN, wandeln Output vom NN in vom
     # UR5 Driver verstandene Commands
@@ -251,8 +253,7 @@ class listener_node_one:
                     # loop breaking conditions
                     if info["collision"]:
                         self.goal = None
-                        # self.actions = []
-                        self.actions = np.zeros((100, len(self.virtual_robot.all_joints_ids)))
+                        self.actions = np.ones((100, len(self.virtual_robot.all_joints_ids))) * self.joints
                         self.sim_step = -1
                         self.running_inference = False
                         self.inference_done = True
@@ -283,7 +284,7 @@ class listener_node_one:
                         print("[cbAction] Model isn't moving. Max iteration limit reached")
                         self.goal = None
                         self.inference_done = True
-                        self.actions = np.zeros((100, len(self.virtual_robot.all_joints_ids)))
+                        self.actions = np.ones((100, len(self.virtual_robot.all_joints_ids))) * self.joints
                         self.sim_step = -1
                         self.running_inference = False
                         self.env.episode += 1
@@ -310,10 +311,13 @@ class listener_node_one:
             self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #if last argument = none only 5 of the 6 joints get recognized
             print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
             print("[cbControl] current (virtual) joint angles: " + str(self.joints))  
-            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or (c) to calibrate camera position: \n")
+            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or (c) to calibrate camera position or (r) to return the robot into the starting configuration (WARNING:does not consider collisions, both real and virtual!): \n")
             # inp = inp.split(" ")
             # calibrate camera position
             if len(inp) == 1:
+                if inp == "r": # Resets the robot to the start position
+                    print("[cbControl] Moving robot into resting pose")
+                    self._move_to_resting_pose() 
                 if inp[0] == "c":
                     was_static = self.point_cloud_static
                     self.point_cloud_static = False
@@ -364,7 +368,9 @@ class listener_node_one:
                 pyb_u.get_collisions()
                 if pyb_u.collision:
                     print("[cbControl] target position is in collision in simulation! Try again or check the camera/voxelization if the problem persists..")
-                    return
+                    choice = input("[cbControl] Do you still want to go ahead with your chosen target? (y/n)\n")
+                    if choice == "no" or choice == "n":
+                        return
                 tmp_pos = self.virtual_robot.position_rotation_sensor.position
                 self.sim_step = 0
                 self.real_step = 0
@@ -374,10 +380,12 @@ class listener_node_one:
                 self.static_done = False
                 if np.linalg.norm(tmp_pos - tmp_goal) > 5e-2:
                     print("[cbControl] could not find solution via inverse kinematics that is close enough, try another position")
-                else:
-                    self.goal = tmp_goal
-                    self.q_goal = q_goal
-                    # self.goal_sphere.position = self.goal
+                    choice = input("[cbControl] Do you still want to go ahead with your chosen target? (y/n)\n")
+                    if choice == "no" or choice == "n":
+                        return
+                self.goal = tmp_goal
+                self.q_goal = q_goal
+                # self.goal_sphere.position = self.goal
                 
         else:
             # print("[cbControl] Starting trajectory transmission")
@@ -391,7 +399,7 @@ class listener_node_one:
             self.durations = [self.dist_threshold * (1/v) for _ in self.actions]
             
                   
-            duration = 2*self.dist_threshold * (1/v)
+            duration = 2 * self.dist_threshold * (1/v)
             # act = self.actions.pop(0)
             # act = self.actions[i]
             if self.sim_step < 0:
@@ -532,7 +540,7 @@ class listener_node_one:
             self.probe_voxel.position = self.pos_nowhere
             
             # Save voxels.npy
-            np.save("./voxels.npy",voxel_centers)
+            #np.save("./voxels.npy",voxel_centers)
             #pickle.
 
 
@@ -672,7 +680,7 @@ class listener_node_one:
 
 
 if __name__ == '__main__':
-    rospy.init_node('listener', anonymous=True)
+    rospy.init_node('listener', anonymous=True, disable_signals=True) 
     listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=2000, point_cloud_static=False)
 
 

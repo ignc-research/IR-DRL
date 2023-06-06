@@ -5,7 +5,7 @@ from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
 
 class Obstacle(ABC):
 
-    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, sim_steps_per_env_step: int, velocity: float=0) -> None:
+    def __init__(self, position: Union[list, np.ndarray], rotation: Union[list, np.ndarray], trajectory: list, sim_step: float, sim_steps_per_env_step: int, velocity: float=0, seen_by_obstacle_sensor: bool=True) -> None:
 
         # current and initial position
         self.position = np.array(position)
@@ -29,6 +29,10 @@ class Obstacle(ABC):
         self.move_step = velocity * (sim_step * sim_steps_per_env_step)  # distance that is travelled per env step
         self.trajectory_idx = -1
         self.closeness_threshold = 1e-3  # to determine if two positions are the same
+
+        # bool flag, prevents this obstacle from being recognized by the obstacle sensor
+        # useful in some scenarios, where a sensor is too close to a large unmoving obstacle like the ground plate
+        self.seen_by_obstacle_sensor = seen_by_obstacle_sensor
 
     @abstractmethod
     def build(self) -> int:
@@ -83,3 +87,4 @@ class Obstacle(ABC):
         self.orientation = new_base_rotation
         self.orientation_orig = new_base_rotation
         self.velocity = np.zeros(3)
+        self.trajectory_idx = -1

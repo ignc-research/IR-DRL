@@ -1,4 +1,3 @@
-# config that builds the env as Yifan had it
 run:
   algorithm:
     load_model: False  
