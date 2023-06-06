@@ -123,7 +123,16 @@ class ObstacleSensor(Sensor):
             idx = 0
             for tup in self.extra_points_link_pairs:
                 link1, link2, num = tup
-                extra_positions = interpolate_3d(self.link_positions[link1], self.link_positions[link2], num)
+                # in case we don't track the links but still want to have extra points, check and get the position if needed
+                if link1 in self.link_positions:
+                    pos1 = self.link_positions[link1]
+                else:
+                    pos1, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link1)
+                if link2 in self.link_positions:
+                    pos2 = self.link_positions[link2]
+                else:
+                    pos2, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link2)
+                extra_positions = interpolate_3d(pos1, pos2, num)
                 for extra_position in extra_positions:
                     pyb_u.set_base_pos_and_ori(self.probe, extra_position, np.array([0, 0, 0, 1]))
                     self.output_vector_extra[idx] = self.default_observation
@@ -165,7 +174,16 @@ class ObstacleSensor(Sensor):
         idx = 0
         for tup in self.extra_points_link_pairs:
             link1, link2, num = tup
-            extra_positions = interpolate_3d(self.link_positions[link1], self.link_positions[link2], num)
+            # in case we don't track the links but still want to have extra points, check and get the position if needed
+            if link1 in self.link_positions:
+                pos1 = self.link_positions[link1]
+            else:
+                pos1, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link1)
+            if link2 in self.link_positions:
+                pos2 = self.link_positions[link2]
+            else:
+                pos2, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link2)
+            extra_positions = interpolate_3d(pos1, pos2, num)
             for extra_position in extra_positions:
                 pyb_u.set_base_pos_and_ori(self.probe, extra_position, np.array([0, 0, 0, 1]))
                 self.output_vector_extra[idx] = self.default_observation
@@ -232,7 +250,7 @@ class ObstacleSensor(Sensor):
         res = []
         # get nearest robots
         for object in self.robot.world.active_objects:
-            if not obstacle.seen_by_obstacle_sensor:
+            if not object.seen_by_obstacle_sensor:
                 continue
             closestPoints = pyb.getClosestPoints(pyb_u.to_pb(self.probe), pyb_u.to_pb(object.object_id), self.max_distance)
             if not closestPoints:

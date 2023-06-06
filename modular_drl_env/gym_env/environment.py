@@ -100,6 +100,7 @@ class ModularDRLEnv(gym.Env):
         # init pybullet from config
         pyb_u.init(self.assets_path, env_config["display"], env_config["sim_step"], env_config["gravity"])
 
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
         # init world from config
         self._world_setup(env_config)
 
@@ -108,6 +109,7 @@ class ModularDRLEnv(gym.Env):
         self.sensors:list[Sensor] = []
         self.goals:list[Goal] = []
         self._robot_setup(env_config)
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         # construct observation space from sensors and goals
         # each sensor and goal will add elements to the observation space with fitting names
@@ -136,6 +138,7 @@ class ModularDRLEnv(gym.Env):
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(sum(self.action_space_dims),), dtype=np.float32)
 
     def reset(self):
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
         # end execution if max episodes is reached
         if self.max_episodes != -1 and self.episode >= self.max_episodes:
             exit(0)
@@ -153,9 +156,8 @@ class ModularDRLEnv(gym.Env):
             self.log = []  
 
         # toggle pybullet rendering off
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        
         self.world.reset(np.average(self.success_stat))
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
         # set all robots to active
         self.active_robots = [True for robot in self.robots]
@@ -171,7 +173,6 @@ class ModularDRLEnv(gym.Env):
 
         # render non-essential visual stuff
         if not self.train:
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
             if self.show_auxillary_geometry_goal:
                 for goal in self.goals:
                     goal.delete_visual_aux()
@@ -180,8 +181,8 @@ class ModularDRLEnv(gym.Env):
                 for sensor in self.sensors:
                     sensor.delete_visual_aux()
                     sensor.build_visual_aux()
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
 
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
         return self._get_obs()
 
     def _get_obs(self):

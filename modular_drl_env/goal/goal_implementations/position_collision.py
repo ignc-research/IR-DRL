@@ -734,7 +734,7 @@ class PositionCollisionGoalNoShakingProximityV2(PositionCollisionGoalNoShaking):
         self.timeout = False
 
         if self.collided:
-            self.done = True
+            self.done = False
             reward += self.reward_collision
         elif self.distance < self.distance_threshold:
             self.done = True
