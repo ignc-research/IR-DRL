@@ -31,7 +31,7 @@ class S2RExperiment(World):
         super().__init__([-2, 2, -2, 2, -1, 5], sim_step, sim_steps_per_env_step, env_id, assets_path)
 
         # experiments, empty list = all available ones
-        self.experiments = [0, 1] if not experiments else experiments
+        self.experiments = [0, 1, 2] if not experiments else experiments
         self.experiments_weights = [1/len(self.experiments) for _ in self.experiments] if not experiments_weights else experiments_weights
 
         # max number of obstacles that can appear in an experiment
@@ -84,7 +84,7 @@ class S2RExperiment(World):
         self.joints_targets = []
         self.ee_starting_points = []
         # move currently used obstacles into storage
-        for obst in self.active_objects[3:]:
+        for obst in self.active_objects[2:]:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
             obst.move_base(self.storage_pos + offset)
         # reset active objects
@@ -99,6 +99,7 @@ class S2RExperiment(World):
         eval("self._build_exp" + str(experiment) + "(num_obsts)")
 
     def _build_exp0(self, num_obsts):
+        # TODO: no velocity, different x and y coords
         # move the end effector in a straight line across the table, obstacles might appear on the line or close to it, 
         start_joints = np.array([-0.86, -1.984, 1.984, -1.653, -1.554, 0])  # cartesian 0.255 -0.385 0.367
         start_pos = np.array([0.302, -0.181, 0.357])
@@ -107,6 +108,7 @@ class S2RExperiment(World):
 
         while True:
             random_obsts = sample(self.obstacle_objects[3:], num_obsts)
+
 
             for obst in random_obsts:
                 waylength = np.random.uniform(low=0.3, high=0.85)
@@ -145,11 +147,12 @@ class S2RExperiment(World):
         self.robots[0].moveto_joints(self.robots[0].resting_pose_angles, False)
         obst = self.obstacle_objects[2]
         random_y_start = np.random.uniform(low=0, high=0.3)
-        obst.move_base(np.array([0.4, random_y_start, 0.1]))
+        random_z_start = np.random.uniform(low=0.25, high=0.4)
+        obst.move_base(np.array([0.4, random_y_start, random_z_start]))
         obst.move_step = 0.35 * self.sim_step * self.sim_steps_per_env_step
         obst.trajectory = [np.array([0, 0.4 - random_y_start, 0.0]), np.array([0, -random_y_start, 0])]
         self.active_objects += [obst]
-        targets = [np.array([0.55, 0.0, 0.15]), np.array([0.4, -0.05, 0.15]), np.array([0.4, 0.41, 0.15])]
+        targets = [np.array([0.55, 0.0, random_z_start]), np.array([0.4, -0.05, random_z_start]), np.array([0.4, 0.41, random_z_start])]
         self.position_targets = [choice(targets)]
 
     def _build_exp2(self, num_obsts):
@@ -161,8 +164,11 @@ class S2RExperiment(World):
         obst.move_step = 0.35 * self.sim_step * self.sim_steps_per_env_step
         obst.trajectory = [np.array([0, 0, 0.4 - random_z_start]), np.array([0, 0, -random_z_start])]
         self.active_objects += [obst]
-        targets = [np.array([0.4, random_y_start, 0.15]), np.array([0.4, random_y_start, 0.45]), np.array([0.55, random_y_start, 0.15]), np.array([0.55, random_y_start, 0.45])]
+        targets = [np.array([0.4, random_y_start, 0.25]), np.array([0.4, random_y_start, 0.45]), np.array([0.55, random_y_start, 0.25]), np.array([0.55, random_y_start, 0.45])]
         self.position_targets = [choice(targets)]
+
+    def _build_exp3(self, num_obsts):
+        pass
 
     def update(self):
         for obstacle in self.active_objects:
