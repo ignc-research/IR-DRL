@@ -12,7 +12,8 @@ __all__ = [
     'PositionCollisionBetterSmoothingGoal',
     'PositionCollisionGoalNoShaking',
     'PositionCollisionGoalNoShakingProximity',
-    'PositionCollisionGoalNoShakingProximityV2'
+    'PositionCollisionGoalNoShakingProximityV2',
+    'PositionCollisionGoalNoShakingProximityV3'
 ]
 
 class PositionCollisionGoal(Goal):
@@ -734,7 +735,7 @@ class PositionCollisionGoalNoShakingProximityV2(PositionCollisionGoalNoShaking):
         self.timeout = False
 
         if self.collided:
-            self.done = False
+            self.done = True
             reward += self.reward_collision
         elif self.distance < self.distance_threshold:
             self.done = True
@@ -752,3 +753,20 @@ class PositionCollisionGoalNoShakingProximityV2(PositionCollisionGoalNoShaking):
 
         self.reward_value = reward
         return self.reward_value, self.is_success, self.done, self.timeout, self.out_of_bounds 
+    
+class PositionCollisionGoalNoShakingProximityV3(PositionCollisionGoalNoShakingProximityV2):
+
+    def get_observation_space_element(self) -> dict:
+        ret = dict()
+        ret[self.output_name + "_target"] = Box(low=-50, high=50, shape=(3,), dtype=np.float32)
+        ret[self.output_name + "_ee_position"] = Box(low=-50, high=50, shape=(3,), dtype=np.float32)
+        return ret
+    
+    def get_observation(self) -> dict:
+        self.position = self.robot.position_rotation_sensor.position
+        self.target = self.robot.world.position_targets[self.robot.mgt_id]
+        self.distance = np.linalg.norm(self.target - self.position)
+        ret = dict()
+        ret[self.output_name + "_target"] = self.target
+        ret[self.output_name + "_ee_position"] = self.position
+        return ret

@@ -96,9 +96,9 @@ class S2RExperiment(World):
         # pick one of the active experiments randomly
         experiment = np.random.choice(self.experiments, p=self.experiments_weights)
         # and build it
-        eval("self._build_exp" + str(experiment) + "(num_obsts)")
+        eval("self._set_up_exp" + str(experiment) + "(num_obsts)")
 
-    def _build_exp0(self, num_obsts):
+    def _set_up_exp0(self, num_obsts):
         # TODO: no velocity, different x and y coords
         # move the end effector in a straight line across the table, obstacles might appear on the line or close to it, 
         start_joints = np.array([-0.86, -1.984, 1.984, -1.653, -1.554, 0])  # cartesian 0.255 -0.385 0.367
@@ -143,7 +143,7 @@ class S2RExperiment(World):
         self.position_targets = [end_pos]
         # TODO: joint targets
 
-    def _build_exp1(self, num_obsts):
+    def _set_up_exp1(self, num_obsts):
         self.robots[0].moveto_joints(self.robots[0].resting_pose_angles, False)
         obst = self.obstacle_objects[2]
         random_y_start = np.random.uniform(low=0, high=0.3)
@@ -155,7 +155,7 @@ class S2RExperiment(World):
         targets = [np.array([0.55, 0.0, random_z_start]), np.array([0.4, -0.05, random_z_start]), np.array([0.4, 0.41, random_z_start])]
         self.position_targets = [choice(targets)]
 
-    def _build_exp2(self, num_obsts):
+    def _set_up_exp2(self, num_obsts):
         self.robots[0].moveto_joints(self.robots[0].resting_pose_angles, False)
         obst = self.obstacle_objects[2]
         random_y_start = np.random.uniform(low=0, high=0.3)
@@ -167,7 +167,7 @@ class S2RExperiment(World):
         targets = [np.array([0.4, random_y_start, 0.25]), np.array([0.4, random_y_start, 0.45]), np.array([0.55, random_y_start, 0.25]), np.array([0.55, random_y_start, 0.45])]
         self.position_targets = [choice(targets)]
 
-    def _build_exp3(self, num_obsts):
+    def _set_up_exp3(self, num_obsts):
         pass
 
     def update(self):
