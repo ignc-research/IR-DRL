@@ -17,7 +17,9 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # load the different csv_data 
 # TODO: Right now its hardcoded, this needs to change
-csv_directory = csv_directory = "/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV"
+#csv_directory = "/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV"
+csv_directory = "/home/moga/Desktop/IR-DRL/Sim2Real/Evaluation/CSV"
+
 
 csv_filepaths = load_csv.get_csv_filepaths(csv_directory)
 
