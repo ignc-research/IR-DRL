@@ -670,7 +670,7 @@ class PositionCollisionGoalNoShakingProximity(PositionCollisionGoalNoShaking):
         # penalty for being very close to joint limits
         dist_to_max = abs(self.robot.joints_limits_upper - self.robot.joints_sensor.joints_angles)
         dist_to_min = abs(self.robot.joints_sensor.joints_angles - self.robot.joints_limits_lower)
-        dist_both = max(max(dist_to_max), max(dist_to_min))
+        dist_both = min(min(dist_to_max), min(dist_to_min))
         if dist_both <= 0.05:
             reward += self.joint_limit_reward(dist_both)
         if step > self.max_steps:
@@ -715,11 +715,15 @@ class PositionCollisionGoalNoShakingProximityV2(PositionCollisionGoalNoShaking):
         # create the partial reward functions as small anonymous functions
         self.dist_reward = lambda x: (0.5 * (x**2)) if x < dirac else (dirac * (x - 0.5 * dirac))
         self.obst_reward = lambda x: (d_min / (x + d_min)) ** k
+        a = ((self.reward_collision) - (0)) / (np.exp(0.05) - 1)
+        b = (0) - a
+        self.joint_limit_reward = lambda x: (a * np.exp(-(x - 0.05)) + b) if x <= 0.05 else 0
 
         # reward weights
         self.lambda_1 = lambda_1
         self.lambda_2 = lambda_2
         self.lambda_3 = lambda_3
+        self.lambda_4 = 0.0
 
     def reward(self, step, action):
         reward = 0
@@ -727,6 +731,11 @@ class PositionCollisionGoalNoShakingProximityV2(PositionCollisionGoalNoShaking):
         dist_reward = -self.dist_reward(self.distance)
         obst_reward = -self.obst_reward(self.obst_sensor.min_dist)
         action_reward = -np.sum(np.square(action))
+        # penalty for being very close to joint limits
+        dist_to_max = abs(self.robot.joints_limits_upper - self.robot.joints_sensor.joints_angles)
+        dist_to_min = abs(self.robot.joints_sensor.joints_angles - self.robot.joints_limits_lower)
+        dist_both = min(min(dist_to_max), min(dist_to_min))
+        joint_limit_reward = self.joint_limit_reward(dist_both)
 
         self.is_success = False
         self.collided = pyb_u.collision
@@ -747,9 +756,9 @@ class PositionCollisionGoalNoShakingProximityV2(PositionCollisionGoalNoShaking):
             reward += self.reward_collision/2
         else:
             if self.normalize_rewards:
-                reward = (self.lambda_1 * dist_reward + self.lambda_2 * obst_reward + self.lambda_3 * action_reward) / self.lambda_1
+                reward = (self.lambda_1 * dist_reward + self.lambda_2 * obst_reward + self.lambda_3 * action_reward + self.lambda_4 * joint_limit_reward) / self.lambda_1
             else:
-                reward = self.lambda_1 * dist_reward + self.lambda_2 * obst_reward + self.lambda_3 * action_reward
+                reward = self.lambda_1 * dist_reward + self.lambda_2 * obst_reward + self.lambda_3 * action_reward + self.lambda_4 * joint_limit_reward
 
         self.reward_value = reward
         return self.reward_value, self.is_success, self.done, self.timeout, self.out_of_bounds 
