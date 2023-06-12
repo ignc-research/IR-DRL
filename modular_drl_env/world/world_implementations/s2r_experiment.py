@@ -109,20 +109,15 @@ class S2RExperiment(World):
         eval("self._set_up_exp" + str(experiment) + "(num_obsts)")
 
     def _set_up_exp0(self, num_obsts):
-        # TODO: fix starting positions
-        #pyb_u.toggle_rendering(True)
         # move the end effector in a straight line across the table, obstacles might appear on the line or close to it, 
-        #start_joints = np.array([-0.86, -1.984, 1.984, -1.653, -1.554, 0])  # cartesian 0.255 -0.385 0.367
-        random_x = np.random.uniform(low=0.25, high=0.5)
-        random_z = np.random.uniform(low=0.25, high=0.5)
-        random_start_end = choice([(0.05, 0.55), (0.55, 0.05)])
-        #random_start_end = choice([(0.45, -0.181)])
-        start_pos = np.array([random_x, random_start_end[0], random_z])
-        end_pos = np.array([random_x, random_start_end[1], random_z])  # straight line across the table along the y axis
-        diff = end_pos - start_pos
-
-        #num_obsts = 3
         while True:
+            random_x = np.random.uniform(low=0.25, high=0.5)
+            random_z = np.random.uniform(low=0.25, high=0.5)
+            random_start_end = choice([(0.05, 0.55), (0.55, 0.05)])
+            #random_start_end = choice([(0.45, -0.181)])
+            start_pos = np.array([random_x, random_start_end[0], random_z])
+            end_pos = np.array([random_x, random_start_end[1], random_z])  # straight line across the table along the y axis
+            diff = end_pos - start_pos
             random_obsts = sample(self.obstacle_objects, num_obsts)
 
 
@@ -140,7 +135,7 @@ class S2RExperiment(World):
                     obst.move_step = random_vel * self.sim_step * self.sim_steps_per_env_step
                     obst.trajectory = traj
                 else:
-                    obst.velocity = 0
+                    obst.move_step = 0
                     obst.trajectory = []
                 obst.move_base(random_pos)
 
