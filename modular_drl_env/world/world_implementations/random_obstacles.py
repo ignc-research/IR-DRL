@@ -18,6 +18,7 @@ class RandomObstacleWorld(World):
 
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
+                       sim_steps_per_env_step: int,
                        env_id: int,
                        assets_path: str,
                        num_static_obstacles: int=3, 
@@ -30,7 +31,7 @@ class RandomObstacleWorld(World):
                        pre_generated_obstacles_mult: int=8
                        ):
 
-        super().__init__(workspace_boundaries, sim_step, env_id, assets_path)
+        super().__init__(workspace_boundaries, sim_step, sim_steps_per_env_step, env_id, assets_path)
 
         # num obstacles in each category
         self.num_static_obstacles = num_static_obstacles
@@ -72,7 +73,7 @@ class RandomObstacleWorld(World):
                 offset = np.random.uniform(low=-5, high=5, size=(3,))
                 if i < self.num_moving_obstacles:
                     # generate a velocity
-                    move_step = np.random.uniform(low=self.vel_min, high=self.vel_max) * self.sim_step                   
+                    velocity = np.random.uniform(low=self.vel_min, high=self.vel_max)                  
                     # generate trajectory
                     trajectory = [np.array([0, 0, 0])]
                     for i in range(np.random.randint(low=1, high=4)):
@@ -81,7 +82,7 @@ class RandomObstacleWorld(World):
                         direction = (trajectory_length / np.linalg.norm(direction)) * direction
                         trajectory.append(direction)
                 else:
-                    move_step = 0
+                    velocity = 0
                     trajectory = []
                 # box
                 if np.random.random() > 0.3:
@@ -90,11 +91,11 @@ class RandomObstacleWorld(World):
                     height = np.random.uniform(low=self.box_h_min, high=self.box_h_max)
 
                     dims = [length, width, height]
-                    obst = Box(self.obstacle_storage_location + offset, np.random.normal(size=(4,)), trajectory, move_step, dims)
+                    obst = Box(self.obstacle_storage_location + offset, np.random.normal(size=(4,)), trajectory, self.sim_step, self.sim_steps_per_env_step, velocity, dims)
                 # sphere
                 else:
                     radius = np.random.uniform(low=self.sphere_r_min, high=self.sphere_r_max)
-                    obst = Sphere(self.obstacle_storage_location + offset, trajectory, move_step, radius)
+                    obst = Sphere(self.obstacle_storage_location + offset, trajectory, self.sim_step, self.sim_steps_per_env_step, velocity, radius)
                 self.obstacle_objects.append(obst)
                 obst.build()
 

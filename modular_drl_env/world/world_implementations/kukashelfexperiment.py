@@ -20,11 +20,12 @@ class KukaShelfExperiment(World):
 
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
+                       sim_steps_per_env_step: int,
                        env_id: int,
                        assets_path: str,
                        shelves: dict,
                        shelf_params: dict={}):
-        super().__init__(workspace_boundaries, sim_step, env_id, assets_path)
+        super().__init__(workspace_boundaries, sim_step, sim_steps_per_env_step, env_id, assets_path)
 
         # get the obstacle setup
         self.shelf_list = shelves
@@ -51,6 +52,7 @@ class KukaShelfExperiment(World):
         # ground plane
         plate = GroundPlate()
         plate.build()
+        self.active_objects.append(plate)
 
         # generate an appropriate URDF
         urdf_name = self.assets_path + "/runtime/shelf_" + str(self.env_id) + ".urdf"
@@ -59,9 +61,10 @@ class KukaShelfExperiment(World):
         
         # instantiante as obstacle as many times as needed
         for shelf_entry in self.shelf_list:
-            shelf = URDFObject(shelf_entry["position"], shelf_entry["rotation"], [], 0, urdf_name)
+            shelf = URDFObject(shelf_entry["position"], shelf_entry["rotation"], [], self.sim_step, self.sim_steps_per_env_step, 0, urdf_name)
             self.obstacle_objects.append(shelf)
             shelf.build()
+            self.active_objects.append(shelf)
 
         # TODO: add obstacles and humans again
 

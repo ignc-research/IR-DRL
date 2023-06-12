@@ -4,8 +4,6 @@ run:
     load_model: False  
     model_path: ""  
     type: "PPO"
-    gamma: 0.99
-    learning_rate: 0.0003
   train:
     num_envs : 16  
     logging: 0
@@ -38,6 +36,7 @@ env:
         base_orientation: [0, 0, 0]
         resting_angles: [0, 90, -30, -120, -80, 90]
         control_mode: 0
+        self_collision: False
       sensors:
         - type: "LidarSensorUR5"
           config:

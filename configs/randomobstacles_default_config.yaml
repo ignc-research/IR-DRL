@@ -4,8 +4,6 @@ run:
     load_model: False  
     model_path: ""  
     type: "PPO"
-    gamma: 0.99
-    learning_rate: 0.0003
     custom_policy:
       activation_function: "ReLU"
       value_function:

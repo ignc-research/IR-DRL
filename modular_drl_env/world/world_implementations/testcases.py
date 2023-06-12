@@ -15,9 +15,9 @@ class TestcasesWorld(World):
     Note: this class assumes that the first robot mentioned in the config is the one doing the experiment!
     """
 
-    def __init__(self, sim_step:float, env_id:int, assets_path: str, test_mode: int):
+    def __init__(self, sim_step: float, sim_steps_per_env_step: int, env_id: int, assets_path: str, test_mode: int):
         #super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.4], sim_step, env_id)
-        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, env_id, assets_path)
+        super().__init__([-0.4, 0.4, 0.3, 0.7, 0.2, 0.5], sim_step, sim_steps_per_env_step, env_id, assets_path)
 
         self.test_mode = test_mode # 0: random, 1: one plate, 2: moving obstacle, 3: two plates
         self.current_test_mode = 0  # for random
@@ -46,13 +46,13 @@ class TestcasesWorld(World):
         self.ground_plate.build()
         
         # set up testcase geometry
-        self.obst1 = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
+        self.obst1 = Box(self.position_nowhere, [0, 0, 0, 1], [], self.sim_step, self.sim_steps_per_env_step, 0, [0.002,0.1,0.05])
         self.obst1.build()
-        self.obst2 = Box(self.position_nowhere, [0, 0, 0, 1], [np.array([0, 0, 0]), np.array([0, 0.4, 0])], 0.0015, [0.05,0.05,0.002])
+        self.obst2 = Box(self.position_nowhere, [0, 0, 0, 1], [np.array([0, 0, 0]), np.array([0, 0.4, 0])], self.sim_step, self.sim_steps_per_env_step, 0.0015, [0.05,0.05,0.002])
         self.obst2.build()
-        self.obst3a = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
+        self.obst3a = Box(self.position_nowhere, [0, 0, 0, 1], [], self.sim_step, self.sim_steps_per_env_step, 0, [0.002,0.1,0.05])
         self.obst3a.build()
-        self.obst3b = Box(self.position_nowhere, [0, 0, 0, 1], [], 0, [0.002,0.1,0.05])
+        self.obst3b = Box(self.position_nowhere, [0, 0, 0, 1], [], self.sim_step, self.sim_steps_per_env_step, 0, [0.002,0.1,0.05])
         self.obst3b.build()
 
         self.obstacle_objects.append(self.obst1)

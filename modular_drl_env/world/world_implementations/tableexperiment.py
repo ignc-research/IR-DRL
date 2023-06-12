@@ -20,11 +20,12 @@ class TableExperiment(World):
 
     def __init__(self, workspace_boundaries: list, 
                        sim_step: float,
+                       sim_steps_per_env_step: int,
                        env_id: int,
                        assets_path: str,
                        num_obstacles: int,
                        obstacle_training_schedule: bool=False):
-        super().__init__(workspace_boundaries, sim_step, env_id, assets_path)
+        super().__init__(workspace_boundaries, sim_step, sim_steps_per_env_step, env_id, assets_path)
         # INFO: if multiple robot base positions are given, we will assume that the first one is the main one for the experiment
         # also, we will always assume that the robot base is set up at 0,0,z
         # this will make generating obstacles easier
@@ -50,7 +51,7 @@ class TableExperiment(World):
         plate = GroundPlate()
         plate.build()
         # table
-        table = URDFObject([0, 0, 0], [0, 0, 0, 1], [], 0, pyb_d.getDataPath() + "/table/table.urdf", scale=1.75)
+        table = URDFObject([0, 0, 0], [0, 0, 0, 1], [], self.sim_step, self.sim_steps_per_env_step, 0, pyb_d.getDataPath() + "/table/table.urdf", scale=1.75)
         self.obstacle_objects.append(table)
         table.build()
 
@@ -58,7 +59,7 @@ class TableExperiment(World):
             for j in range(self.mult_pre_gen):
                 # generate random trajectory
                 trajectory = []
-                move_step = 0
+                velocity = 0
                 if np.random.random() < 0.75:
                     trajectory = [np.array([0, 0, 0])]
                     for _ in range(np.random.randint(low=1, high=4)):
@@ -66,9 +67,9 @@ class TableExperiment(World):
                         trajectory_length = np.random.uniform(low=0.05, high=0.25)
                         direction = (trajectory_length / np.linalg.norm(direction)) * direction
                         trajectory.append(direction)
-                        move_step = np.random.uniform(low=0.01, high=0.5, size=(1,)) * self.sim_step
+                        velocity = np.random.uniform(low=0.01, high=0.5, size=(1,))
                 halfExtents = np.random.uniform(low=0.01, high=0.12, size=(3,)).tolist()
-                obst = Box(self.position_nowhere, np.random.normal(size=(4,)), trajectory, move_step, halfExtents)
+                obst = Box(self.position_nowhere, np.random.normal(size=(4,)), trajectory, self.sim_step, self.sim_steps_per_env_step, velocity, halfExtents)
                 obst.build()
                 self.obstacle_objects.append(obst)
 
