@@ -130,7 +130,7 @@ if __name__ == "__main__":
                     exit(0)
             while True:
                 obs = env.reset()
-                env.manual_control(True)
+                #env.manual_control(True)
                 done = False
                 # episode start signals for recurrent model
                 episode_start = True

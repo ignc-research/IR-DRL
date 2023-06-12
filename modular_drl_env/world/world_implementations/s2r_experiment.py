@@ -234,7 +234,7 @@ class S2RExperiment(World):
 
         # loop, exits once a valid starting setup is found
         while True:
-            low = [0, 0, 0.1]
+            low = [0.1, 0.1, 0.1]
             high = [0.8, 0.8, 0.6]
             # find a good starting point
             tries = 0
