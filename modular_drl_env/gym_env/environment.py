@@ -100,7 +100,7 @@ class ModularDRLEnv(gym.Env):
         # init pybullet from config
         pyb_u.init(self.assets_path, env_config["display"], env_config["sim_step"], env_config["gravity"])
 
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        pyb_u.toggle_rendering(False)
         # init world from config
         self._world_setup(env_config)
 
@@ -109,7 +109,7 @@ class ModularDRLEnv(gym.Env):
         self.sensors:list[Sensor] = []
         self.goals:list[Goal] = []
         self._robot_setup(env_config)
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        pyb_u.toggle_rendering(True)
 
         # construct observation space from sensors and goals
         # each sensor and goal will add elements to the observation space with fitting names
@@ -138,7 +138,7 @@ class ModularDRLEnv(gym.Env):
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(sum(self.action_space_dims),), dtype=np.float32)
 
     def reset(self):
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        pyb_u.toggle_rendering(False)
         # end execution if max episodes is reached
         if self.max_episodes != -1 and self.episode >= self.max_episodes:
             exit(0)
@@ -182,7 +182,7 @@ class ModularDRLEnv(gym.Env):
                     sensor.delete_visual_aux()
                     sensor.build_visual_aux()
 
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        pyb_u.toggle_rendering(True)
         return self._get_obs()
 
     def _get_obs(self):
@@ -289,11 +289,11 @@ class ModularDRLEnv(gym.Env):
 
         # visual help, if enabled
         if self.show_auxillary_geometry_sensors:
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+            pyb_u.toggle_rendering(False)
             for sensor in self.sensors:
                 sensor.delete_visual_aux()
                 sensor.build_visual_aux()
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+            pyb_u.toggle_rendering(True)
 
         # update tracking variables and stats
         self.cpu_time = process_time() - self.cpu_epoch

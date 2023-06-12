@@ -377,3 +377,11 @@ class pybullet_util:
         pybullet_id = cls.pybullet_object_ids[robot_id]
         idx = cls.robot_pyb_ids.index(pybullet_id)
         return cls.planner_times[idx]
+    
+    @staticmethod
+    def toggle_rendering(toggle) -> None:
+        """
+        Sets rendering state to the bool value given as argument, regardless of what the current state is,
+        i.e. False always results in rendering being turned off, True in it being turned on.
+        """
+        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, int(toggle))

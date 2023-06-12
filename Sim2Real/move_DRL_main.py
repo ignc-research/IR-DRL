@@ -26,6 +26,9 @@ import open3d as o3d
 from time import sleep
 import yaml
 
+import pandas as pd
+
+
 from collections import deque
 from scipy.spatial import cKDTree
 
@@ -40,6 +43,7 @@ from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxel
 #
 #TODO: 
 #Memory Modell für Cluster, die am gleichen Ort bleiben nicht bewegen
+# Custom Reset episodes are probably not counted correctly because we only call custom reset once in the beginning
 
 JOINT_NAMES = [
     "shoulder_pan_joint",
@@ -60,7 +64,8 @@ class listener_node_one:
         # yaml config file
         self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/config.yaml'
         self.config = self.load_config(self.config_path)
-        
+
+              
 
         # robot data
         self.end_effector_link_id = 6
@@ -68,10 +73,14 @@ class listener_node_one:
         self.end_effector_rpy = None
         self.end_effector_quat = None
         self.end_effector_xyz_sim = None
+        #filtered steps in the simulation that are bigger than the distance threshhold
         self.sim_step = 0
+        # filtered steps in the real environment that are bigger than the distance thresshold
         self.real_step = 0
         self.durations = []  # list of floats
         self.joints = None
+        self.velocities = None
+        self.effort = None
         self.goal = None
         self.q_goal = None
         #self.max_drl_steps = 5 #240 # maximale steps um mind. eine rrt Lösung zu finden
@@ -89,6 +98,7 @@ class listener_node_one:
         self.drl_success = False
         #self.dist_threshold = 2e-2
         self.dist_threshold = self.config['dist_threshold']
+        # Real steps in the simulation with no filter
         self.inference_steps = 0
         self.inference_done = False
         self.camera_calibration = False
@@ -120,6 +130,13 @@ class listener_node_one:
         #self.all_frames = [] 
         
         #self.recording_no = 1
+
+        #Part for logging Sim2Real csv
+        self.logging = True
+        self.additional_info = dict()
+        self.log = [] 
+        
+
          
 
         
@@ -151,13 +168,17 @@ class listener_node_one:
         self.initialize_voxels()
         # TODO: hacky: put all objects (i.e. including voxels and scenery) into the active category so that our sensors can see them
         self.env.world.active_objects = self.env.world.obstacle_objects
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        pyb_u.toggle_rendering(False)
         self.virtual_robot.goal.delete_visual_aux()
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        pyb_u.toggle_rendering(True)
 
         #self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt.zip")
-        self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip")
-
+        self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt_correct.zip")
+        
+        #optional: enable to see if there are differences between the env and model
+        """from modular_drl_env.util.misc import analyse_obs_spaces
+        analyse_obs_spaces(self.model.observation_space, self.env.observation_space)"""
+        
         print("[Listener] Moving robot into resting pose")
         self._move_to_resting_pose()
         sleep(1)
@@ -220,9 +241,9 @@ class listener_node_one:
                 
                 self.env.world.joints_targets[0] = self.q_goal[:5]  # TODO: might cause problems with unorthodox number/order of controlled joints
                 self.virtual_robot.goal.on_env_reset(0)
-                pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+                pyb_u.toggle_rendering(False)
                 self.virtual_robot.goal.build_visual_aux()
-                pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+                pyb_u.toggle_rendering(True)
                 # reset sensors
                 for sensor in self.env.sensors:
                     # sensor.reset()
@@ -235,7 +256,7 @@ class listener_node_one:
                 while True:
                     # do nothing if an additional sim step would override parts of the trajectory that haven't been executed yet
                     if self.sim_step - self.real_step >= self.drl_horizon:
-                        # print("[cbAction] Waiting for real_step to catch up to sim_step")
+                        # Waiting for real_step to catch up to sim_step
                         continue
 
                     # sync point cloud
@@ -247,6 +268,7 @@ class listener_node_one:
                             self.static_done = True
 
                     action, _ = self.model.predict(obs, deterministic=True)
+                    #info = logzeile für einen Step
                     obs, _, _, info = self.env.step(action)
                     self.inference_steps += 1
                     
@@ -259,25 +281,21 @@ class listener_node_one:
                         self.inference_done = True
                         self.env.episode += 1
                         # find the voxels that collide with the robot
-                        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+                        pyb_u.toggle_rendering(False)
                         for tup in pyb_u.collisions:
                             if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
                                 voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
                                 pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
-                        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+                        pyb_u.toggle_rendering(True)
                         print("[cbAction] Found collision during inference! Choose a new goal or try again.")
                         return
                     elif info["is_success"]:
                         self.drl_success = True
-                        # self.actions.append(self.virtual_robot.joints_sensor.joints_angles)
                         self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
                         self.sim_step = self.sim_step + 1
                         self.running_inference = False
                         self.inference_done = True
                         self.env.episode += 1
-                        #print("This is actions")
-                        #act = self.actions[self.real_step % self.actions.shape[0]]
-                        #print("real_step :", self.real_step, "act :", act)
                         print("[cbAction] DRL inference successful")
                         return
                     elif self.inference_steps >= self.max_inference_steps:
@@ -304,21 +322,19 @@ class listener_node_one:
         if self.startup:
             pass # TODO   
         if self.goal is None and self.joints is not None:
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+            pyb_u.toggle_rendering(False)
             self.virtual_robot.goal.delete_visual_aux()
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+            pyb_u.toggle_rendering(True)
             
             self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #if last argument = none only 5 of the 6 joints get recognized
             print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
             print("[cbControl] current (virtual) joint angles: " + str(self.joints))  
             inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or (c) to calibrate camera position or (r) to return the robot into the starting configuration (WARNING:does not consider collisions, both real and virtual!): \n")
-            # inp = inp.split(" ")
-            # calibrate camera position
             if len(inp) == 1:
                 if inp == "r": # Resets the robot to the start position
                     print("[cbControl] Moving robot into resting pose")
                     self._move_to_resting_pose() 
-                if inp[0] == "c":
+                if inp[0] == "c": # calibrates the camera
                     was_static = self.point_cloud_static
                     self.point_cloud_static = False
                     self.camera_calibration = True                   
@@ -342,8 +358,6 @@ class listener_node_one:
                     self.point_cloud_static = was_static
                     self.static_done = False
             else:          
-                # inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between: \n")
-                # inp = "0.5 0.5 0.5"
                 inp = inp.split(" ")
 
                 try:
@@ -409,7 +423,7 @@ class listener_node_one:
                 print("#"*20)
                 # make step
                 act = self.actions[self.real_step % self.actions.shape[0]]
-                print("real_step :", self.real_step,"sim_step :", self.sim_step,  "act :", act)
+                print("real_step :", self.real_step,"sim_step :", self.sim_step,  "act :", act, "inference_step: ", self.inference_steps)
                 # TODO next step or sim_step - 1
                 self.real_step = self.real_step + 1
                 #print("[cbControl] joint angle difference:",np.linalg.norm(self.joints - act))
@@ -419,7 +433,11 @@ class listener_node_one:
                 point.time_from_start = rospy.Duration(duration)
                 goal.trajectory.points.append(point)
                 # print("goal: ", goal)
-                self.trajectory_client.send_goal(goal) 
+                self.trajectory_client.send_goal(goal)
+                #TODO: Every time a goal gets send to the real trajectory, data need to be logged for the real csv
+                if self.logging == True: 
+                    self.log_csv()
+
                 # self.trajectory_client.wait_for_result()
                 # Ersatz für wait_for_result
                 # TODO calibrate how long to wait for waypoint to publish, as these are diff in joint angles and not cartesian
@@ -521,7 +539,7 @@ class listener_node_one:
             
 
             if not self.camera_calibration:
-                pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+                pyb_u.toggle_rendering(False)
                 # move robot to real position, in case it's somewher else due to a planner or else
                 joints_now, _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
                 self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
@@ -535,7 +553,7 @@ class listener_node_one:
                 voxel_centers = voxel_centers[not_delete_mask]
                 # move robot back to where it was when filtering started
                 self.virtual_robot.moveto_joints(joints_now, False, self.virtual_robot.all_joints_ids)
-                pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+                pyb_u.toggle_rendering(True)
             pyb_u.set_base_pos_and_ori(self.probe_voxel.object_id, self.pos_nowhere, np.array([0, 0, 0, 1])) # TODO: Find out why this causes trouble, MOVES away probe voxel
             self.probe_voxel.position = self.pos_nowhere
             
@@ -562,7 +580,7 @@ class listener_node_one:
 
     def VoxelsToPybullet(self):
         if self.voxel_centers is not None:
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+            pyb_u.toggle_rendering(False)
             # update voxel positions
             for idx, voxel in enumerate(self.voxels):
                 if idx >= len(self.voxel_centers):
@@ -588,7 +606,7 @@ class listener_node_one:
                     if idx >= len(self.voxel_centers):
                         break
                     pyb.changeVisualShape(pyb_u.to_pb(voxel.object_id), -1, rgbaColor=colors[idx])
-            pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+            pyb_u.toggle_rendering(True)
             
     
     def delete_points_by_circle_center(self, points, pos):
@@ -620,20 +638,33 @@ class listener_node_one:
     def cbGetJoints(self, data):
         # sometimes the robot driver reports joint angles in an order different from the one we need
         # that's why we need to map the reported angles to our order that is given in JOINT_NAMES
-        orig_data = dict()
+        pos_data = dict()
+        val_data = dict()
+        effort_data = dict()
         for idx, name in enumerate(data.name):
-            orig_data[name] = data.position[idx]
+            pos_data[name] = data.position[idx]
+            val_data[name] = data.velocity[idx]
+            effort_data[name] = data.effort[idx]
             
-        output = []
+        output_pos = []
+        output_vel = []
+        output_eff = []
         for name in JOINT_NAMES:
-            output.append(orig_data[name])
+            output_pos.append(pos_data[name])
+            output_vel.append(val_data[name])
+            output_eff.append(effort_data[name])
 
-        self.joints = np.array(output, dtype=np.float32)
-    
+        self.joints = np.array(output_pos, dtype=np.float32)
+
+        #for logging
+        
+        self.velocities =np.array(output_vel,dtype=np.float32)
+        self.effort = np.array(output_eff,dtype=np.float32)
+        
     
     def initialize_voxels(self):
         # generate probe_voxel and obstacle_voxels
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        pyb_u.toggle_rendering(False)
         #self.probe_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], move_step=0, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=[1, 1, 1, 0])
         self.probe_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], sim_step=self.env.sim_step, sim_steps_per_env_step=self.env.sim_steps_per_env_step, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=[1, 1, 1, 0])
         self.probe_voxel.build()
@@ -644,7 +675,7 @@ class listener_node_one:
             self.voxels.append(new_voxel)
             new_voxel.build()
             self.env.world.obstacle_objects.append(new_voxel)
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        pyb_u.toggle_rendering(True)
 
     def load_config(self, file_path):
         with open(file_path, 'r') as file:
@@ -666,14 +697,46 @@ class listener_node_one:
         self.env.reward = 0
         self.env.reward_cumulative = 0
         self.env.log = []
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        pyb_u.toggle_rendering(False)
         self.env.world.reset(0)
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        pyb_u.toggle_rendering(True)
         self.env.active_robots = [True for _ in self.env.robots]
         for sensor in self.env.sensors:
             sensor.reset()
 
+    #This logs all the important data, call at every real step
+    def log_csv(self):
+        print("look here:", self.env.log[-1])
+        #get joint velocities and real_effort from ros node
+        sim_log = self.env.log[-1]
+        
 
+        
+        additional_info = {
+            "real_step":self.real_step,
+            "real_joint_velocities": self.velocities,
+            "real_effort": self.effort,
+            "real_joint_positions": self.joints
+        }
+
+        #print("________________________ADD_INFO_______________")
+        #print(additional_info)
+
+        #merge both dicts
+        info = {**sim_log, **additional_info}
+
+        #Create CSV and add everything
+        self.log.append(info)
+
+        #TODO: only do this at the end not all the time
+        pd.DataFrame(self.log).to_csv("./models/env_logs/episode_real_" + str(info["episodes"]) + ".csv")   
+        pd.DataFrame(self.env.log).to_csv("./models/env_logs/episode_simulated_" + str(info["episodes"]) + ".csv")    
+
+    
+
+        
+        
+    
 
 
 

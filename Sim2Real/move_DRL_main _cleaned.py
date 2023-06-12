@@ -50,10 +50,6 @@ JOINT_NAMES = [
     "wrist_3_joint",
 ]
 
-# startpos in box = 0.13 0.78 0.01
-# zielpos in box = 0.77 0.23 0.36
-# goal joint angles = [0.16853678 -0.9832662 0.8828659 -1.7676371 -1.5672787 -0.15731794]
-# goal joint angles [ 0.05017271 -0.9653352   0.792964   -1.7775062  -1.4203948  -0.15738994]
 
 class listener_node_one:
     def __init__(self, action_rate, control_rate, num_voxels, point_cloud_static):
@@ -74,38 +70,34 @@ class listener_node_one:
         self.joints = None
         self.goal = None
         self.q_goal = None
-        #self.max_drl_steps = 5 #240 # maximale steps um mind. eine rrt Lösung zu finden
-        #self.drl_horizon = 5
         self.drl_horizon = self.config['drl_horizon']
-        #self.max_inference_steps = 5000 #240 # maximale steps um mind. eine rrt Lösung zu finden
+        # inference steps = number of virtualsteps to be done until timeout
         self.max_inference_steps = self.config['max_inference_steps']
+        
+        # flags that determine algorithm attributes or serve as quasi mutexes during run-time
         self.running_inference = False  # flag for interference between DRL and symsinc to prevent both from running parallel
-        self.point_cloud_static = point_cloud_static
-        self.static_done = False
-        self.num_voxels = num_voxels
-        self.color_voxels = True
-        self.control_mode = True   # True=pos, False=joints
-        self.startup = True
-        self.drl_success = False
-        #self.dist_threshold = 2e-2
-        self.dist_threshold = self.config['dist_threshold']
-        self.inference_steps = 0
-        self.inference_done = False
-        self.camera_calibration = False
+        self.point_cloud_static = point_cloud_static  # whether the point cloud will be continually updated or not
+        self.static_done = False  # used for static mode to get one pointcloud update at episode start
+        self.num_voxels = num_voxels  # number of voxels used for voxelization of the pointcloud
+        self.color_voxels = True  # whether the voxels get colored by distance to the camera (eats some performance, but not much)
+        self.startup = True  # whether we're running the callbacks for the first time or not
+        self.drl_success = False  # flag that tells other callbacks whether the DRL agent had success
+        self.dist_threshold = self.config['dist_threshold'] 
+        self.inference_steps = 0  # steps we've taken in the simulation
+        self.inference_done = False  # tells other callbacks that inference finished, one way or the other
+        self.camera_calibration = False  # tells other callbacks that we're calibrating the camera
 
         # cbGetPointcloud
         self.points_raw = None
 
         # cbPointcloudToPybullet
+        # camera matrix, determines the position of our point cloud camera in pybullet space
         self.camera_transform_to_pyb_origin = np.eye(4)
         self.camera_transform_to_pyb_origin[:3, 0] = np.array([-1, 0, 0])        # vektor für Kamera x achse in pybullet
         self.camera_transform_to_pyb_origin[:3, 1] = np.array([0, 0, -1])        # vektor für Kamera y achse in pybullet
         self.camera_transform_to_pyb_origin[:3, 2] = np.array([0, -1, 0])        # vektor für Kamera z achse in pybullet
-        #self.camera_transform_to_pyb_origin[:3, 3] = np.array([0.25, 1.72, 0.4]) #realwerte für camera position aus listener.py nach kalibrieren 
         self.camera_transform_to_pyb_origin[:3, 3] = np.array(self.config['camera_transform_to_pyb_origin'])
-        #self.voxel_size = 0.035 # 0.035
         self.voxel_size = self.config['voxel_size']
-        #self.robot_voxel_safe_distance = 0.1
         self.robot_voxel_safe_distance = self.config['robot_voxel_safe_distance']
         
         
@@ -116,13 +108,12 @@ class listener_node_one:
         self.voxel_cluster_threshold = 50
         self.voxel_centers = None
 
-        #Optional for recording voxels
-        #self.all_frames = [] 
-        
-        #self.recording_no = 1
+        """Optional for recording voxels
+        self.all_frames = [] 
+        self.recording_no = 1O"""
          
 
-        
+        # Choose and load the correct client to communicate with ROS
         self.trajectory_client = actionlib.SimpleActionClient(
             "scaled_pos_joint_traj_controller/follow_joint_trajectory",
             FollowJointTrajectoryAction,
@@ -134,14 +125,12 @@ class listener_node_one:
 
         
         # custom sim2real config parsen
-        #_, env_config = parse_config("/home/moga/Desktop/IR-DRL/configs/S2R/obstsensor_trajectory_PPO.yaml", False) #False = kein Training
-        _, env_config = parse_config("/home/moga/Desktop/IR-DRL/configs/S2R/s2rexperiment_benno_config_voxels.yaml", False)
+        _, env_config = parse_config("/home/moga/Desktop/IR-DRL/configs/S2R/s2rexperiment_benno_config_voxels.yaml", False) #False = no training
         env_config["env_id"] = 0
         # mit der config env starten
         self.env = ModularDRLEnv(env_config)
         self.virtual_robot = self.env.robots[0] # env initialisiert robot, wird für spätere Verwendung in der virtual_robot variable gespeichert
-        #self.env.reset()  # taken out, replace by command below
-        self.custom_env_reset()
+        self.custom_env_reset() #replaces the standard reset, so that not everything get resets only partly
         # now that the robot is there, we can get the action size
         self.actions = np.zeros((100, len(self.virtual_robot.all_joints_ids)))
 
@@ -158,6 +147,7 @@ class listener_node_one:
         #self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt.zip")
         self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip")
 
+        #sleeps are necessary in the beginning to give the the ROs services enough time to load
         print("[Listener] Moving robot into resting pose")
         self._move_to_resting_pose()
         sleep(1)
@@ -187,13 +177,12 @@ class listener_node_one:
         print("[Listener] initialized node")
         rospy.spin() #Lässt rospy immer weiter laufen
 
+    # moves the robot into the standard resting pose
     def _move_to_resting_pose(self):
-        # move robot to start position #TODO: solve through Training
         goal = FollowJointTrajectoryGoal()
         goal.trajectory.joint_names = JOINT_NAMES
         duration = rospy.Duration(3)  
         point = JointTrajectoryPoint()
-        #point.positions = [i*np.pi/180 for i in [-81.25, -90, -90, 0, 0, 0]]
         point.positions = [i*np.pi/180 for i in [-180, -45, -90, -135, 90, 0]]
         point.time_from_start = duration
         goal.trajectory.points.append(point)
@@ -202,6 +191,7 @@ class listener_node_one:
 
     # verwerten Daten, wandeln in das Format vom NN, fragen NN, wandeln Output vom NN in vom
     # UR5 Driver verstandene Commands
+    # Translate data into the format that the ur5 driver understands and can execute in cbControl
     # Frequenz: festgelegt von uns
     def cbAction(self, event):
         if self.joints is not None:  # wait until self.joints is written to for the first time

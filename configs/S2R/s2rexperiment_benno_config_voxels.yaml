@@ -87,9 +87,9 @@ env:
           dist_threshold_end : 0.05
           dist_threshold_increment_start: 0.01
           dist_threshold_increment_end: 0.001
-          dist_threshold_overwrite: 
-          d_min: 0.01
-          reward_success: 100
+          dist_threshold_overwrite: 0.05
+          d_min: 0.08
+          reward_success: 150
   world:
     type: "Generated"
     config:

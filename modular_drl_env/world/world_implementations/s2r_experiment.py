@@ -31,7 +31,7 @@ class S2RExperiment(World):
         super().__init__([-2, 2, -2, 2, -1, 5], sim_step, sim_steps_per_env_step, env_id, assets_path)
 
         # experiments, empty list = all available ones
-        self.experiments = [0, 1] if not experiments else experiments
+        self.experiments = [0, 1, 2] if not experiments else experiments
         self.experiments_weights = [1/len(self.experiments) for _ in self.experiments] if not experiments_weights else experiments_weights
 
         # max number of obstacles that can appear in an experiment
@@ -50,7 +50,7 @@ class S2RExperiment(World):
         self.storage_pos = np.array([0, 0, -10])
 
         # storage array for specific geometry with defined sizes
-        self.exp0_obstacles = []
+        self.specific_obstacles = []
 
     def set_up(self):
         # ground plate
@@ -62,12 +62,22 @@ class S2RExperiment(World):
         self.table.build()
 
         # pre-generate necessary geometry
-        # stuff with specific dims
+        #   stuff with specific dims
         halfExtents = [0.1, 0.3, 0.1]
         lengthy_box = Box(self.storage_pos, np.array([0, 0, 0, 1]), [], self.sim_step, self.sim_steps_per_env_step, 0, halfExtents, [0.75, 0.2, 0.1, 1])
         lengthy_box.build()
-        self.obstacle_objects += [self.ground_plate, self.table, lengthy_box]
-        # random shapes
+        halfExtents = [0.6, 0.1, 0.4]
+        barrier_box_1 = Box(self.storage_pos, np.array([0, 0, 0, 1]), [], self.sim_step, self.sim_steps_per_env_step, 0, halfExtents, [0.2, 0.1, 0.75, 1])
+        barrier_box_1.build()
+        halfExtents = [0.1, 0.6, 0.4]
+        barrier_box_2 = Box(self.storage_pos, np.array([0, 0, 0, 1]), [], self.sim_step, self.sim_steps_per_env_step, 0, halfExtents, [0.2, 0.1, 0.75, 1])
+        barrier_box_2.build()
+        halfExtents = [0.115, 0.0009, 0.115]
+        somewhat_large_plate = Box(self.storage_pos, np.array([0, 0, 0, 1]), [], self.sim_step, self.sim_steps_per_env_step, 0, halfExtents, [0.294, 0, 0.51, 1])
+        somewhat_large_plate.build()
+        
+        self.specific_obstacles += [self.ground_plate, self.table, lengthy_box, barrier_box_1, barrier_box_2, somewhat_large_plate]
+        #   random shapes
         for _ in range(self.max_num_obstacles * self.generation_mult):
             if np.random.random() > 0.3:  # 70% for box
                 halfExtents = np.random.uniform(low=self.box_low, high=self.box_high, size=(3,))
@@ -84,7 +94,7 @@ class S2RExperiment(World):
         self.joints_targets = []
         self.ee_starting_points = []
         # move currently used obstacles into storage
-        for obst in self.active_objects[3:]:
+        for obst in self.active_objects[2:]:
             offset = np.random.uniform(low=-5, high=5, size=(3,))
             obst.move_base(self.storage_pos + offset)
         # reset active objects
@@ -96,17 +106,25 @@ class S2RExperiment(World):
         # pick one of the active experiments randomly
         experiment = np.random.choice(self.experiments, p=self.experiments_weights)
         # and build it
-        eval("self._build_exp" + str(experiment) + "(num_obsts)")
+        eval("self._set_up_exp" + str(experiment) + "(num_obsts)")
 
-    def _build_exp0(self, num_obsts):
+    def _set_up_exp0(self, num_obsts):
+        # TODO: fix starting positions
+        #pyb_u.toggle_rendering(True)
         # move the end effector in a straight line across the table, obstacles might appear on the line or close to it, 
-        start_joints = np.array([-0.86, -1.984, 1.984, -1.653, -1.554, 0])  # cartesian 0.255 -0.385 0.367
-        start_pos = np.array([0.302, -0.181, 0.357])
-        end_pos = np.array([0.302, 0.45, 0.357])  # straight line across the table along the y axis
+        #start_joints = np.array([-0.86, -1.984, 1.984, -1.653, -1.554, 0])  # cartesian 0.255 -0.385 0.367
+        random_x = np.random.uniform(low=0.25, high=0.5)
+        random_z = np.random.uniform(low=0.25, high=0.5)
+        random_start_end = choice([(0.05, 0.55), (0.55, 0.05)])
+        #random_start_end = choice([(0.45, -0.181)])
+        start_pos = np.array([random_x, random_start_end[0], random_z])
+        end_pos = np.array([random_x, random_start_end[1], random_z])  # straight line across the table along the y axis
         diff = end_pos - start_pos
 
+        #num_obsts = 3
         while True:
-            random_obsts = sample(self.obstacle_objects[3:], num_obsts)
+            random_obsts = sample(self.obstacle_objects, num_obsts)
+
 
             for obst in random_obsts:
                 waylength = np.random.uniform(low=0.3, high=0.85)
@@ -126,8 +144,9 @@ class S2RExperiment(World):
                     obst.trajectory = []
                 obst.move_base(random_pos)
 
-            # now move the robot to the start
-            self.robots[0].moveto_joints(start_joints, False, self.robots[0].all_joints_ids)
+            # now move the robot to the start (we move trhough the start angles first because the result of movetoxyz is path dependent)
+            self.robots[0].moveto_joints(self.robots[0].resting_pose_angles, False)
+            self.robots[0].moveto_xyz(start_pos, False)
             # check if the start scenario is valid
             pyb_u.perform_collision_check()
             pyb_u.get_collisions()
@@ -138,31 +157,131 @@ class S2RExperiment(World):
             break
         # if we get here, all is good to go
         self.active_objects += random_obsts
+        # with 70% chance set up barriers to prevent the robot from abusing the free space behind it
+        if np.random.random() > 0.3: 
+            # set up the barrier boxes
+            self.specific_obstacles[3].move_base(np.array([0.3, -0.55, 0.25]))
+            self.specific_obstacles[4].move_base(np.array([-0.55, 0.3, 0.25]))
+            self.active_objects += [self.specific_obstacles[3], self.specific_obstacles[4]]
         self.position_targets = [end_pos]
         # TODO: joint targets
 
-    def _build_exp1(self, num_obsts):
+    def _set_up_exp1(self, num_obsts):
         self.robots[0].moveto_joints(self.robots[0].resting_pose_angles, False)
-        obst = self.obstacle_objects[2]
+        obst = self.specific_obstacles[2]
         random_y_start = np.random.uniform(low=0, high=0.3)
-        obst.move_base(np.array([0.4, random_y_start, 0.1]))
+        random_z_start = np.random.uniform(low=0.25, high=0.4)
+        obst.move_base(np.array([0.4, random_y_start, random_z_start]))
         obst.move_step = 0.35 * self.sim_step * self.sim_steps_per_env_step
         obst.trajectory = [np.array([0, 0.4 - random_y_start, 0.0]), np.array([0, -random_y_start, 0])]
         self.active_objects += [obst]
-        targets = [np.array([0.55, 0.0, 0.15]), np.array([0.4, -0.05, 0.15]), np.array([0.4, 0.41, 0.15])]
+        targets = [np.array([0.55, 0.0, random_z_start]), np.array([0.4, -0.05, random_z_start]), np.array([0.4, 0.41, random_z_start])]
         self.position_targets = [choice(targets)]
 
-    def _build_exp2(self, num_obsts):
+    def _set_up_exp2(self, num_obsts):
         self.robots[0].moveto_joints(self.robots[0].resting_pose_angles, False)
-        obst = self.obstacle_objects[2]
+        obst = self.specific_obstacles[2]
         random_y_start = np.random.uniform(low=0, high=0.3)
         random_z_start = np.random.uniform(low=0.1, high=0.4)
         obst.move_base(np.array([0.4, random_y_start, random_z_start]))
         obst.move_step = 0.35 * self.sim_step * self.sim_steps_per_env_step
         obst.trajectory = [np.array([0, 0, 0.4 - random_z_start]), np.array([0, 0, -random_z_start])]
         self.active_objects += [obst]
-        targets = [np.array([0.4, random_y_start, 0.15]), np.array([0.4, random_y_start, 0.45]), np.array([0.55, random_y_start, 0.15]), np.array([0.55, random_y_start, 0.45])]
+        targets = [np.array([0.4, random_y_start, 0.25]), np.array([0.4, random_y_start, 0.45]), np.array([0.55, random_y_start, 0.25]), np.array([0.55, random_y_start, 0.45])]
         self.position_targets = [choice(targets)]
+
+    def _set_up_exp3(self, num_obsts):
+        # random target without obstacles, sometimes the barriers appear to constrict the target onto the table
+        if np.random.random() < 0.35: 
+            # set up the barrier boxes
+            self.specific_obstacles[3].move_base(np.array([0.3, -0.55, 0.25]))
+            self.specific_obstacles[4].move_base(np.array([-0.55, 0.3, 0.25]))
+            self.active_objects += [self.specific_obstacles[3], self.specific_obstacles[4]]
+        # val = False
+        # while not val:
+        #     val = self._create_ee_starting_points(self.robots,)
+        #     if not val:
+        #         continue
+        #     val = self._create_position_and_rotation_targets(self.robots)
+        # self.robots[0].moveto_joints(self.ee_starting_points[0][2], False)
+        self.robots[0].moveto_joints(self.robots[0].resting_pose_angles, False)
+        self.position_targets = [np.random.uniform(low=[0, 0, 0.15], high=[0.7, 0.7, 0.7], size=(3,))]
+
+    def _set_up_exp4(self, num_obsts):
+        pyb_u.toggle_rendering(True)
+        # move in a random line with a somewhat obstructive plate somewhere in between
+        # the plate moves in rare cases
+
+        # set up the barrier boxes, this prevents the agent from learning that it can simply perform a wide swing
+        self.specific_obstacles[3].move_base(np.array([0.3, -0.55, 0.25]))
+        self.specific_obstacles[4].move_base(np.array([-0.55, 0.3, 0.25]))
+        self.active_objects += [self.specific_obstacles[3], self.specific_obstacles[4]]
+
+        # loop, exits once a valid starting setup is found
+        while True:
+            low = [0, 0, 0.1]
+            high = [0.8, 0.8, 0.6]
+            # find a good starting point
+            while True:
+                random_start = np.random.uniform(low=low, high=high, size=(3,))
+                if np.linalg.norm(random_start) < 0.25 or np.linalg.norm(random_start) > 1.5:
+                    continue  # distance to robot base is too small or too far away
+                self.robots[0].moveto_xyz(random_start, False)
+                joints_start, _ = pyb_u.get_joint_states(self.robots[0].object_id, self.robots[0].controlled_joints_ids)
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                if pyb_u.collision:
+                    continue  # point is in collision
+                break  # exit this loop once a good point is found
+            # now generate a random goal
+            while True:
+                random_direction = np.random.uniform(low=[-1, -1, -0.3], high=[1, 1, 0.3], size=(3,)) 
+                random_length = np.random.uniform(low=0.15, high=0.65)
+                random_goal = random_start + (random_direction * random_length / np.linalg.norm(random_direction))
+                if np.linalg.norm(random_goal) < 0.25 or np.linalg.norm(random_goal - random_start) < 0.3:
+                    continue  # too close to either robot base or the starting point
+                self.robots[0].moveto_xyz(random_goal, False)
+                position_goal, _, _, _ = pyb_u.get_link_state(self.robots[0].object_id, "ee_link")
+                joints_goal, _ = pyb_u.get_joint_states(self.robots[0].object_id, self.robots[0].controlled_joints_ids)
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                if np.linalg.norm(position_goal) > 1.5 or np.linalg.norm(position_goal - random_goal) > 5e-2 or pyb_u.collision:
+                    continue
+                break
+            # now we can set a plate between the two points
+            # now loop and search for a position until it doesn't collide with the robot
+            plate = self.specific_obstacles[5]
+            tries = 0
+            while True:
+                # the whole setup might be impossible, so we have a counter to cutoff further tries at some point
+                tries += 1
+                if tries > 100:
+                    plate.move_base(self.storage_pos, np.array([0, 0, 0, 1]))
+                    break
+                # we randomly pick a spot along the way between goal and start
+                random_mod = np.random.uniform(low=0.35, high=0.65)
+                obst_pos = random_start + random_direction * random_mod * random_length / np.linalg.norm(random_direction)
+                plate.move_base(obst_pos)
+                # now check for collision, the robot is still in the goal position
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                if pyb_u.collision:
+                    plate.move_base(self.storage_pos, np.array([0, 0, 0, 1]))
+                    continue
+                # check for starting position
+                self.robots[0].moveto_joints(joints_start, False)
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                if pyb_u.collision:
+                    plate.move_base(self.storage_pos, np.array([0, 0, 0, 1]))
+                    self.robots[0].moveto_joints(joints_goal, False)
+                    continue
+                break  # if we reach this line, both positions are fine and the plate is in a valid position
+            if tries <= 100:
+                break
+
+        self.active_objects += [plate]
+        self.position_targets = [position_goal]
 
     def update(self):
         for obstacle in self.active_objects:
@@ -300,7 +419,7 @@ class S2RExperimentVoxels(World):
     def update(self):
         self.time += self.sim_step * self.sim_steps_per_env_step
         # need to do this, visual performance is terrible otherwise
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 0)
+        pyb_u.toggle_rendering(False)
         # move the voxels
         for idx, voxel_center in enumerate(self.voxel_frames[self.current_frame]):
             # as long as we have enough voxels, move them to respective entry
@@ -317,4 +436,4 @@ class S2RExperimentVoxels(World):
                 self.time = 0
             else:
                 self.current_frame += 1
-        pyb.configureDebugVisualizer(pyb.COV_ENABLE_RENDERING, 1)
+        pyb_u.toggle_rendering(True)

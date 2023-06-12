@@ -18,11 +18,13 @@ class World(ABC):
         self.aux_objects = []
         # same, but for lines
         self.aux_lines = []
-        # list that will contain all obstacle objects used in this world, even those that are not being used for the current episode
+        # helper list that will contain all obstacle objects used in this world, even those that are not being used for the current episode
+        # note that this is just a suggestion, you can store your generated objects in any way you want
         self.obstacle_objects = []
         # this list should contain those objects that are used in the current episode, this is important to manage as
         # a) our logging will only take these objects into account and b) some collision checks like the RRT planner
         # will only check for objects in this list
+        # in other words, filling this with the right obstacles in each episode is MANDATORY, otherwise wrong behavior might affect your env
         self.active_objects = []
 
         # set sim step

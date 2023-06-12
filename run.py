@@ -86,10 +86,18 @@ if __name__ == "__main__":
                 model = algorithm(policy, envs, policy_kwargs=run_config["custom_policy"], verbose=1, tensorboard_log="./models/tensorboard_logs", **run_config["algorithm"]["config"])
                 print(model.policy)
             else:
-                model = algorithm.load(run_config["algorithm"]["model_path"], env=envs, tensorboard_log="./models/tensorboard_logs", custom_objects=run_config["algorithm"]["config"])
-                # needs to be set on some PCs when loading a model, dont know why, might not be needed on yours
-                if run_config["algorithm"]["type"] == "PPO":
-                    model.policy.optimizer.param_groups[0]["capturable"] = True
+                try:
+                    model = algorithm.load(run_config["algorithm"]["model_path"], env=envs, tensorboard_log="./models/tensorboard_logs", custom_objects=run_config["algorithm"]["config"])
+                    # needs to be set on some PCs when loading a model, dont know why, might not be needed on yours
+                    if run_config["algorithm"]["type"] == "PPO":
+                        model.policy.optimizer.param_groups[0]["capturable"] = True
+                except ValueError:
+                    from stable_baselines3.common.save_util import load_from_zip_file
+                    data, _, _ = load_from_zip_file(
+                        run_config["algorithm"]["model_path"]
+                    )
+                    analyse_obs_spaces(envs.observation_space, data["observation_space"])
+                    exit(0)
             
             # signal handler, allows us to save a model if we interrupt training by ctrl + c
             # code copied from https://git.tu-berlin.de/erik.fischer98/autonomous-agents/-/blob/main/franka_move/franka_train.py
