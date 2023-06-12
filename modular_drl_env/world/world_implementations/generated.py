@@ -7,10 +7,10 @@ import os
 import math
 import glob
 from random import choice, shuffle
-from modular_drl_env.shared.maze_generator import MazeGenerator
+#from modular_drl_env.shared.maze_generator import MazeGenerator
 from modular_drl_env.shared.shelf_generator import ShelfGenerator
 from modular_drl_env.world.obstacles.obstacle import Obstacle
-from modular_drl_env.world.obstacles.maze.maze import MazeObstacle
+#from modular_drl_env.world.obstacles.maze.maze import MazeObstacle
 from modular_drl_env.world.obstacles.shelf.shelf import ShelfObstacle
 from modular_drl_env.world.obstacles.urdf_object import URDFObject
 
@@ -73,11 +73,11 @@ class GeneratedWorld(World):
 
         if obstacle_name == "human":
             self.obstacle_objects.append(Human(position, rotation, trajectory, self.sim_step, 1, scale))
-        elif obstacle_name == "maze":
-            generator = MazeGenerator(obstacle["params"])
-            urdf_name = self.assets_path + "/runtime/maze_" + str(self.env_id) + ".urdf"
-            generator.generate_to_file(urdf_name)
-            self.obstacle_objects.append(URDFObject(position, rotation, trajectory, self.sim_step, self.sim_steps_per_env_step, vel, urdf_name, scale))
+        # elif obstacle_name == "maze":
+        #     generator = MazeGenerator(obstacle["params"])
+        #     urdf_name = self.assets_path + "/runtime/maze_" + str(self.env_id) + ".urdf"
+        #     generator.generate_to_file(urdf_name)
+        #     self.obstacle_objects.append(URDFObject(position, rotation, trajectory, self.sim_step, self.sim_steps_per_env_step, vel, urdf_name, scale))
         elif obstacle_name == "shelf":
             generator = ShelfGenerator(obstacle["params"])
             urdf_name = self.assets_path + "/runtime/shelf_" + str(self.env_id) + ".urdf"
