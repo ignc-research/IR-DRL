@@ -16,6 +16,7 @@ class RRT(Planner):
     
     def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=10000, goal_bias: float=0.35) -> None:
         super().__init__(robot)
+        self.joint_ids = [pyb_u.pybullet_joints_ids[self.robot.object_id, joint_id] for joint_id in self.robot.controlled_joints_ids]
 
         self.epsilon = epsilon
         self.max_iterations = max_iterations
