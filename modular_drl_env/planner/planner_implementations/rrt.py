@@ -33,7 +33,7 @@ class RRT(Planner):
 
         def collision_fn(q, diagnosis=False) -> bool:
             q = np.array(q)
-            self.robot.moveto_joints(q, False, self.joint_ids)
+            self.robot.moveto_joints(q, False, self.robot.controlled_joints_ids)
             pyb_u.perform_collision_check()
             pyb_u.get_collisions()
             return pyb_u.collision
@@ -78,7 +78,7 @@ class BiRRT(Planner):
 
         def collision_fn(q, diagnosis=False) -> bool:
             q = np.array(q)
-            self.robot.moveto_joints(q, False, self.joint_ids)
+            self.robot.moveto_joints(q, False, self.robot.controlled_joints_ids)
             pyb_u.perform_collision_check()
             pyb_u.get_collisions()
             return pyb_u.collision
@@ -124,7 +124,7 @@ class RRTStar(Planner):
 
         def collision_fn(q, diagnosis=False) -> bool:
             q = np.array(q)
-            self.robot.moveto_joints(q, False, self.joint_ids)
+            self.robot.moveto_joints(q, False, self.robot.controlled_joints_ids)
             pyb_u.perform_collision_check()
             pyb_u.get_collisions()
             return pyb_u.collision
