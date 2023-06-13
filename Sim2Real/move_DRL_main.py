@@ -65,7 +65,8 @@ class listener_node_one:
         self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/config.yaml'
         self.config = self.load_config(self.config_path)
 
-              
+        self.start_sec = None
+        self.current_time = None     
 
         # robot data
         self.end_effector_link_id = 6
@@ -118,10 +119,13 @@ class listener_node_one:
         #self.robot_voxel_safe_distance = 0.1
         self.robot_voxel_safe_distance = self.config['robot_voxel_safe_distance']
         
+        #change to 5 if dynamic obstacles are there
+        self.inference_steps_per_pointcloud_update = 1
+        
         
         #part for voxel clustering
         self.enable_clustering = True #enable or disable clustering for performance reasons
-        self.robot_voxel_cluster_distance = 0.4 #TODO: optimize this
+        self.robot_voxel_cluster_distance = 0.3 #TODO: optimize this
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
         self.voxel_cluster_threshold = 50
         self.voxel_centers = None
@@ -172,12 +176,12 @@ class listener_node_one:
         self.virtual_robot.goal.delete_visual_aux()
         pyb_u.toggle_rendering(True)
 
-        #self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt.zip")
-        self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt_correct.zip")
+        #self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt.zip")  # trajectory
+        self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip")  # no trajectory
         
         #optional: enable to see if there are differences between the env and model
         """from modular_drl_env.util.misc import analyse_obs_spaces
-        analyse_obs_spaces(self.model.observation_space, self.env.observation_space)"""
+        analyse_obs_spaces(self.env.observation_space, self.model.observation_space)"""
         
         print("[Listener] Moving robot into resting pose")
         self._move_to_resting_pose()
@@ -260,12 +264,13 @@ class listener_node_one:
                         continue
 
                     # sync point cloud
-                    # TODO check if inf_steps is too small
-                    if not self.static_done and self.inference_steps % 10 == 0:
+                    # TODO: 
+                    if not self.static_done and self.inference_steps % self.inference_steps_per_pointcloud_update == 0:
                         self.PointcloudToVoxel()
                         self.VoxelsToPybullet()
                         if self.point_cloud_static:
                             self.static_done = True
+                            
 
                     action, _ = self.model.predict(obs, deterministic=True)
                     #info = logzeile für einen Step
@@ -329,7 +334,7 @@ class listener_node_one:
             self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #if last argument = none only 5 of the 6 joints get recognized
             print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
             print("[cbControl] current (virtual) joint angles: " + str(self.joints))  
-            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or (c) to calibrate camera position or (r) to return the robot into the starting configuration (WARNING:does not consider collisions, both real and virtual!): \n")
+            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or \n[cbControl] (c) to calibrate camera position or\n[cbControl] (r) to return the robot into the starting configuration (WARNING: does not consider collisions, both real and virtual!): \n")
             if len(inp) == 1:
                 if inp == "r": # Resets the robot to the start position
                     print("[cbControl] Moving robot into resting pose")
@@ -397,6 +402,10 @@ class listener_node_one:
                     choice = input("[cbControl] Do you still want to go ahead with your chosen target? (y/n)\n")
                     if choice == "no" or choice == "n":
                         return
+                # safety: reset to actual joint angles before the other callback starts running (even though it does the same thing there too)
+                self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
+                # another safety: let a second pass to avoid bad consequences from concurrent callbacks overlapping
+                sleep(1)
                 self.goal = tmp_goal
                 self.q_goal = q_goal
                 # self.goal_sphere.position = self.goal
@@ -472,7 +481,6 @@ class listener_node_one:
         # callback for PointcloudToPybullet
         # static = only one update
         # dynamic = based on update frequency
-        
 
         if self.points_raw is not None and not self.running_inference:  # catch first time execution scheduling problems
             if self.point_cloud_static:
@@ -638,6 +646,10 @@ class listener_node_one:
     def cbGetJoints(self, data):
         # sometimes the robot driver reports joint angles in an order different from the one we need
         # that's why we need to map the reported angles to our order that is given in JOINT_NAMES
+        
+        if self.start_sec is None:
+            self.start_sec = data.header.stamp.secs + data.header.stamp.nsecs * (10**-9)
+        
         pos_data = dict()
         val_data = dict()
         effort_data = dict()
@@ -657,6 +669,7 @@ class listener_node_one:
         self.joints = np.array(output_pos, dtype=np.float32)
 
         #for logging
+        self.current_time = (data.header.stamp.secs + data.header.stamp.nsecs * (10**-9)) - self.start_sec 
         
         self.velocities =np.array(output_vel,dtype=np.float32)
         self.effort = np.array(output_eff,dtype=np.float32)
@@ -716,7 +729,8 @@ class listener_node_one:
             "real_step":self.real_step,
             "real_joint_velocities": self.velocities,
             "real_effort": self.effort,
-            "real_joint_positions": self.joints
+            "real_joint_positions": self.joints,
+            "current_time" : self.current_time
         }
 
         #print("________________________ADD_INFO_______________")
@@ -729,8 +743,13 @@ class listener_node_one:
         self.log.append(info)
 
         #TODO: only do this at the end not all the time
-        pd.DataFrame(self.log).to_csv("./models/env_logs/episode_real_" + str(info["episodes"]) + ".csv")   
-        pd.DataFrame(self.env.log).to_csv("./models/env_logs/episode_simulated_" + str(info["episodes"]) + ".csv")    
+        try:
+            pd.DataFrame(self.log).to_csv("./models/env_logs/episode_real_" + str(info["episodes"]) + ".csv")   
+            pd.DataFrame(self.env.log).to_csv("./models/env_logs/episode_simulated_" + str(info["episodes"]) + ".csv")    
+        except ValueError:
+            print("error")
+            print(self.env.log)
+
 
     
 
