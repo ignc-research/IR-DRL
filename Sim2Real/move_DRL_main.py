@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 #TODO: 
-# 1. Training anpassen, sodass jede Startposition möglich ist
-# 2. Gelegentlich tritt anomalie auf, wo nur eine action übergeben wird (nicht reproduzierbar)
-# 3. Save camera user input in yaml file and load directly from there (Done)
+# Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht
 
 import rospy
 from sensor_msgs.msg import JointState
@@ -265,11 +263,11 @@ class listener_node_one:
 
                     # sync point cloud
                     # TODO: 
-                    if not self.static_done and self.inference_steps % self.inference_steps_per_pointcloud_update == 0:
-                        self.PointcloudToVoxel()
-                        self.VoxelsToPybullet()
-                        if self.point_cloud_static:
-                            self.static_done = True
+                    # if not self.static_done and self.inference_steps % self.inference_steps_per_pointcloud_update == 0:
+                    #     self.PointcloudToVoxel()
+                    #     self.VoxelsToPybullet()
+                    #     if self.point_cloud_static:
+                    #         self.static_done = True
                             
 
                     action, _ = self.model.predict(obs, deterministic=True)
@@ -482,7 +480,7 @@ class listener_node_one:
         # static = only one update
         # dynamic = based on update frequency
 
-        if self.points_raw is not None and not self.running_inference:  # catch first time execution scheduling problems
+        if self.points_raw is not None: #and not self.running_inference:  # catch first time execution scheduling problems
             if self.point_cloud_static:
                 if self.static_done:
                     return

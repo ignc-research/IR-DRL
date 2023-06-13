@@ -373,6 +373,10 @@ class ModularDRLEnv(gym.Env):
                     if self.max_episodes == -1 or self.episode == self.max_episodes:
                         pd.DataFrame(self.log).to_csv("./models/env_logs/episode_" + str(self.episode) + ".csv")
 
+           
+
+
+
         return self._get_obs(), self.reward, done, info
 
     ###################
