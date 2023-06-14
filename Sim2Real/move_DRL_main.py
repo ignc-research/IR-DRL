@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-#TODO: 
-# Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht
+
+
 
 import rospy
 from sensor_msgs.msg import JointState
@@ -16,8 +16,8 @@ import sys
 from modular_drl_env.gym_env.environment import ModularDRLEnv
 from modular_drl_env.util.configparser import parse_config
 from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
-#from modular_drl_env.util.rrt import bi_rrt, smooth_path
 from modular_drl_env.world.obstacles.shapes import Box, Sphere
+from modular_drl_env.planner.planner_implementations.rrt import BiRRT
 import ros_numpy
 from stable_baselines3 import PPO
 import open3d as o3d
@@ -38,10 +38,11 @@ import pickle
 
 from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx
 
-#
-#TODO: 
-#Memory Modell für Cluster, die am gleichen Ort bleiben nicht bewegen
+# TODO: 
+# Memory Modell für Cluster, die am gleichen Ort bleiben nicht bewegen
 # Custom Reset episodes are probably not counted correctly because we only call custom reset once in the beginning
+# farben bug fixen
+# Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht
 
 JOINT_NAMES = [
     "shoulder_pan_joint",
@@ -52,19 +53,18 @@ JOINT_NAMES = [
     "wrist_3_joint",
 ]
 
-# startpos in box = 0.13 0.78 0.01
-# zielpos in box = 0.77 0.23 0.36
-# goal joint angles = [0.16853678 -0.9832662 0.8828659 -1.7676371 -1.5672787 -0.15731794]
-# goal joint angles [ 0.05017271 -0.9653352   0.792964   -1.7775062  -1.4203948  -0.15738994]
-
 class listener_node_one:
     def __init__(self, action_rate, control_rate, num_voxels, point_cloud_static):
         # yaml config file
         self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/config.yaml'
         self.config = self.load_config(self.config_path)
 
+        # variables for logging real clock time
         self.start_sec = None
         self.current_time = None     
+
+        # overall mode, True=DRL, False=RRT, default is DRL
+        self.mode = True 
 
         # robot data
         self.end_effector_link_id = 6
@@ -82,10 +82,9 @@ class listener_node_one:
         self.effort = None
         self.goal = None
         self.q_goal = None
-        #self.max_drl_steps = 5 #240 # maximale steps um mind. eine rrt Lösung zu finden
-        #self.drl_horizon = 5
+        self.trajectory = None
         self.drl_horizon = self.config['drl_horizon']
-        #self.max_inference_steps = 5000 #240 # maximale steps um mind. eine rrt Lösung zu finden
+      
         self.max_inference_steps = self.config['max_inference_steps']
         self.running_inference = False  # flag for interference between DRL and symsinc to prevent both from running parallel
         self.point_cloud_static = point_cloud_static
@@ -95,7 +94,6 @@ class listener_node_one:
         self.control_mode = True   # True=pos, False=joints
         self.startup = True
         self.drl_success = False
-        #self.dist_threshold = 2e-2
         self.dist_threshold = self.config['dist_threshold']
         # Real steps in the simulation with no filter
         self.inference_steps = 0
@@ -110,7 +108,6 @@ class listener_node_one:
         self.camera_transform_to_pyb_origin[:3, 0] = np.array([-1, 0, 0])        # vektor für Kamera x achse in pybullet
         self.camera_transform_to_pyb_origin[:3, 1] = np.array([0, 0, -1])        # vektor für Kamera y achse in pybullet
         self.camera_transform_to_pyb_origin[:3, 2] = np.array([0, -1, 0])        # vektor für Kamera z achse in pybullet
-        #self.camera_transform_to_pyb_origin[:3, 3] = np.array([0.25, 1.72, 0.4]) #realwerte für camera position aus listener.py nach kalibrieren 
         self.camera_transform_to_pyb_origin[:3, 3] = np.array(self.config['camera_transform_to_pyb_origin'])
         #self.voxel_size = 0.035 # 0.035
         self.voxel_size = self.config['voxel_size']
@@ -174,9 +171,18 @@ class listener_node_one:
         self.virtual_robot.goal.delete_visual_aux()
         pyb_u.toggle_rendering(True)
 
+        # load DRL model
         #self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt.zip")  # trajectory
         self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip")  # no trajectory
         
+        # load RRT planner
+        self.planner = BiRRT(self.virtual_robot)
+        # info: the next line is necessary because the planner automatically takes into account if a joint has been deactivated in the config
+        # however, for sending commands to ros we need all six joints, that's why we manually overwrite the joint ids that the planner can see
+        # such that it has all six
+        self.planner.joint_ids = [pyb_u.pybullet_joints_ids[self.virtual_robot.object_id, joint_id] for joint_id in self.virtual_robot.all_joints_ids]
+        self.planner.joint_ids_u = self.virtual_robot.all_joints_ids
+
         #optional: enable to see if there are differences between the env and model
         """from modular_drl_env.util.misc import analyse_obs_spaces
         analyse_obs_spaces(self.env.observation_space, self.model.observation_space)"""
@@ -197,6 +203,8 @@ class listener_node_one:
         sleep(1)
         print("[Listener] Started callback for DRL inference")
         rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbAction)
+        print("[Listener] Started callback for Planner inference")
+        rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbActionPlanner)
         sleep(1)
         # rospy.Timer(rospy.Duration(secs=1/200), self.cbAction)
         rospy.Timer(rospy.Duration(secs=1/100), self.cbSimSync) # sync der Simulation mit dem echten Roboter so schnell wie möglich
@@ -228,7 +236,7 @@ class listener_node_one:
     # Frequenz: festgelegt von uns
     def cbAction(self, event):
         if self.joints is not None:  # wait until self.joints is written to for the first time
-            if self.goal is not None and not self.inference_done: # only do inference if there is a goal given by user and we're not already done with inference
+            if self.goal is not None and not self.inference_done and self.mode: # only do inference if there is a goal given by user and we're not already done with inference and we're not using a planner
                 print("[cbAction] starting DRL inference")
                 
                 # set inference mutex such that other callbacks do nothing while new movement is calculated
@@ -261,8 +269,8 @@ class listener_node_one:
                         # Waiting for real_step to catch up to sim_step
                         continue
 
+                    # code below is (maybe ?) deprecated, but might be necessary if some weird things happen with the pointcloud
                     # sync point cloud
-                    # TODO: 
                     # if not self.static_done and self.inference_steps % self.inference_steps_per_pointcloud_update == 0:
                     #     self.PointcloudToVoxel()
                     #     self.VoxelsToPybullet()
@@ -319,8 +327,71 @@ class listener_node_one:
                         self.sim_step = self.sim_step + 1
                         pos_ee_last = pos_ee  
                         print("[cbAction] Action added")
-                    
-                    
+
+    #Planner for RRT                
+    def cbActionPlanner(self, event):
+        if self.joints is not None:
+            if not self.mode and self.q_goal is not None and self.trajectory is not None:  # planner mode activated and a valid goal has been created in cbControl
+                print("[cbAction] starting planner trajectory execution")
+                # set inference mutex such that other callbacks do nothing while new movement is calculated
+                self.running_inference = True
+                # manually reset a few env attributes (we don't want to use env.reset() because that would delete all the voxels)
+                self.env.steps_current_episode = 0
+                self.env.is_success = False
+                self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
+
+                # reset sensors
+                for sensor in self.env.sensors:
+                    # sensor.reset()
+                    sensor.update(0)
+
+                while True:
+                    if self.sim_step - self.real_step >= self.drl_horizon:
+                        # Waiting for real_step to catch up to sim_step
+                        continue
+
+                    # turn angles into vector between -1 and 1 so that we can properly step the env in order to get logs at the end
+                    action = self.trajectory[self.sim_step]
+                    action = ((action + self.virtual_robot._joints_limits_upper) / (self.virtual_robot._joints_range / 2)) - 1
+                    _, _, _, info = self.env.step(action)
+
+                    # loop breaking conditions
+                    if info["collision"]:
+                        self.q_goal = None
+                        self.trajectory = None
+                        self.mode = True
+                        self.virtual_robot.control_mode = 2
+                        self.actions = np.ones((100, len(self.virtual_robot.all_joints_ids))) * self.joints
+                        self.sim_step = -1
+                        self.running_inference = False
+                        self.inference_done = True
+                        self.env.episode += 1
+                        # find the voxels that collide with the robot
+                        pyb_u.toggle_rendering(False)
+                        for tup in pyb_u.collisions:
+                            if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
+                                voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
+                                pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
+                        pyb_u.toggle_rendering(True)
+                        print("[cbAction] Found collision during inference! Choose a new goal or try again.")
+                        return
+                    elif self.sim_step == (len(self.trajectory) -1):
+                        self.mode = True
+                        self.virtual_robot.control_mode = 2
+                        self.drl_success = True
+                        self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
+                        self.sim_step = self.sim_step + 1
+                        self.running_inference = False
+                        self.inference_done = True
+                        self.env.episode += 1
+                        print("[cbAction] Trajectory completed")
+                        return
+
+                    # calc next step
+                    self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
+                    self.sim_step = self.sim_step + 1
+                    print("[cbAction] Action added")
+    
     def cbControl(self, event):  
         if self.startup:
             pass # TODO   
@@ -332,7 +403,7 @@ class listener_node_one:
             self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #if last argument = none only 5 of the 6 joints get recognized
             print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
             print("[cbControl] current (virtual) joint angles: " + str(self.joints))  
-            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or \n[cbControl] (c) to calibrate camera position or\n[cbControl] (r) to return the robot into the starting configuration (WARNING: does not consider collisions, both real and virtual!): \n")
+            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or \n[cbControl] (c) to calibrate camera position or\n[cbControl] (r) to return the robot into the starting configuration (WARNING: does not consider collisions, both real and virtual!) or\n[cbControl] (p) to initialize robot control via a sample based planer: \n")
             if len(inp) == 1:
                 if inp == "r": # Resets the robot to the start position
                     print("[cbControl] Moving robot into resting pose")
@@ -360,6 +431,45 @@ class listener_node_one:
                     self.camera_calibration = False
                     self.point_cloud_static = was_static
                     self.static_done = False
+                if inp[0] == "p":
+                    # set mode to planner
+                    self.mode = False
+                    inp = input("[cbControl] Input six target joint angles with a space between each one: \n")
+                    inp = inp.split(" ")
+                    try:
+                        inp = np.array([float(ele) for ele in inp])
+                    except ValueError:
+                        print("[cbControl] input in wrong format, try again!")
+                        self.mode = True
+                        return
+                    # check for collision in current position
+                    self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
+                    pyb_u.perform_collision_check()
+                    pyb_u.get_collisions()
+                    if pyb_u.collision:
+                        print("[cbControl] current position of robot is in collision in simulation! Try again or check the camera/voxelization if the problem persists.")
+                        self.mode = True
+                        return
+                    # check for collision in target position
+                    self.virtual_robot.moveto_joints(inp, False, self.virtual_robot.all_joints_ids)
+                    pyb_u.perform_collision_check()
+                    pyb_u.get_collisions()
+                    if pyb_u.collision:
+                        print("[cbControl] target position is in collision in simulation! Try again or check the camera/voxelization if the problem persists..")
+                        self.mode = True
+                        return
+                    # call the planner to plan a collision free route to the target
+                    self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
+                    self.trajectory = self.planner.plan(inp, self.env.world.active_objects)
+                    if self.trajectory is None:
+                        print("[cbControl] Planner failed, try again!")
+                        self.mode = True
+                        return
+                    self.virtual_robot.control_mode = 1
+                    self.sim_step = 0
+                    self.real_step = 0
+                    self.virtual_robot.world.position_targets[0] = np.array([1,2,3])
+                    self.q_goal = inp              
             else:          
                 inp = inp.split(" ")
 
@@ -461,6 +571,8 @@ class listener_node_one:
             # self.actions = []
             if self.drl_success and self.sim_step == self.real_step: 
                 self.goal = None
+                self.q_goal = None
+                self.trajectory = None
                 self.drl_success = False
                 self.inference_done = False
                 print("[cbControl] Goal reached, Task failed successfully!")

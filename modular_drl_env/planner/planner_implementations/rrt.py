@@ -16,6 +16,8 @@ class RRT(Planner):
     
     def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=10000, goal_bias: float=0.35) -> None:
         super().__init__(robot)
+        self.joint_ids = [pyb_u.pybullet_joints_ids[self.robot.object_id, joint_id] for joint_id in self.robot.controlled_joints_ids]
+        self.joint_ids_u = self.robot.controlled_joints_ids
 
         self.epsilon = epsilon
         self.max_iterations = max_iterations
@@ -23,7 +25,7 @@ class RRT(Planner):
 
     def plan(self, q_goal, obstacles) -> List:
         obstacles = [pyb_u.to_pb(obstacle.object_id) for obstacle in obstacles]
-        q_start = self.robot.joints_sensor.joints_angles
+        q_start, _ = pyb_u.get_joint_states(self.robot.object_id, self.joint_ids_u)
         ret = None
         tries = 0
         sample_fn = pyb_p.get_sample_fn(pyb_u.to_pb(self.robot.object_id), self.joint_ids)
@@ -32,7 +34,7 @@ class RRT(Planner):
 
         def collision_fn(q, diagnosis=False) -> bool:
             q = np.array(q)
-            self.robot.moveto_joints(q, False)
+            self.robot.moveto_joints(q, False, self.joint_ids_u)
             pyb_u.perform_collision_check()
             pyb_u.get_collisions()
             return pyb_u.collision
@@ -54,22 +56,22 @@ class RRT(Planner):
         pyb_u.perform_collision_check()
         pyb_u.get_collisions()
         #print(pyb_u.collisions)
-        self.robot.moveto_joints(q_start, False)
+        self.robot.moveto_joints(q_start, False, self.joint_ids_u)
         return np.array(ret)
 
 class BiRRT(Planner):
 
     def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=1000) -> None:
         super().__init__(robot)
-        # get list of pybullet int ids of obstacles
         self.joint_ids = [pyb_u.pybullet_joints_ids[self.robot.object_id, joint_id] for joint_id in self.robot.controlled_joints_ids]
+        self.joint_ids_u = self.robot.controlled_joints_ids
 
         self.epsilon = epsilon
         self.max_iterations = max_iterations
 
     def plan(self, q_goal, obstacles) -> List:
         obstacles = [pyb_u.to_pb(obstacle.object_id) for obstacle in obstacles]
-        q_start = self.robot.joints_sensor.joints_angles
+        q_start, _ = pyb_u.get_joint_states(self.robot.object_id, self.joint_ids_u)
         ret = None
         tries = 0
         sample_fn = pyb_p.get_sample_fn(pyb_u.to_pb(self.robot.object_id), self.joint_ids)
@@ -78,7 +80,7 @@ class BiRRT(Planner):
 
         def collision_fn(q, diagnosis=False) -> bool:
             q = np.array(q)
-            self.robot.moveto_joints(q, False)
+            self.robot.moveto_joints(q, False, self.joint_ids_u)
             pyb_u.perform_collision_check()
             pyb_u.get_collisions()
             return pyb_u.collision
@@ -101,22 +103,22 @@ class BiRRT(Planner):
         pyb_u.perform_collision_check()
         pyb_u.get_collisions()
         #print(pyb_u.collisions)
-        self.robot.moveto_joints(q_start, False)
+        self.robot.moveto_joints(q_start, False, self.joint_ids_u)
         return np.array(ret)
     
 class RRTStar(Planner):
 
     def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=1000) -> None:
         super().__init__(robot)
-        # get list of pybullet int ids of obstacles
         self.joint_ids = [pyb_u.pybullet_joints_ids[self.robot.object_id, joint_id] for joint_id in self.robot.controlled_joints_ids]
+        self.joint_ids_u = self.robot.controlled_joints_ids
 
         self.epsilon = epsilon
         self.max_iterations = max_iterations
 
     def plan(self, q_goal, obstacles) -> List:
         obstacles = [pyb_u.to_pb(obstacle.object_id) for obstacle in obstacles]
-        q_start = self.robot.joints_sensor.joints_angles
+        q_start, _ = pyb_u.get_joint_states(self.robot.object_id, self.joint_ids_u)
         ret = None
         tries = 0
         sample_fn = pyb_p.get_sample_fn(pyb_u.to_pb(self.robot.object_id), self.joint_ids)
@@ -125,7 +127,7 @@ class RRTStar(Planner):
 
         def collision_fn(q, diagnosis=False) -> bool:
             q = np.array(q)
-            self.robot.moveto_joints(q, False)
+            self.robot.moveto_joints(q, False, self.joint_ids_u)
             pyb_u.perform_collision_check()
             pyb_u.get_collisions()
             return pyb_u.collision
@@ -148,6 +150,6 @@ class RRTStar(Planner):
         pyb_u.perform_collision_check()
         pyb_u.get_collisions()
         #print(pyb_u.collisions)
-        self.robot.moveto_joints(q_start, False)
+        self.robot.moveto_joints(q_start, False, self.joint_ids_u)
         return np.array(ret)  
     
