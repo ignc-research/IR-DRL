@@ -2,13 +2,13 @@ import pybullet as p
 import pybullet_data
 import time
 import pandas as pd
-
+import numpy as np
 # Start the simulation
 client = p.connect(p.GUI)  # or p.DIRECT for non-graphical version
 p.setAdditionalSearchPath(pybullet_data.getDataPath())  # used to locate .urdf and other model files
 
 # Load the UR5 model
-robot = p.loadURDF("/home/moga/Desktop/IR-DRL/modular_drl_env/assets/robots/predefined/ur5/urdf/ur5.urdf")
+robot = p.loadURDF("/home/moga/Desktop/IR-DRL/modular_drl_env/assets/robots/predefined/ur5/urdf/ur5.urdf",baseOrientation=p.getQuaternionFromEuler([0,0,-np.pi]),basePosition=[0,0,0.01])
 
 # Set the gravity
 p.setGravity(0, 0, -9.8, physicsClientId=client)
@@ -190,8 +190,8 @@ for angles in joint_angles:
    
     
     # Calculate the end effector position
-    ls = p.getLinkState(robot, 5)  # Link 5 is usually the end effector
-    end_effector_positions.append(ls[0])  # ls[0] contains the Cartesian coordinates
+    ls = p.getLinkState(robot, 7)  # Link 7 is usually the end effector
+    end_effector_positions.append(ls[4])  # ls[4] contains the Cartesian coordinates
     
     # Add some delay for visual purposes
     time.sleep(0.05)
@@ -204,10 +204,6 @@ for i, pos in enumerate(end_effector_positions):
 # End the simulation
 p.disconnect()
 
-import pybullet as p
-import pybullet_data
-import time
-import pandas as pd
 
 # Your pybullet script
 # ... your code above
