@@ -14,7 +14,7 @@ __all__ = [
 ]
 class RRT(Planner):
     
-    def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=10000, goal_bias: float=0.35) -> None:
+    def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=10000, goal_bias: float=0.35, padding: bool=True) -> None:
         super().__init__(robot)
         self.joint_ids = [pyb_u.pybullet_joints_ids[self.robot.object_id, joint_id] for joint_id in self.robot.controlled_joints_ids]
         self.joint_ids_u = self.robot.controlled_joints_ids
@@ -22,6 +22,7 @@ class RRT(Planner):
         self.epsilon = epsilon
         self.max_iterations = max_iterations
         self.goal_bias = goal_bias
+        self.padding = padding
 
     def plan(self, q_goal, obstacles) -> List:
         obstacles = [pyb_u.to_pb(obstacle.object_id) for obstacle in obstacles]
@@ -52,7 +53,8 @@ class RRT(Planner):
                 break
         if ret is None:
             ret = [q_start, q_goal]
-        ret = pyb_p.refine_path(pyb_u.to_pb(self.robot.object_id), self.joint_ids, ret, 200)
+        if self.padding:
+            ret = pyb_p.refine_path(pyb_u.to_pb(self.robot.object_id), self.joint_ids, ret, 200)
         pyb_u.perform_collision_check()
         pyb_u.get_collisions()
         #print(pyb_u.collisions)
@@ -61,13 +63,14 @@ class RRT(Planner):
 
 class BiRRT(Planner):
 
-    def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=1000) -> None:
+    def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=1000, padding: bool=True) -> None:
         super().__init__(robot)
         self.joint_ids = [pyb_u.pybullet_joints_ids[self.robot.object_id, joint_id] for joint_id in self.robot.controlled_joints_ids]
         self.joint_ids_u = self.robot.controlled_joints_ids
 
         self.epsilon = epsilon
         self.max_iterations = max_iterations
+        self.padding = padding
 
     def plan(self, q_goal, obstacles) -> List:
         obstacles = [pyb_u.to_pb(obstacle.object_id) for obstacle in obstacles]
@@ -99,7 +102,8 @@ class BiRRT(Planner):
                 break
         if ret is None:
             ret = [q_start, q_goal]
-        ret = pyb_p.refine_path(pyb_u.to_pb(self.robot.object_id), self.joint_ids, ret, 200)
+        if self.padding:
+            ret = pyb_p.refine_path(pyb_u.to_pb(self.robot.object_id), self.joint_ids, ret, 200)
         pyb_u.perform_collision_check()
         pyb_u.get_collisions()
         #print(pyb_u.collisions)
@@ -108,13 +112,14 @@ class BiRRT(Planner):
     
 class RRTStar(Planner):
 
-    def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=1000) -> None:
+    def __init__(self, robot: Robot, epsilon: float=5e-2, max_iterations: int=1000, padding: bool=True) -> None:
         super().__init__(robot)
         self.joint_ids = [pyb_u.pybullet_joints_ids[self.robot.object_id, joint_id] for joint_id in self.robot.controlled_joints_ids]
         self.joint_ids_u = self.robot.controlled_joints_ids
 
         self.epsilon = epsilon
         self.max_iterations = max_iterations
+        self.padding = padding
 
     def plan(self, q_goal, obstacles) -> List:
         obstacles = [pyb_u.to_pb(obstacle.object_id) for obstacle in obstacles]
@@ -146,7 +151,8 @@ class RRTStar(Planner):
                 break
         if ret is None:
             ret = [q_start, q_goal]
-        ret = pyb_p.refine_path(pyb_u.to_pb(self.robot.object_id), self.joint_ids, ret, 200)
+        if self.padding:
+            ret = pyb_p.refine_path(pyb_u.to_pb(self.robot.object_id), self.joint_ids, ret, 200)
         pyb_u.perform_collision_check()
         pyb_u.get_collisions()
         #print(pyb_u.collisions)

@@ -235,6 +235,7 @@ class Robot(ABC):
 
             # if we don't use the physics sim, which will only perform a step towards the desired new joints, 
             # we have to clamp the new joint angles such that they move with at most the maximum velocity within the next sim step
+            print("hallo")
             if not self.use_physics_sim:
                 # compute the maximum step we do in that direction
                 joint_delta = new_joints - self.joints_sensor.joints_angles
@@ -249,6 +250,11 @@ class Robot(ABC):
                 joint_delta = joint_delta * joint_mul
                 # compute the joint angles we can actually go to
                 new_joints = joint_delta + self.joints_sensor.joints_angles
+                print("#"*10)
+                print(joint_delta)
+                print(joint_dist)
+                print(joint_mul)
+                print("#"*10)
 
             # execute movement
             self.moveto_joints(new_joints, self.use_physics_sim)

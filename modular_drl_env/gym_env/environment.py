@@ -220,6 +220,7 @@ class ModularDRLEnv(gym.Env):
         # apply the action to all robots that have to be moved
         action_offset = 0  # the offset at which the ith robot sits in the action array
         exec_times_cpu = []  # track execution times
+        print("halloooooooooooooooooooooooooo")
         for idx, robot in enumerate(self.robots):
             if not self.active_robots[idx]:
                 action_offset += self.action_space_dims[idx]
