@@ -899,7 +899,7 @@ class listener_node_one:
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True, disable_signals=True) 
-    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=2000, point_cloud_static=False)
+    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=2000, point_cloud_static=True)
 
 
 

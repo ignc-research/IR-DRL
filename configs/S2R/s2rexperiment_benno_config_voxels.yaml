@@ -1,7 +1,7 @@
 run:
   algorithm:
     load_model: True  
-    model_path: "./models/weights/PPO_s2rexperiment_exp0_1/model_interrupt"  
+    model_path: "/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip"  
     type: "PPO"
     config:
       gamma: 0.995
@@ -100,3 +100,4 @@ env:
         rotation: [0, 0, 0]
         params:
           halfExtents: [0.3, 0.3, 0.5]
+          seen_by_obstacle_sensor: True
