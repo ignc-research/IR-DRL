@@ -114,6 +114,7 @@ class GeneratedWorld(World):
         # move back any moved objects to starting position
         for obst in self.obstacle_objects:
             obst.move_base(obst.position_orig)
+        self.active_objects = self.obstacle_objects
 
         # generate targets and starting positions
         robots_with_starting_points = [robot for robot in self.robots if robot.goal is not None]

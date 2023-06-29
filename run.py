@@ -130,6 +130,9 @@ if __name__ == "__main__":
                     exit(0)
             while True:
                 obs = env.reset()
+                # import numpy as np
+                # env.robots[0].moveto_joints(env.robots[0].resting_pose_angles, False)
+                # sleep(500)
                 #env.manual_control(True)
                 done = False
                 # episode start signals for recurrent model
@@ -170,7 +173,7 @@ if __name__ == "__main__":
         env = ModularDRLEnv(env_config)
         robot = env.robots[0]
         # overwrite control mode to trajectory
-        robot.control_mode = 3  
+        robot.control_mode = 1  
         # overwrite goal to standard position goal, we need no other one
         from modular_drl_env.goal.goal_implementations.position_collision import PositionCollisionGoal
         goal = PositionCollisionGoal(robot, False, False, False, False, 10000, False, done_on_oob=False)
@@ -179,37 +182,44 @@ if __name__ == "__main__":
         goal.distance_threshold = 0.055
         # remove all sensors beside the mandatory ones
         env.sensors = env.sensors[:2] 
-        planner = planner_map[args.planner](robot)
+        planner = planner_map[args.planner](robot, epsilon=0.041, padding=False)
         import numpy as np
         act = np.zeros(len(robot.controlled_joints_ids))
 
         from modular_drl_env.util.pybullet_util import pybullet_util as pyb_u
         while True:
             obs = env.reset()
+            pyb_u.toggle_rendering(False)
             trajectory = np.array(planner.plan(env.world.joints_targets[0], env.world.active_objects))
-            trajectory_xyz = []
-            for waypoint in trajectory:
-                robot.moveto_joints(waypoint, False)
-                xyz, _, _, _ = pyb_u.get_link_state(robot.object_id, robot.end_effector_link_id)
-                trajectory_xyz.append(xyz)
+            pyb_u.toggle_rendering(True)
+            robot.moveto_joints(trajectory[-1], False)
+            env.world.position_targets[0], _, _, _ = pyb_u.get_link_state(robot.object_id, robot.end_effector_link_id)
             robot.moveto_joints(trajectory[0], False)
-            trajectory_xyz = np.array(trajectory_xyz)
             done = False
             idx = 0
             while not done:
                 sleep(run_config["display_delay"])
-                robot.control_target = trajectory[idx]
+                act = ((trajectory[idx] + robot.joints_limits_upper) / (robot.joints_range / 2)) - 1
                 _, _, done, info = env.step(act)
-                ee_position = robot.position_rotation_sensor.position
-                distances_to_ee = np.linalg.norm(trajectory_xyz -  ee_position, axis=1)
-                sphere_mask = distances_to_ee < 0.015
-                if sphere_mask.any() == False:  
-                    min_distance = np.min(distances_to_ee)
-                    index_of_that_waypoint = np.where(distances_to_ee == min_distance)[0][0]
-                    idx = max(idx, index_of_that_waypoint)  # keep old waypoint if it's further up in the trajectory
-                else:
-                    idxs = np.array(list(range(len(trajectory))))[sphere_mask]
-                    idx = max(idx, max(idxs))
+                joint_position, _ = pyb_u.get_joint_states(robot.object_id, robot.controlled_joints_ids)
+                if idx != len(trajectory)-1 and np.linalg.norm(joint_position - trajectory[idx]) <= planner.epsilon:
+                    idx += 1
+                
+                # distances_to_traj = np.linalg.norm(trajectory[idx:] -  joint_position, axis=1)
+                # sphere_mask = distances_to_traj < planner.epsilon
+                
+                # if sphere_mask.any() == False:  
+                #     min_distance = np.min(distances_to_traj)
+                #     index_of_that_waypoint = np.where(distances_to_traj == min_distance)[0][0]
+                #     idx = idx + index_of_that_waypoint  # keep old waypoint if it's further up in the trajectory
+                # else:
+                #     idxs = np.array(list(range(len(trajectory[idx:]))))[sphere_mask]
+                #     idxs = [ele + idx for ele in idxs]
+                #     idx = max(idx, max(idxs))
+                #     print(idxs)
 
                 if done:
+                    if info["collision"]:
+                        print(2)
                     break
+                    
