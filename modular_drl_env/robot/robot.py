@@ -30,7 +30,7 @@ class Robot(ABC):
                        base_orientation: Union[list, np.ndarray], 
                        resting_angles: Union[list, np.ndarray], 
                        control_mode: Union[int, str], 
-                       ik_xyz_delta: float=0.005,
+                       ik_xyz_delta: float=0.005, # Bewegungsspielraum, evtl hochstellen falls training nicht klappt auf 
                        ik_rpy_delta: float=0.005,
                        jt_joint_delta: float=0.5,
                        joint_velocities_overwrite: Union[float, List]=1,

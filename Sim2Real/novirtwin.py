@@ -2,6 +2,8 @@
 
 #TODO: nur virtuelle Obstacles erstmal für training
 
+# Position von pybullet als input nehmen
+
 
 # print out what the agent is returning
 

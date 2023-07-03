@@ -91,7 +91,7 @@ class listener_node_one:
         self.point_cloud_static = point_cloud_static
         self.static_done = False
         self.num_voxels = num_voxels
-        self.color_voxels = True
+        self.color_voxels = True # einfärben der Voxels
         self.control_mode = True   # True=pos, False=joints
         self.startup = True
         self.drl_success = False
@@ -100,6 +100,7 @@ class listener_node_one:
         self.inference_steps = 0
         self.inference_done = False
         self.camera_calibration = False
+        self.dont_voxelize = False
 
         # cbGetPointcloud
         self.points_raw = None
@@ -123,9 +124,8 @@ class listener_node_one:
         self.enable_clustering = True #enable or disable clustering for performance reasons
         self.robot_voxel_cluster_distance = 0.3 #TODO: optimize this
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
-        self.voxel_cluster_threshold = 50
+        self.voxel_cluster_threshold = 5 #TODO: Variabel an der anzahl von voxeln ändern nicht hardcoden
         self.voxel_centers = None
-
         #Optional for recording voxels
         #self.all_frames = [] 
         
@@ -293,13 +293,15 @@ class listener_node_one:
                         self.inference_done = True
                         self.env.episode += 1
                         # find the voxels that collide with the robot
+                        self.dont_voxelize = True
                         pyb_u.toggle_rendering(False)
                         for tup in pyb_u.collisions:
                             if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
                                 voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
                                 pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
                         pyb_u.toggle_rendering(True)
-                        print("[cbAction] Found collision during inference! Choose a new goal or try again.")
+                        print("[cbAction] Found collision during inference!")
+                        self.dont_voxelize = False
                         return
                     elif info["is_success"]:
                         self.drl_success = True
@@ -609,7 +611,8 @@ class listener_node_one:
         # static = only one update
         # dynamic = based on update frequency
 
-        if self.points_raw is not None: #and not self.running_inference:  # catch first time execution scheduling problems
+        #start = time()
+        if self.points_raw is not None and not self.dont_voxelize: #and not self.running_inference:  # catch first time execution scheduling problems
             if self.point_cloud_static:
                 if self.static_done:
                     return
@@ -632,6 +635,7 @@ class listener_node_one:
             self.all_frames = []
             self.start_time = time()
             print("Dumped new frames")"""
+        #print("[cb Pointcloud to Pybullet time: ]" , time() - start)
 
     def PointcloudToVoxel(self):
         if self.joints is not None:
@@ -899,7 +903,7 @@ class listener_node_one:
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True, disable_signals=True) 
-    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=2000, point_cloud_static=True)
+    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=2000, point_cloud_static=False)
 
 
 
