@@ -75,14 +75,16 @@ class pybullet_util:
         pyb_cols = pyb.getContactPoints()
         ret = []
         for tup in pyb_cols:
-            ret.append((cls.gym_env_str_names[tup[1]], cls.gym_env_str_names[tup[2]]))
+            if tup[8] <= 0:  # sometimes pybullet has spurious contacts with separation distances greater than zero
+                ret.append((cls.gym_env_str_names[tup[1]], cls.gym_env_str_names[tup[2]]))
         cls.collisions = ret
         # check if there is a collision involving robots
         cls.collision = False
         for tup in pyb_cols:
-            if tup[1] in cls.robot_pyb_ids or tup[2] in cls.robot_pyb_ids:
-                cls.collision = True
-                break
+            if tup[8] <= 0:
+                if tup[1] in cls.robot_pyb_ids or tup[2] in cls.robot_pyb_ids:
+                    cls.collision = True
+                    break
     
     ############
     # geometry #

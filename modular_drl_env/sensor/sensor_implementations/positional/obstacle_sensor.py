@@ -22,8 +22,9 @@ def interpolate_3d(vec1, vec2, n_points):
 
 class ObstacleSensor(Sensor):
     """
-    This sensor reports the relative position of obstacles in the vicinity.
-    To make the measurements consistent, it will spawn a small invisible and non-colliding sphere at a probe location, which it will then use to measure the distances.
+    This sensor reports the relative position of obstacles in the vicinity per activated robot link.
+    To make the measurements consistent, it will spawn a small invisible and non-colliding sphere at the position of the URDF coordinate frame of the respective link, which it will then use to measure the distances.
+    Otherwise, the PyBullet engine call we use would use the closest point on the link's mesh, which could vary wildly when the robot moves.
     """
 
     def __init__(self, 
@@ -36,6 +37,8 @@ class ObstacleSensor(Sensor):
                  sphere_coordinates: bool=False, 
                  extra_points_link_pairs: List=[],
                  report_velocities: bool=False,
+                 report_distances: bool=False,
+                 report_points: bool=False,
                  normalize: bool=False, 
                  add_to_observation_space: bool=True, 
                  add_to_logging: bool=False,      
@@ -52,9 +55,11 @@ class ObstacleSensor(Sensor):
         # maximum distance which the sensor will consider for obstacles
         self.max_distance = max_distance
         # default observation
-        # 0 0 0 vector, gets used when there are not enough obstacles in the env currently to fill out the observation
+        # gets used when there are not enough obstacles in the env currently to fill out the observation
         self.default_observation = np.array([[2*max_distance, 2*max_distance, 2*max_distance] for _ in range(self.num_obstacles)], dtype=np.float32).flatten()
         self.default_observation_vels = np.array([[0, 0, 0] for _ in range(self.num_obstacles)], dtype=np.float32).flatten()
+        self.default_observation_distances = np.array([2*max_distance for _ in range(self.num_obstacles)], dtype=np.float32)
+        self.default_observation_points = np.array([[2*max_distance, 2*max_distance, 2*max_distance] for _ in range(self.num_obstacles)], dtype=np.float32).flatten()
         # list of link ids for which the sensor will work
         self.reference_link_ids = reference_link_ids
 
@@ -74,10 +79,11 @@ class ObstacleSensor(Sensor):
         self.extra_points_coordinates = np.zeros((self.num_extra, 3))
 
         # init data storage
-        self.output_vector = np.tile(self.default_observation, (len(self.reference_link_ids), 1))
-        self.output_vector_extra = np.tile(self.default_observation, (len(self.extra_points_coordinates), 1))
-        self.output_vector_vels = np.tile(self.default_observation, (len(self.reference_link_ids), 1))
-        self.data_raw = [None for _ in range(len(self.reference_link_ids) + len(self.extra_points_coordinates))]
+        self.output_vector = np.tile(self.default_observation, (len(self.reference_link_ids) + self.num_extra, 1))
+        self.output_vector_vels = np.tile(self.default_observation_vels, (len(self.reference_link_ids) + self.num_extra, 1))
+        self.output_vector_distances = np.tile(self.default_observation_distances, (len(self.reference_link_ids) + self.num_extra, 1))
+        self.output_vector_points = np.tile(self.default_observation_points, (len(self.reference_link_ids) + self.num_extra, 1))
+        self.data_raw = [None for _ in range(len(self.reference_link_ids) + self.num_extra)]
 
         # attributes for outside access
         self.min_dist = np.inf
@@ -86,8 +92,10 @@ class ObstacleSensor(Sensor):
         self.link_positions = dict()
         self.link_velocities = dict()
 
-        # report obstacle velocities
+        # flag for obstacle velocities, distance and absolute points
         self.report_velocities = report_velocities
+        self.report_points = report_points
+        self.report_distances = report_distances
 
         # normalizing constants for faster normalizing
         self.normalizing_constant_a = 2 / (np.ones(3 * self.num_obstacles) * self.max_distance * 2)
@@ -110,18 +118,24 @@ class ObstacleSensor(Sensor):
 
                 self.output_vector[idx] = self.default_observation
                 self.output_vector_vels[idx] = self.default_observation_vels
-                self.data_raw[idx] = self._run_obstacle_detection(link)
-                new_data, new_vels = self._process(self.data_raw[idx])
+                self.output_vector_points[idx] = self.default_observation_points
+                self.output_vector_distances[idx] = self.default_observation_distances
+                self.data_raw[idx] = self._run_obstacle_detection()
+                new_data, new_vels, new_points, new_distances = self._process(self.data_raw[idx])
                 self.output_vector[idx][:len(new_data)] = new_data
                 if self.report_velocities:
                     self.output_vector_vels[idx][:len(new_vels)] = new_vels
+                if self.report_distances:
+                    self.output_vector_distances[idx][:len(new_distances)] = new_distances
+                if self.report_points:
+                    self.output_vector_points[idx][:len(new_points)] = new_points
                 if self.sphere_coordinates:
                     self.min_dist = min(self.min_dist, self.output_vector[idx][0])
                 else:
                     self.min_dist = min(self.min_dist, np.linalg.norm(self.output_vector[idx][:3]))
             # now go trough the linear interpolation extra points if the user desires so
-            idx = 0
             for tup in self.extra_points_link_pairs:
+                idx += 1
                 link1, link2, num = tup
                 # in case we don't track the links but still want to have extra points, check and get the position if needed
                 if link1 in self.link_positions:
@@ -135,15 +149,23 @@ class ObstacleSensor(Sensor):
                 extra_positions = interpolate_3d(pos1, pos2, num)
                 for extra_position in extra_positions:
                     pyb_u.set_base_pos_and_ori(self.probe, extra_position, np.array([0, 0, 0, 1]))
-                    self.output_vector_extra[idx] = self.default_observation
-                    self.data_raw[len(self.reference_link_ids) + idx] = self._run_obstacle_detection(link1)
-                    new_data, new_vels = self._process(self.data_raw[idx])
+                    self.output_vector[idx] = self.default_observation
+                    self.output_vector_vels[idx] = self.default_observation_vels
+                    self.output_vector_points[idx] = self.default_observation_points
+                    self.output_vector_distances[idx] = self.default_observation_distances
+                    self.data_raw[idx] = self._run_obstacle_detection()
+                    new_data, new_vels, new_points, new_distances = self._process(self.data_raw[idx])
                     self.output_vector[idx][:len(new_data)] = new_data
+                    if self.report_velocities:
+                        self.output_vector_vels[idx][:len(new_vels)] = new_vels
+                    if self.report_distances:
+                        self.output_vector_distances[idx][:len(new_distances)] = new_distances
+                    if self.report_points:
+                        self.output_vector_points[idx][:len(new_points)] = new_points
                     if self.sphere_coordinates:
                         self.min_dist = min(self.min_dist, self.output_vector[idx][0])
                     else:
                         self.min_dist = min(self.min_dist, np.linalg.norm(self.output_vector[idx][:3]))
-                    idx += 1
             pyb_u.set_base_pos_and_ori(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
 
@@ -151,7 +173,6 @@ class ObstacleSensor(Sensor):
 
     def reset(self):
         self.cpu_epoch = process_time()
-        self.output_vector = np.tile(self.default_observation, (len(self.reference_link_ids), 1))
 
         self.min_dist = np.inf
         for idx, link in enumerate(self.reference_link_ids):
@@ -162,16 +183,21 @@ class ObstacleSensor(Sensor):
 
             self.output_vector[idx] = self.default_observation
             self.output_vector_vels[idx] = self.default_observation_vels
-            self.data_raw[idx] = self._run_obstacle_detection(link)
-            new_data, new_vels = self._process(self.data_raw[idx])
+            self.output_vector_points[idx] = self.default_observation_points
+            self.output_vector_distances[idx] = self.default_observation_distances
+            self.data_raw[idx] = self._run_obstacle_detection()
+            new_data, new_vels, new_points, new_distances = self._process(self.data_raw[idx])
             self.output_vector[idx][:len(new_data)] = new_data
             if self.report_velocities:
                 self.output_vector_vels[idx][:len(new_vels)] = new_vels
+            if self.report_distances:
+                self.output_vector_distances[idx][:len(new_distances)] = new_distances
+            if self.report_points:
+                self.output_vector_points[idx][:len(new_points)] = new_points
             if self.sphere_coordinates:
                 self.min_dist = min(self.min_dist, self.output_vector[idx][0])
             else:
                 self.min_dist = min(self.min_dist, np.linalg.norm(self.output_vector[idx][:3]))
-        idx = 0
         for tup in self.extra_points_link_pairs:
             link1, link2, num = tup
             # in case we don't track the links but still want to have extra points, check and get the position if needed
@@ -185,16 +211,25 @@ class ObstacleSensor(Sensor):
                 pos2, _, _, _ = pyb_u.get_link_state(self.robot.object_id, link2)
             extra_positions = interpolate_3d(pos1, pos2, num)
             for extra_position in extra_positions:
+                idx += 1
                 pyb_u.set_base_pos_and_ori(self.probe, extra_position, np.array([0, 0, 0, 1]))
-                self.output_vector_extra[idx] = self.default_observation
-                self.data_raw[len(self.reference_link_ids) + idx] = self._run_obstacle_detection(link1)
-                new_data, new_vels = self._process(self.data_raw[idx])
+                self.output_vector[idx] = self.default_observation
+                self.output_vector_vels[idx] = self.default_observation_vels
+                self.output_vector_points[idx] = self.default_observation_points
+                self.output_vector_distances[idx] = self.default_observation_distances
+                self.data_raw[idx] = self._run_obstacle_detection()
+                new_data, new_vels, new_points, new_distances = self._process(self.data_raw[idx])
                 self.output_vector[idx][:len(new_data)] = new_data
+                if self.report_velocities:
+                    self.output_vector_vels[idx][:len(new_vels)] = new_vels
+                if self.report_distances:
+                    self.output_vector_distances[idx][:len(new_distances)] = new_distances
+                if self.report_points:
+                    self.output_vector_points[idx][:len(new_points)] = new_points
                 if self.sphere_coordinates:
                     self.min_dist = min(self.min_dist, self.output_vector[idx][0])
                 else:
                     self.min_dist = min(self.min_dist, np.linalg.norm(self.output_vector[idx][:3]))
-                idx += 1
         pyb_u.set_base_pos_and_ori(self.probe, self.default_position, np.array([0, 0, 0, 1]))
         self.cpu_time = process_time() - self.cpu_epoch
         self.aux_visual_objects = []
@@ -208,9 +243,19 @@ class ObstacleSensor(Sensor):
                 ret_dict[self.output_name + "_" + link] = self.output_vector[idx]
                 if self.report_velocities:
                     ret_dict[self.output_name + "_" + link + "_velocities"] = self.output_vector_vels[idx]
-            if self.extra_points_link_pairs:
-                for idx, _ in enumerate(self.extra_points_coordinates):
-                    ret_dict[self.output_name + "_extra_point" + str(idx)] = self.output_vector_extra[idx]
+                if self.report_distances:
+                    ret_dict[self.output_name + "_" + link + "_distance"] = self.output_vector_distances[idx]
+                if self.report_points:
+                    ret_dict[self.output_name + "_" + link + "_points"] = self.output_vector_points[idx]
+            idx += 1
+            for idx2, _ in enumerate(self.extra_points_coordinates):
+                ret_dict[self.output_name + "_extra_point" + str(idx2)] = self.output_vector[idx + idx2]
+                if self.report_velocities:
+                    ret_dict[self.output_name + "_extra_point" + str(idx2) + "_velocities"] = self.output_vector_vels[idx + idx2]
+                if self.report_distances:
+                    ret_dict[self.output_name + "_extra_point" + str(idx2) + "_distance"] = self.output_vector_distances[idx + idx2]
+                if self.report_points:
+                    ret_dict[self.output_name + "_extra_point" + str(idx2) + "_points"] = self.output_vector_points[idx + idx2]
             return ret_dict
 
     def _normalize(self) -> dict:
@@ -230,22 +275,40 @@ class ObstacleSensor(Sensor):
                     ret_dict[self.output_name + "_" + link] = Box(low=-1, high=1, shape=(3 * self.num_obstacles,), dtype=np.float32)
                     if self.report_velocities:
                         ret_dict[self.output_name + "_" + link + "_velocities"] = Box(low=-1, high=1, shape=(3 * self.num_obstacles,), dtype=np.float32)
-                if self.extra_points_link_pairs:
-                    for idx, _ in enumerate(self.extra_points_coordinates):
-                        ret_dict[self.output_name + "_extra_point" + str(idx)] = Box(low=-1, high=1, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                    if self.report_distances:
+                        ret_dict[self.output_name + "_" + link + "_distance"] = Box(low=0, high=1, shape=(self.num_obstacles,), dtype=np.float32)
+                    if self.report_points:
+                        ret_dict[self.output_name + "_" + link + "_points"] = Box(low=-1, high=1, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                for idx2, _ in enumerate(self.extra_points_coordinates):
+                    ret_dict[self.output_name + "_extra_point" + str(idx2)] = Box(low=-1, high=1, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                    if self.report_velocities:
+                        ret_dict[self.output_name + "_extra_point" + str(idx2) + "_velocities"] = Box(low=-1, high=1, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                    if self.report_distances:
+                        ret_dict[self.output_name + "_extra_point" + str(idx2) + "_distance"] = Box(low=0, high=1, shape=(self.num_obstacles,), dtype=np.float32)
+                    if self.report_points:
+                        ret_dict[self.output_name + "_extra_point" + str(idx2) + "_points"] = Box(low=-1, high=1, shape=(3 * self.num_obstacles,), dtype=np.float32)
             else:
                 for link in self.reference_link_ids:
                     ret_dict[self.output_name + "_" + link] = Box(low=-self.max_distance, high=self.max_distance, shape=(3 * self.num_obstacles,), dtype=np.float32)
                     if self.report_velocities:
-                        ret_dict[self.output_name + "_" + link + "_velocities"] = Box(low=-100, high=100, shape=(3 * self.num_obstacles,), dtype=np.float32)
-                if self.extra_points_link_pairs:
-                    for idx, _ in enumerate(self.extra_points_coordinates):
-                        ret_dict[self.output_name + "_extra_point" + str(idx)] = Box(low=-self.max_distance, high=self.max_distance, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                        ret_dict[self.output_name + "_" + link + "_velocities"] =Box(low=-100, high=100, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                    if self.report_distances:
+                        ret_dict[self.output_name + "_" + link + "_distance"] = Box(low=0, high=self.max_distance, shape=(self.num_obstacles,), dtype=np.float32)
+                    if self.report_points:
+                        ret_dict[self.output_name + "_" + link + "_points"] = Box(low=-self.max_distance, high=self.max_distance, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                for idx2, _ in enumerate(self.extra_points_coordinates):
+                    ret_dict[self.output_name + "_extra_point" + str(idx2)] = Box(low=-self.max_distance, high=self.max_distance, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                    if self.report_velocities:
+                        ret_dict[self.output_name + "_extra_point" + str(idx2) + "_velocities"] = Box(low=-100, high=100, shape=(3 * self.num_obstacles,), dtype=np.float32)
+                    if self.report_distances:
+                        ret_dict[self.output_name + "_extra_point" + str(idx2) + "_distance"] = Box(low=0, high=self.max_distance, shape=(self.num_obstacles,), dtype=np.float32)
+                    if self.report_points:
+                        ret_dict[self.output_name + "_extra_point" + str(idx2) + "_points"] = Box(low=-self.max_distance, high=self.max_distance, shape=(3 * self.num_obstacles,), dtype=np.float32)
             return ret_dict
         else:
             return {}
 
-    def _run_obstacle_detection(self, link):
+    def _run_obstacle_detection(self):
 
         res = []
         # get nearest robots
@@ -257,9 +320,7 @@ class ObstacleSensor(Sensor):
                 continue
             min_val = min(closestPoints, key=lambda x: x[8])  # index 8 is the distance in the object returned by pybullet
             if self.report_velocities:
-                own_velo = self.link_velocities[link]
-                rel_velo = object.velocity - own_velo  # relative velocity of obstalce w.r.t. to link
-                res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8], rel_velo]))  # start, end, distance, velocity
+                res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8], object.velocity]))  # start, end, distance, velocity
             else:
                 res.append(np.hstack([np.array(min_val[5]), np.array(min_val[6]), min_val[8]]))
 
@@ -273,6 +334,8 @@ class ObstacleSensor(Sensor):
     def _process(self, data_raw):
         data_processed = []
         vels_processed = []
+        points_processed = []
+        distances_processed = []
         for i in range(len(data_raw)):
             vector = data_raw[i][3:6] -  data_raw[i][0:3]
             if self.sphere_coordinates:
@@ -283,7 +346,11 @@ class ObstacleSensor(Sensor):
             data_processed.append(vector)
             if self.report_velocities:
                 vels_processed.append(data_raw[i][7:10])
-        return np.array(data_processed).flatten(), np.array(vels_processed).flatten()
+            if self.report_points:
+                points_processed.append(data_raw[i][3:6])
+            if self.report_distances:
+                distances_processed.append(np.linalg.norm(vector))
+        return np.array(data_processed).flatten(), np.array(vels_processed).flatten(), np.array(points_processed).flatten(), np.array(distances_processed).flatten()
 
     def get_data_for_logging(self) -> dict:
         if not self.add_to_logging:
