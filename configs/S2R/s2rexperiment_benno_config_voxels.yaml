@@ -1,30 +1,23 @@
 run:
   algorithm:
     load_model: True  
-    model_path: "/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip"  
+    #model_path: "/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip"  #only if loaded model is necessary
+    model_path: "models/weights/PPO_s2rexperiment_exp0_1/model_8640000_steps.zip"
     type: "PPO"
     config:
       gamma: 0.995
       n_steps: 1024
-      ent_coef: 0.008
+      ent_coef: 0.008 #TODO: beim nächsten Training rauskommentieren oder auf 0 setzen
       batch_size: 16384
     custom_policy:
       activation_function: "tanh"
       value_function:
-        - 128
-        - 128
-        - 128
-        - 128
-        - 128
-        - 128
-        - 128
+        - 256
+        - 256
       policy_function:
-        - 128
-        - 128
-        - 128
-        - 128
-        - 128
-        - 128
+        - 256
+        - 256
+        
   train:
     num_envs : 24  
     logging: 0
@@ -34,7 +27,7 @@ run:
     save_name: "s2rexperiment_exp0_1"
   eval:
     max_episodes: -1
-    logging: 1
+    logging: 1 #1 = nach jeder episode eine zeile in die console, 2 = jeder step als zeile in der csv, 3 = das selbe wie 2 aber mit obstacles
     display_delay: 0.00816666666  
     show_world_aux: True
     show_goal_aux: True
@@ -56,7 +49,7 @@ env:
         base_position: [0, 0, 0.01]
         base_orientation: [0, 0, -180]
         resting_angles: [-180, -45, -90, -135, 90, 0]
-        control_mode: 2
+        control_mode: 1 #0 = 6er vektor (x,y,z,r,p,y), 1 = joint angles direct len vektor = anzahl roboter joints oder eingabe bei control_joints (siehe unten), 2= joint velocities
         self_collision: True
         controlled_joints: ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint"]
       sensors:
