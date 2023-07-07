@@ -9,11 +9,9 @@
 
 ## Introduction
 
-This repository provides a platform for training virtual agents in robotics tasks Deep Reinforcement Learning (DRL).  The code is built on OpenAI Gym, Stable Baselines, and PyBullet. The system is designed to operate using a modular approach, giving the user the freedom to combine, configure, and repurpose single components like goal, robot or sensor types.
+This repository provides a platform for training virtual agents in robotics tasks using Deep Reinforcement Learning (DRL). The code is built on OpenAI Gym, Stable Baselines, and PyBullet. The system is designed to operate using a modular approach, giving the user the freedom to combine, configure, and repurpose single components like goal, robot or sensor types.
 
-An integral part of this project is the implementation of a transition mechanism from a simulated to a real-world environment. By leveraging the Robot Operating System (ROS) and voxelisation techniques, we have established a system that can effectively deploy trained models into real-world scenarios.
-
-In these real-world deployments, the trained agent is capable of detecting and dynamically responding to obstacles and human interactions. This functionality broadens its applicability across various domains, including industrial automation and interactive exhibits.
+An integral part of this project is the implementation of a transition mechanism from a simulated to a real-world environment. By leveraging functionalty of Robot Operating System (ROS) and voxelisation techniques, there is a system established that can effectively deploy trained models into real-world scenarios.
 
 This project is intended to serve as a resource for researchers, robotics enthusiasts, and professional developers interested in the application of Deep Reinforcement Learning in robotics.
 
