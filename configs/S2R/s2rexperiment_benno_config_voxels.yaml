@@ -2,7 +2,7 @@ run:
   algorithm:
     load_model: True  
     #model_path: "/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip"  #only if loaded model is necessary
-    model_path: "models/weights/PPO_s2rexperiment_exp0_1/model_8640000_steps.zip"
+    model_path: "/home/moga/Desktop/IR-DRL/models/weights/model_19440000_steps.zip"
     type: "PPO"
     config:
       gamma: 0.995
