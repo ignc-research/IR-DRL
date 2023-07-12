@@ -127,29 +127,21 @@ class S2RExperiment(World):
         while True:
             random_x = np.random.uniform(low=0.25, high=0.5)
             random_x_offset = np.random.uniform(low=-0.15, high=0.15)
-            #random_x = 0.3
             random_z = np.random.uniform(low=0.25, high=0.5)
             random_z_offset = np.random.uniform(low=-0.15, high=0.15)
-            #random_z = 0.3
             random_start_end = choice([(0.05, 0.55), (0.55, 0.05)])
-            #random_start_end = choice([(0.45, -0.181)])
             start_pos = np.array([random_x, random_start_end[0], random_z])
             end_pos = np.array([random_x + random_x_offset, random_start_end[1], random_z + random_z_offset])  # straight line across the table along the y axis
-            #start_pos = np.array([random_x, 0.05, random_z])
-            #end_pos = np.array([random_x, 0.55, random_z])
             diff = end_pos - start_pos
             random_obsts = sample(self.obstacle_objects, num_obsts)
-            #random_obsts = self.obstacle_objects[1:2]
 
 
             for obst in random_obsts:
                 waylength = np.random.uniform(low=0.3, high=0.8)
-                #waylength = 0.5
                 random_pos = start_pos + waylength * diff
                 if np.random.random() > 0.5:  # 50% of obstacles will be moving around
                     # generate random trajectory of random velocity and directions
                     random_vel = np.random.uniform(low=0.35, high=0.65)
-                    #random_vel = 0
                     traj = []
                     for _ in range(round(np.random.uniform(low=2, high=3))):
                         random_dir = np.random.uniform(low=-1, high=1, size=(3,))
@@ -197,7 +189,7 @@ class S2RExperiment(World):
         obst.trajectory = [np.array([0, 1.1 - random_y_start, 0.0]), np.array([0, -random_y_start, 0])]
         shuffle(obst.trajectory)
         self.active_objects += [obst]
-        targets = [np.array([0.55, 0.0, random_z_start]), np.array([0.4, -0.05, random_z_start]), np.array([0.4, 0.41, random_z_start])]
+        targets = [np.array([0.55, np.random.uniform(low=0, high=0.3), random_z_start]), np.array([0.4, np.random.uniform(low=0, high=0.3), random_z_start]), np.array([0.4, 0.41, random_z_start])]
         self.position_targets = [choice(targets)]
 
     def _set_up_exp2(self, num_obsts):
@@ -364,10 +356,12 @@ class S2RExperiment(World):
             #     continue
             #val = self._create_position_and_rotation_targets(self.robots)
         self.position_targets = [np.random.uniform(low=[0, 0.15, 0.25], high=[0.65, 0.65, 0.55], size=(3,))]
+        self.position_targets = [np.array([0.46117666, 0.46788782, 0.5519129 ])]
         self.robots[0].moveto_xyz(self.position_targets[0], False)
         joints, _ = pyb_u.get_joint_states(self.robots[0].object_id, self.robots[0].controlled_joints_ids)
         self.joints_targets = [joints]
         self.robots[0].moveto_joints(self.ee_starting_points[0][2], False)
+        self.robots[0].moveto_joints(self.robots[0].resting_pose_angles, False)
 
     def _set_up_exp7(self, num_obsts):
         # harcoded, quite hard target, should probably not appear in training
