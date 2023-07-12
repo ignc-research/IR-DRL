@@ -2,8 +2,8 @@
 
 
 <p float="left">
-  <img src="docs/gifs/GifReal.gif" width="400" />
-  <img src="docs/gifs/GifSim.gif" width="400" /> 
+  <img src="docs/gifs/GifRealSmol.gif" width="400" />
+  <img src="docs/gifs/GifSimSmol.gif" width="400" /> 
 </p>
 
 
