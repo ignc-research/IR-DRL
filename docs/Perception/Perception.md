@@ -10,10 +10,10 @@ For the purpose of enabling object detection in both dynamic and static scenario
 
 ## Setup
 
-- Camera: [Intel-Realsense-Depth-Camera-D435i] (https://www.intelrealsense.com/depth-camera-d435i/)
-- Ros Version: [Ros-Noetic] (http://wiki.ros.org/noetic)
+- Camera: [Intel-Realsense-Depth-Camera-D435i](https://www.intelrealsense.com/depth-camera-d435i/)
+- Ros Version: [Ros-Noetic](http://wiki.ros.org/noetic)
 - Camera ROS SDK : [Realsense-Ros](https://github.com/IntelRealSense/realsense-ros)
-- Voxelization: [Open-3D] (http://www.open3d.org/docs/latest/tutorial/Advanced/voxelization.html#)
+- Voxelization: [Open-3D](http://www.open3d.org/docs/latest/tutorial/Advanced/voxelization.html#)
 
 For those interested in replicating our Perception Pipeline, we have provided a comprehensive tutorial in the [Deployment](docs/Deployment.md) section. We encourage you to refer to this guide for detailed instructions and insights.
 
