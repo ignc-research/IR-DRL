@@ -31,7 +31,7 @@ run:
     display_delay: 0.00816666666  
     show_world_aux: True
     show_goal_aux: True
-    show_sensor_aux: True # Zeigt linien mit Abstand zu obstacles, führt zu warnmeldung debug draw failed
+    show_sensor_aux: False # Zeigt linien mit Abstand zu obstacles, führt zu warnmeldung debug draw failed
 
 env:
   max_steps_per_episode: 99999999 

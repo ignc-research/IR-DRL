@@ -131,7 +131,7 @@ class listener_node_one:
         self.enable_clustering = True #enable or disable clustering for performance reasons
         self.robot_voxel_cluster_distance = 0.3 #TODO: optimize this
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
-        self.voxel_cluster_threshold = 5 #TODO: Variabel an der anzahl von voxeln ändern nicht hardcoden
+        self.voxel_cluster_threshold = self.config['voxel_cluster_threshold'] #TODO: Variabel an der anzahl von voxeln ändern nicht hardcoden
         self.voxel_centers = None
         #Optional for recording voxels
         #self.all_frames = [] 
@@ -425,89 +425,17 @@ class listener_node_one:
             self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #if last argument = none only 5 of the 6 joints get recognized
             print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
             print("[cbControl] current (virtual) joint angles: " + str(self.joints))  
-            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or \n[cbControl] (c) to calibrate camera position or\n[cbControl] (r) to return the robot into the starting configuration (WARNING: does not consider collisions, both real and virtual!) or\n[cbControl] (p) to initialize robot control via a sample based planer: \n")
+            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or \n[cbControl] (c) to calibrate camera position or\n[cbControl] (v) to adjust voxel size or\n[cbControl] (r) to return the robot into the starting configuration (WARNING: does not consider collisions, both real and virtual!) or\n[cbControl] (p) to initialize robot control via a sample based planer: \n")
             if len(inp) == 1:
                 if inp == "r": # Resets the robot to the start position
                     print("[cbControl] Moving robot into resting pose")
                     self._move_to_resting_pose() 
                 if inp[0] == "c": # calibrates the camera
-                    was_static = self.point_cloud_static
-                    self.point_cloud_static = False
-                    self.camera_calibration = True                   
-                    print("[cbControl] current (virtual) camera position: " + str(self.camera_transform_to_pyb_origin[:3, 3]))
-                    print("[cbControl] current (virtual) camera rpy: " + str(self.config['camera_transform_to_pyb_origin']['rpy']))  
-                    inp = input("[cbControl] Enter a camera position: \n")
-                    inp = inp.split(" ")
-                    inp2 = input("[cbControl] Enter a camera rotation in extrinsic XYZ Euler format and in degrees: \n")
-                    inp2 = inp2.split(" ")
-                    try:
-                        inp = [float(ele) for ele in inp]
-                        inp2 = [float(ele) for ele in inp2]
-                    except ValueError:
-                        print("[cbControl] Input in wrong format, try again!")
-                        self.camera_calibration = False
-                        return
-                    # Update the config dictionary
-                    self.config['camera_transform_to_pyb_origin']['xyz'] = [float(value) for value in inp]
-                    self.config['camera_transform_to_pyb_origin']['rpy'] = [float(value) for value in inp2]
-                    # Save the updated configuration to the file
-                    self.save_config(self.config_path, self.config)
-                    # Reload the configuration to get the latest values
-                    self.config = self.load_config(self.config_path)
-
-                    self.camera_transform_to_pyb_origin[:3, :3] = (R.from_euler('xyz', np.array(inp2), degrees = True)).as_matrix()
-                    self.camera_transform_to_pyb_origin[:3, 3] = np.array(inp)
-                    self.camera_calibration = False
-                    self.point_cloud_static = was_static
-                    self.static_done = False
+                    self._control_calibrate()
                 if inp[0] == "p":
-                    # set mode to planner
-                    self.mode = False
-                    self.virtual_robot.use_physics_sim = False
-                    inp = input("[cbControl] Input six target joint angles with a space between each one: \n")
-                    inp = inp.split(" ")
-                    try:
-                        inp = np.array([float(ele) for ele in inp])
-                    except ValueError:
-                        print("[cbControl] input in wrong format, try again!")
-                        self.mode = True
-                        self.virtual_robot.use_physics_sim = True
-                        return
-                    # check for collision in current position
-                    self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
-                    pyb_u.perform_collision_check()
-                    pyb_u.get_collisions()
-                    if pyb_u.collision:
-                        print("[cbControl] current position of robot is in collision in simulation! Try again or check the camera/voxelization if the problem persists.")
-                        self.mode = True
-                        self.virtual_robot.use_physics_sim = True
-                        return
-                    # check for collision in target position
-                    self.virtual_robot.moveto_joints(inp, False, self.virtual_robot.all_joints_ids)
-                    pyb_u.perform_collision_check()
-                    pyb_u.get_collisions()
-                    if pyb_u.collision:
-                        print("[cbControl] target position is in collision in simulation! Try again or check the camera/voxelization if the problem persists..")
-                        self.mode = True
-                        self.virtual_robot.use_physics_sim = True
-                        return
-                    # call the planner to plan a collision free route to the target
-                    self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
-                    self.trajectory = self.planner.plan(inp, self.env.world.active_objects)
-                    if self.trajectory is None:
-                        print("[cbControl] Planner failed, try again!")
-                        self.mode = True
-                        self.virtual_robot.use_physics_sim = True
-                        return
-                    print("trajectory:", len(self.trajectory))
-                    print("letzter eintrag trajectory:", self.trajectory[-1])
-                    self.virtual_robot.control_mode = 1
-                    self.sim_step = 0
-                    self.real_step = 0
-                    self.virtual_robot.world.position_targets[0] = np.array([1,2,3])
-                    self.trajectory_idx = 0
-                    self.q_goal = inp 
-                    self.goal = np.array([1,2,3])  # some nonsense goal to set the mutex             
+                    self._control_planner()          # planner control callback ausgelagert  
+                if inp[0] == "v": # voxelsize
+                    self._control_voxelsettings()
             else:          
                 inp = inp.split(" ")
 
@@ -610,6 +538,115 @@ class listener_node_one:
                 self.inference_done = False
                 print("[cbControl] Goal reached, Task failed successfully!")
 
+    def _control_planner(self):
+        # set mode to planner
+        self.mode = False
+        self.virtual_robot.use_physics_sim = False
+        inp = input("[cbControl] Input six target joint angles with a space between each one: \n")
+        inp = inp.split(" ")
+        try:
+            inp = np.array([float(ele) for ele in inp])
+        except ValueError:
+            print("[cbControl] input in wrong format, try again!")
+            self.mode = True
+            self.virtual_robot.use_physics_sim = True
+            return
+        # check for collision in current position
+        self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
+        pyb_u.perform_collision_check()
+        pyb_u.get_collisions()
+        if pyb_u.collision:
+            print("[cbControl] current position of robot is in collision in simulation! Try again or check the camera/voxelization if the problem persists.")
+            self.mode = True
+            self.virtual_robot.use_physics_sim = True
+            return
+        # check for collision in target position
+        self.virtual_robot.moveto_joints(inp, False, self.virtual_robot.all_joints_ids)
+        pyb_u.perform_collision_check()
+        pyb_u.get_collisions()
+        if pyb_u.collision:
+            print("[cbControl] target position is in collision in simulation! Try again or check the camera/voxelization if the problem persists..")
+            self.mode = True
+            self.virtual_robot.use_physics_sim = True
+            return
+        # call the planner to plan a collision free route to the target
+        self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
+        self.trajectory = self.planner.plan(inp, self.env.world.active_objects)
+        if self.trajectory is None:
+            print("[cbControl] Planner failed, try again!")
+            self.mode = True
+            self.virtual_robot.use_physics_sim = True
+            return
+        print("trajectory:", len(self.trajectory))
+        print("letzter eintrag trajectory:", self.trajectory[-1])
+        self.virtual_robot.control_mode = 1
+        self.sim_step = 0
+        self.real_step = 0
+        self.virtual_robot.world.position_targets[0] = np.array([1,2,3])
+        self.trajectory_idx = 0
+        self.q_goal = inp 
+        self.goal = np.array([1,2,3])  # some nonsense goal to set the mutex 
+
+    def _control_calibrate(self):
+        was_static = self.point_cloud_static
+        self.point_cloud_static = False
+        self.camera_calibration = True                   
+        print("[cbControl] current (virtual) camera position: " + str(self.camera_transform_to_pyb_origin[:3, 3]))
+        print("[cbControl] current (virtual) camera rpy: " + str(self.config['camera_transform_to_pyb_origin']['rpy']))  
+        inp = input("[cbControl] Enter a camera position: \n")
+        inp = inp.split(" ")
+        inp2 = input("[cbControl] Enter a camera rotation in extrinsic XYZ Euler format and in degrees: \n")
+        inp2 = inp2.split(" ")
+        try:
+            inp = [float(ele) for ele in inp]
+            inp2 = [float(ele) for ele in inp2]
+        except ValueError:
+            print("[cbControl] Input in wrong format, try again!")
+            self.camera_calibration = False
+            return
+        # Update the config dictionary
+        self.config['camera_transform_to_pyb_origin']['xyz'] = [float(value) for value in inp]
+        self.config['camera_transform_to_pyb_origin']['rpy'] = [float(value) for value in inp2]
+        # Save the updated configuration to the file
+        self.save_config(self.config_path, self.config)
+        # Reload the configuration to get the latest values
+        self.config = self.load_config(self.config_path)
+
+        self.camera_transform_to_pyb_origin[:3, :3] = (R.from_euler('xyz', np.array(inp2), degrees = True)).as_matrix()
+        self.camera_transform_to_pyb_origin[:3, 3] = np.array(inp)
+        self.camera_calibration = False
+        self.point_cloud_static = was_static
+        self.static_done = False
+
+    def _control_voxelsettings(self):
+        print("[cbControl] Current voxel size: " + str(self.voxel_size))
+        print("[cbControl] Current robot voxel safe distance: " + str(self.robot_voxel_safe_distance))
+        print("[cbControl] Current minimal cluster size: " + str(self.voxel_cluster_threshold))
+        inp = input("[cbControl] Enter new voxel size as a float:\n")
+        try:
+            val = float(inp)
+        except ValueError:
+            print("[cbControl] Invalid value for voxel size!")
+        self.voxel_size = val
+        self.config['voxel_size'] = val
+        self.save_config(self.config_path, self.config)
+        inp = input("[cbControl] Enter new robot voxel safe distance as a float:\n")
+        try:
+            val = float(inp)
+        except ValueError:
+            print("[cbControl] Invalid value for robot voxel safe distance!")
+        self.robot_voxel_safe_distance = val
+        self.config['robot_voxel_safe_distance'] = val
+        self.save_config(self.config_path, self.config)
+        inp = input("[cbControl] Enter a new minimal cluster size as an int:\n")
+        try: 
+            val = float(inp)
+        except ValueError:
+            print("[cbControl] Invalid value for cluster size!")
+        self.voxel_cluster_threshold = val
+        self.config['voxel_cluster_threshold'] = val
+        self.save_config(self.config_path, self.config)
+    
     def cbGetPointcloud(self, data):
         # print("[cbGetPointcloud] started")
         np_data = ros_numpy.numpify(data)
@@ -720,13 +757,15 @@ class listener_node_one:
                 voxel_clusters = get_voxel_cluster(voxel_centers, self.neighbourhood_threshold)
                 # find clusters below a cluster size
                 cluster_numbers, counts = np.unique(voxel_clusters, return_counts=True)
-                remove_cluster = []
-                for idx, clus in enumerate(cluster_numbers):
-                    if counts[idx] < self.voxel_cluster_threshold:
-                        remove_cluster.append(clus)
+                # remove_cluster = []
+                # for idx, clus in enumerate(cluster_numbers):
+                #     if counts[idx] < self.voxel_cluster_threshold:
+                #         remove_cluster.append(clus)
+                counts_too_low_mask = counts < self.voxel_cluster_threshold
+                include_cluster = cluster_numbers[np.invert(counts_too_low_mask)]
                 # remove voxels belonging to small clusters
-                remove_cluster_idx = np.isin(voxel_clusters, remove_cluster, invert=True)
-                voxel_centers = voxel_centers[remove_cluster_idx] 
+                include_cluster_idx = np.isin(voxel_clusters, include_cluster)
+                voxel_centers = voxel_centers[include_cluster_idx] 
                 
 
             self.voxel_centers = voxel_centers
@@ -745,7 +784,7 @@ class listener_node_one:
                 pyb_u.set_base_pos_and_ori(voxel.object_id, self.voxel_centers[idx], np.array([0, 0, 0, 1]))          
                 voxel.position = self.voxel_centers[idx]
             # calculate new colors
-            if self.color_voxels:
+            if self.color_voxels and len(self.voxel_centers) != 0:
                 voxel_norms = np.linalg.norm(self.voxel_centers - self.camera_transform_to_pyb_origin[:3, 3], axis=1)
                 max_norm, min_norm = np.max(voxel_norms), np.min(voxel_norms)
                 voxel_norms = (voxel_norms - min_norm) / (max_norm -  min_norm)

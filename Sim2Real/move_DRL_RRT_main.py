@@ -56,7 +56,7 @@ JOINT_NAMES = [
 class listener_node_one:
     def __init__(self, action_rate, control_rate, num_voxels, point_cloud_static):
         # yaml config file
-        self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/config.yaml'
+        self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/configold.yaml'
         self.config = self.load_config(self.config_path)
 
         # variables for logging real clock time
@@ -124,7 +124,7 @@ class listener_node_one:
         self.enable_clustering = True #enable or disable clustering for performance reasons
         self.robot_voxel_cluster_distance = 0.3 #TODO: optimize this
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
-        self.voxel_cluster_threshold = 5 #TODO: Variabel an der anzahl von voxeln ändern nicht hardcoden
+        self.voxel_cluster_threshold = 50 #TODO: Variabel an der anzahl von voxeln ändern nicht hardcoden
         self.voxel_centers = None
         #Optional for recording voxels
         #self.all_frames = [] 
