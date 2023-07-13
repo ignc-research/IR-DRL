@@ -12,5 +12,5 @@ drl_horizon: 5
 enable_PC: false
 max_inference_steps: 5000
 robot_voxel_safe_distance: 0.15
-voxel_cluster_threshold: 5.0
-voxel_size: 0.1
+voxel_cluster_threshold: 50
+voxel_size: 0.05

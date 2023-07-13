@@ -1,6 +1,6 @@
 camera_transform_to_pyb_origin:
-- 0.45
-- 1.85
+- 0.35
+- 1.8
 - 0.3
 dist_threshold: 0.03
 drl_horizon: 5

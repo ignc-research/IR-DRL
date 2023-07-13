@@ -44,6 +44,12 @@ from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxel
 # Custom Reset episodes are probably not counted correctly because we only call custom reset once in the beginning
 # farben bug fixen
 # Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht
+# RGB durch Voxels
+# Open3D auf GPU
+
+# TODO temporal filter:
+# 1. create numpy array of size temporal horizon x (3D shape of voxel grid)
+# 2. check by index wether position was occupied in the past
 
 JOINT_NAMES = [
     "shoulder_pan_joint",
@@ -173,8 +179,7 @@ class listener_node_one:
         self.pos_nowhere= np.array([0,0,-100])
         # initialize probe_voxel and obstacle_voxels
         self.initialize_voxels()
-        # TODO: hacky: put all objects (i.e. including voxels and scenery) into the active category so that our sensors can see them
-        self.env.world.active_objects = self.env.world.obstacle_objects
+       
         pyb_u.toggle_rendering(False)
         self.virtual_robot.goal.delete_visual_aux()
         pyb_u.toggle_rendering(True)
@@ -619,9 +624,11 @@ class listener_node_one:
         self.static_done = False
 
     def _control_voxelsettings(self):
+        self.dont_voxelize = True
         print("[cbControl] Current voxel size: " + str(self.voxel_size))
         print("[cbControl] Current robot voxel safe distance: " + str(self.robot_voxel_safe_distance))
         print("[cbControl] Current minimal cluster size: " + str(self.voxel_cluster_threshold))
+        print("[cbControl] Current number of voxels: " + str(self.num_voxels))
         inp = input("[cbControl] Enter new voxel size as a float:\n")
         try:
             val = float(inp)
@@ -640,22 +647,34 @@ class listener_node_one:
         self.save_config(self.config_path, self.config)
         inp = input("[cbControl] Enter a new minimal cluster size as an int:\n")
         try: 
-            val = float(inp)
+            val = int(inp)
         except ValueError:
             print("[cbControl] Invalid value for cluster size!")
         self.voxel_cluster_threshold = val
         self.config['voxel_cluster_threshold'] = val
         self.save_config(self.config_path, self.config)
+        inp = input("[cbControl] Enter a new number of voxels as an int:\n")
+        try: 
+            val = int(inp)
+        except ValueError:
+            print("[cbControl] Invalid value for number of voxels!")
+        self.num_voxels = val
+        self.delete_voxels()
+        self.initialize_voxels()
+        self.dont_voxelize = False
     
     def cbGetPointcloud(self, data):
         # print("[cbGetPointcloud] started")
         np_data = ros_numpy.numpify(data)
-         
         points = np.ones((np_data.shape[0], 4))
         points[:, 0] = np_data['x']
         points[:, 1] = np_data['y']
         points[:, 2] = np_data['z']
+        color_floats = np_data['rgb']
+        color_floats = np.ascontiguousarray(color_floats)
+        self.colors = color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)
         self.points_raw = points
+        #self.colors = np.vstack([r, g, b])
 
     def cbPointcloudToPybullet(self, event):
         # callback for PointcloudToPybullet
@@ -692,17 +711,23 @@ class listener_node_one:
         if self.joints is not None:
             # prefilter data
             points = self.points_raw
+            colors = self.colors
             points_norms = np.linalg.norm(points, axis=1)
-            points = points[np.logical_and(points_norms <= 3.0, points_norms > 0.6)]  # remove data points that are too far or too close
+            norm_mask = np.logical_and(points_norms <= 3.0, points_norms > 0.6)
+            points = points[norm_mask]  # remove data points that are too far or too close
+            colors = colors[norm_mask]
 
             # rotate and translate the data into the world coordinate system
             points = np.dot(self.camera_transform_to_pyb_origin, points.T).T.reshape(-1,4)
+
             points = points[:, :3]  # remove homogeneous component
 
             if not self.camera_calibration:
                 # postfilter data
                 # remove the table, points below lower threshold
-                points = points[points[:, 2] > -0.1]
+                table_mask = points[:, 2] > -0.1
+                points = points[table_mask]
+                colors = colors[table_mask]
                 # remove points above a certain threshold where no obstacles should be :2 weil z achse
                 #points = points[points[:, 2] < 0.5]
                 # filter objects near endeffector
@@ -713,6 +738,7 @@ class listener_node_one:
                 delete_mask = np.logical_and(mask_left, mask_above)
                 # filter by bool_array
                 points = points[delete_mask] 
+                colors = colors[delete_mask]
             
 
             # get the offset for the voxel transformation later on
@@ -721,9 +747,16 @@ class listener_node_one:
             pcd = o3d.geometry.PointCloud()
             # convert it into open 3d format
             pcd.points = o3d.utility.Vector3dVector(points)
+            pcd.colors = o3d.utility.Vector3dVector(colors / 255) #einfärben in die farben die wir berechnet haben aus der pointcloud
+            
             voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.voxel_size)
-            voxel_centers = [voxel.grid_index for voxel in voxel_grid.get_voxels()]
+            
+            voxel_data = [(voxel.grid_index, voxel.color) for voxel in voxel_grid.get_voxels()]
+            voxel_centers, voxel_colors = zip(*voxel_data)
+            
+
             voxel_centers = np.array(voxel_centers)
+            voxel_colors = np.array(voxel_colors)
             voxel_centers = voxel_centers * self.voxel_size + offset
             #print(voxel_centers)
             
@@ -741,6 +774,7 @@ class listener_node_one:
                     query = pyb.getClosestPoints(pyb_u.to_pb(self.probe_voxel.object_id), pyb_u.to_pb(self.virtual_robot.object_id), self.robot_voxel_safe_distance)      
                     not_delete_mask[idx] = False if query else True
                 voxel_centers = voxel_centers[not_delete_mask]
+                voxel_colors = voxel_colors[not_delete_mask]
                 # move robot back to where it was when filtering started
                 self.virtual_robot.moveto_joints(joints_now, False, self.virtual_robot.all_joints_ids)
                 pyb_u.toggle_rendering(True)
@@ -761,14 +795,15 @@ class listener_node_one:
                 # for idx, clus in enumerate(cluster_numbers):
                 #     if counts[idx] < self.voxel_cluster_threshold:
                 #         remove_cluster.append(clus)
-                counts_too_low_mask = counts < self.voxel_cluster_threshold
-                include_cluster = cluster_numbers[np.invert(counts_too_low_mask)]
+                include_cluster = cluster_numbers[np.invert(counts < self.voxel_cluster_threshold)]
                 # remove voxels belonging to small clusters
                 include_cluster_idx = np.isin(voxel_clusters, include_cluster)
                 voxel_centers = voxel_centers[include_cluster_idx] 
+                voxel_colors = voxel_colors[include_cluster_idx]
                 
 
             self.voxel_centers = voxel_centers
+            self.voxel_colors = voxel_colors
 
     def VoxelsToPybullet(self):
         if self.voxel_centers is not None:
@@ -785,19 +820,21 @@ class listener_node_one:
                 voxel.position = self.voxel_centers[idx]
             # calculate new colors
             if self.color_voxels and len(self.voxel_centers) != 0:
-                voxel_norms = np.linalg.norm(self.voxel_centers - self.camera_transform_to_pyb_origin[:3, 3], axis=1)
-                max_norm, min_norm = np.max(voxel_norms), np.min(voxel_norms)
-                voxel_norms = (voxel_norms - min_norm) / (max_norm -  min_norm)
-                colors = np.ones((len(voxel_norms), 4))
-                colors = np.multiply(colors, voxel_norms.reshape(len(voxel_norms),1))
-                colors[:,3] = 1
-                colors[:,2] *= 0.5
-                colors[:,1] *= 0.333
-                colors[:,:3] = 1 - colors[:, :3]
+                # voxel_norms = np.linalg.norm(self.voxel_centers - self.camera_transform_to_pyb_origin[:3, 3], axis=1)
+                # max_norm, min_norm = np.max(voxel_norms), np.min(voxel_norms)
+                # voxel_norms = (voxel_norms - min_norm) / (max_norm -  min_norm)
+                # colors = np.ones((len(voxel_norms), 4))
+                # colors = np.multiply(colors, voxel_norms.reshape(len(voxel_norms),1))
+                # colors[:,3] = 1
+                # colors[:,2] *= 0.5
+                # colors[:,1] *= 0.333
+                # colors[:,:3] = 1 - colors[:, :3]
+                ones = np.ones((self.voxel_colors.shape[0], 1), dtype=np.float32)
+                new_colors = np.concatenate([self.voxel_colors, ones], axis=1)
                 for idx, voxel in enumerate(self.voxels):
                     if idx >= len(self.voxel_centers):
                         break
-                    pyb.changeVisualShape(pyb_u.to_pb(voxel.object_id), -1, rgbaColor=colors[idx])
+                    pyb.changeVisualShape(pyb_u.to_pb(voxel.object_id), -1, rgbaColor=new_colors[idx])
             pyb_u.toggle_rendering(True)
             
     
@@ -872,6 +909,18 @@ class listener_node_one:
             self.voxels.append(new_voxel)
             new_voxel.build()
             self.env.world.obstacle_objects.append(new_voxel)
+        self.env.world.active_objects = self.env.world.obstacle_objects
+        pyb_u.toggle_rendering(True)
+
+    def delete_voxels(self):
+        pyb_u.toggle_rendering(False)
+        for voxel in self.voxels:
+            #initialise pybullet again
+            pyb.removeBody(pyb_u.to_pb(voxel.object_id))
+            del voxel
+        self.env.world.obstacle_objects = []
+        self.env.world.active_objects = []
+        self.voxels = []
         pyb_u.toggle_rendering(True)
 
     def load_config(self, file_path):
@@ -942,10 +991,6 @@ class listener_node_one:
                             print(entry)
                             print(key)
             #print(self.env.log)
-
-
-    
-
         
         
     
