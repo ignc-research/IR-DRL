@@ -1,57 +1,27 @@
 # Modular DLR Gym Env for Robots with PyBullet
 
-This repo implements a modular DRL Gym env for training policies for robots. Major components are kept as abstracts, enabling easy reconfiguration of all relevant objects, e.g. robots, sensors or the scenario.
 
-## Dependencies
+<p float="left">
+  <img src="docs/gifs/GifRealSmol.gif" width="400" />
+  <img src="docs/gifs/GifSimSmol.gif" width="400" /> 
+</p>
 
-- Python 3.10
-- numpy
-- gym
-- stable_baselines3
-- sb3-contrib
-- torch
-- pybullet
-- pandas
-- tensorboard
-- pyaml
-- pybullet-planning
 
-Once python is installed, you can use ```pip install -r requirements.txt``` to install the above packages in versions that work with the code in this repo.
-It may sometimes also be necessary to follow up with ```conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia``` to ensure that GPU support for training is enabled.
+## Introduction
 
-## State of the code & plans
+This repository provides a platform for training virtual agents in robotics tasks using Deep Reinforcement Learning (DRL). The code is built on OpenAI Gym, Stable Baselines, and PyBullet. The system is designed to operate using a modular approach, giving the user the freedom to combine, configure, and repurpose single components like goal, robot or sensor types.
 
-The gym env is fully modular and can be controlled by YAML config files. Customizable defaults and examples for several scenarios can be found in the config folder. The explanations.yaml file contains an overview of all possible options with comments.
+An integral part of this project is the implementation of a transition mechanism from a simulated to a real-world environment. By leveraging the functionalty of ROS (Robot Operating System) and Voxelisation techniques with Open 3D, there is a system established that can effectively deploy trained models into real-world scenarios. There they are able to deal with static and dynamic obstacles.
 
-To implement your own sensors, scenarios, robots or goals refer to the existing implementations. Both the abstract base classes and the implementations feature explicit instructions and commentary for writing your own version.
+This project is intended to serve as a resource for researchers, robotics enthusiasts, and professional developers interested in the application of Deep Reinforcement Learning in robotics.
 
-Implemented:
-- Engines:
-    - Pybullet
-    - (WIP) Isaac
-- Robots:
-    - movement via Inverse Kinematics, Joint Angles and Joint Velocities
-    - UR5
-    - Kuka KR16
-    - Kuka LBR iiwa
-- Sensors:
-    - Position & Rotation
-    - Joints
-    - Lidar
-    - Camera (floating, floating & following, mounted on EE)
-- Worlds (Scenarios):
-    - Random Obstacles
-    - Table Experiment with humans and random obstacles
-    - Kuka Shelf experiment
-    - World Generator
-    - Test Cases
-- Goal:
-    - Position goal with collision avoidance
+## Getting Started
 
-## Running the code
+To get started with the project, please follow the instructions in the following sections:
 
-To start training or evaluation, run ```python run.py configfile --train|--eval|--debug```. configfile should be the path to a valid YAML config file (see the examples in /configs/) while --train, --eval and --debug determine the mode the env will run in.
+- [Setup](docs/SETUP.md): Instructions for setting up and installing the project.
+- [Training/Evaluation](docs/TRAINING.md): Information on how to train and evaluate the models.
+- [Perception](docs/Perception/Perception.md): Details about our perception Pipeline.  
+- [Deployment](docs/DEPLOYMENT.md): Guidelines for deploying the project in a Real World environment.
 
-## pip install
-
-If you need the code as a package elsewhere, the setup.py file in this repo will create an installable version including all asset files.
+Please ensure you read through all the sections to understand how to use the project effectively.
