@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-# Notes Karim: ask confirmation wurde rausgenommen for purposes of geschwindigkeit. function is still there just not used at the moment. 
-# if needed it can be reintegratet in the move_simple function
-
 
 import sys
 import yaml 
@@ -27,10 +24,6 @@ from sensor_msgs.msg import JointState
 from listener_node import listener_node_one
 
 
-#TODO: calibration.yaml as object and print /aktuelle Position vom Endeffektor xyz rpy am wichtigsten
-#TODO: find out joint winkel and save them as object
-#TODO: log joint time 
-#TODO: Stop function ()
 
 # Compatibility for python2 and python3
 if sys.version_info[0] < 3:
