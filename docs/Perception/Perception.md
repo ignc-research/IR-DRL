@@ -20,7 +20,7 @@ For those interested in replicating our Perception Pipeline, we have provided a 
 ## Clustering
 In order to prevent the issue of 'free floating voxels'— anomalies occasionally misidentified by the camera— we use a clustering method grounded in K-D Trees. To ensure minimal latency relative to real-time movements, we have implemented a parallelized approach to the nearest neighbour search.
 
-TODO: Pictures of Before Clustering, after Clustering
+
 
 
 ## Voxel Size and Clustering Adjustemens
@@ -34,12 +34,12 @@ However, for more performance-oriented setups, a *voxel size* of *0.035* and a *
     <td align="center">
       <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelfein.png" width="400" />
       <br><br>
-      <b>Small Voxel size and high number of voxels</b>
+      <b>small voxel size and high number of voxels</b>
     </td>
     <td align="center">
       <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelgrob1.png" width="400" />
       <br><br>
-      <b>Big Voxel size and low number of voxels</b>
+      <b>big voxel size and low number of voxels</b>
     </td>
   </tr>
 </table>
