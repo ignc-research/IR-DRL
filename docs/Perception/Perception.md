@@ -29,6 +29,12 @@ The precision and performance of the system can be significantly influenced by t
 However, for more performance-oriented setups, a *voxel size* of *0.035* and a *clustering size* of *50* may be more suitable. We encourage users to experiment with these parameters to identify the configuration that best suits their system's capabilities and their specific requirements.
 
 <p float="left">
-  <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelfein.png" width="400" />
-  <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelgrob1.png" width="400" /> 
+  <figure>
+    <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelfein.png" width="400" />
+    <figcaption>small Voxel size and high number of voxels</figcaption>
+  </figure>
+  <figure>
+    <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelgrob1.png" width="400" />
+    <figcaption>big Voxel size and low number of voxels</figcaption>
+  </figure>
 </p>
