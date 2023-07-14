@@ -30,6 +30,6 @@ However, for more performance-oriented setups, a *voxel size* of *0.035* and a *
 
 <p float="left">
   <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelfein.png" width="400" />
-  <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelgrob2.pngg" width="400" /> 
+  <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelgrob2.png" width="400" /> 
   <img src="https://github.com/ignc-research/IR-DRL/blob/readme_overhaul/docs/Perception/gifs/voxelgrob1.png" width="400" /> 
 </p>
