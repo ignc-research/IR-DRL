@@ -26,7 +26,7 @@ We recommend installing our *modular_drl_env* as a pip package, so that you can 
 
 Once the installation is complete, you should be able to execute our Sim2Real Method by running the move_DRL_main.py file. Please ensure that the camera and robot are properly connected before attempting to run the file.
 
- A more detailled instruction will be available in coding guide.
+ A more detailled instruction will be available in our coding guide.
 
  ## Examples
  Coming Soon
