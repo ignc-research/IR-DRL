@@ -1,0 +1,130 @@
+# config that builds the env as Yifan had it
+run:
+  load_model: True
+  model_path: "./models/weights/remote/model_15360000_steps"
+  train:
+    num_envs : 16
+    timesteps: 1500000000
+    save_freq : 120000
+    save_folder: "./models/weights"
+    save_name: "PPO_Sim2Real_obsts_lidar_"
+    recurrent: False
+    ppo_steps: 1024
+    batch_size: 2048
+    gamma: 0.995
+    tensorboard_folder: "./models/tensorboard_logs"
+    custom_policy:
+      use: False
+      activation_function: "ReLU"  
+      layers:
+        - 256
+        - 256
+        - value_function:
+          - 256
+          - 256
+        - policy_function:
+          - 256
+          - 256
+          - 256  
+      lstm:
+        lstm_hidden_size: 512
+        n_lstm_layers: 2
+        shared_lstm: False
+        enable_critic_lstm: True
+
+  eval:
+    max_episodes: -1
+    logging: 1
+    display_delay: 0.00416666666
+    show_world_aux: True
+    show_goal_aux: True
+    show_sensor_aux: False
+
+env:
+  max_steps_per_episode: 1024
+  stat_buffer_size: 25
+  normalize_observations: False
+  normalize_rewards: False
+  engine:
+    type: "Pybullet"
+    use_physics_sim: True
+    gravity: [ 0, 0, -9.8 ]
+    sim_step: 0.00416666666
+    sim_steps_per_env_step: 1
+  robots:
+    - type: "UR5_Gripper" 
+      report_joint_velocities: False
+      config:
+        name: "ur5_1"
+        base_position: [0, 0, 0.01]
+        base_orientation: [0, 0, -180]
+        resting_angles: [ -180, -45, -90, -135, 90, 0 ]
+        control_mode: 2
+        joint_vel_mul: 0.5
+        joint_limit_mul: 0.985
+      sensors:
+        # - type: "LidarSensorUR5"
+        #   config:
+        #     update_steps: 1
+        #     add_to_observation_space: True
+        #     add_to_logging: False
+        #     indicator_buckets: 20
+        #     ray_start: 0
+        #     ray_end: 0.3
+        #     ray_setup:
+        #       ee_forward: [1, 1]
+        #       wrist3_circle: [8, 3]
+        #       wrist1_circle: [8, 3]
+        #       upper_arm: [8, 3]
+        #       lower_arm: [8, 3]
+        #     indicator: True   
+        - type: "Obstacle"
+          config:
+            update_steps: 1
+            add_to_observation_space: True
+            add_to_logging: False
+            num_obstacles: 2
+            max_distance: 15
+            reference_link_id: "ee_link"
+        - type: "Obstacle"
+          config:
+            update_steps: 1
+            add_to_observation_space: True
+            add_to_logging: False
+            num_obstacles: 2
+            max_distance: 15
+            reference_link_id: "forearm_link"
+        - type: "Obstacle"
+          config:
+            update_steps: 1
+            add_to_observation_space: True
+            add_to_logging: False
+            num_obstacles: 2
+            max_distance: 15
+            reference_link_id: "upper_arm_link" 
+      goal:
+        type: "PositionRotationBetterSmoothingCollision"
+        config:
+          add_to_logging: True
+          continue_after_success: True
+          reward_success: 15
+          reward_collision: -5
+          reward_distance_mult: -0.01
+          reward_smoothness_mult: 0
+          dist_threshold_start: 0.3
+          dist_threshold_end : 0.02
+          dist_threshold_increment_start: 0.01
+          dist_threshold_increment_end: 0.001
+          dist_threshold_overwrite: 0.06
+          dist_threshold_change: 0.7
+
+  world:
+    type: "Generated"
+    config:
+      workspace_boundaries: [-2, 2, -2, 2, -1, 5]
+      obstacles:
+      - type: "box"  # tisch
+        position: [0.25, 0.25, -0.5]
+        rotation: [0, 0, 0]
+        params:
+          scale: [0.6, 0.6, 1]

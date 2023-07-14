@@ -2,8 +2,8 @@
 
 
 <p float="left">
-  <img src="docs/gifs/GifRealSmol.gif" width="400" />
-  <img src="docs/gifs/GifSimSmol.gif" width="400" /> 
+  <img src="https://github.com/ignc-research/IR-DRL/blob/sim2real/docs/gifs/GifReal.gif" width="400" />
+  <img src="https://github.com/ignc-research/IR-DRL/blob/sim2real/docs/gifs/GifSim.gif" width="400" /> 
 </p>
 
 
