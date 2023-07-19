@@ -27,7 +27,7 @@ from scipy.spatial.transform import Rotation as R
 
 import pandas as pd
 
-
+import torch
 from collections import deque
 from scipy.spatial import cKDTree
 
@@ -108,6 +108,8 @@ class listener_node_one:
         self.inference_done = False
         self.camera_calibration = False
         self.dont_voxelize = False
+        self.use_gpu = True # torch.cuda.is_available()
+        self.data_get_guard = False
 
         # cbGetPointcloud
         self.points_raw = None
@@ -200,6 +202,7 @@ class listener_node_one:
         """from modular_drl_env.util.misc import analyse_obs_spaces
         analyse_obs_spaces(self.env.observation_space, self.model.observation_space)"""
         
+        print("[Listener] Using GPU support for voxelization." if self.use_gpu else "[Listener] Using CPU for voxelization.")
         print("[Listener] Moving robot into resting pose")
         self._move_to_resting_pose()
         sleep(1)
@@ -664,24 +667,25 @@ class listener_node_one:
         self.dont_voxelize = False
     
     def cbGetPointcloud(self, data):
-        # print("[cbGetPointcloud] started")
-        np_data = ros_numpy.numpify(data)
-        points = np.ones((np_data.shape[0], 4))
-        points[:, 0] = np_data['x']
-        points[:, 1] = np_data['y']
-        points[:, 2] = np_data['z']
-        color_floats = np_data['rgb']
-        color_floats = np.ascontiguousarray(color_floats)
-        self.colors = color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)
-        self.points_raw = points
-        #self.colors = np.vstack([r, g, b])
+        if not self.data_get_guard:
+            # print("[cbGetPointcloud] started")
+            np_data = ros_numpy.numpify(data)
+            points = np.ones((np_data.shape[0], 4))
+            points[:, 0] = np_data['x']
+            points[:, 1] = np_data['y']
+            points[:, 2] = np_data['z']
+            color_floats = np_data['rgb']
+            color_floats = np.ascontiguousarray(color_floats)
+            self.colors = color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)
+            self.points_raw = points
+            #self.colors = np.vstack([r, g, b])
 
     def cbPointcloudToPybullet(self, event):
         # callback for PointcloudToPybullet
         # static = only one update
         # dynamic = based on update frequency
 
-        #start = time()
+        start = time()
         if self.points_raw is not None and not self.dont_voxelize: #and not self.running_inference:  # catch first time execution scheduling problems
             if self.point_cloud_static:
                 if self.static_done:
@@ -693,6 +697,8 @@ class listener_node_one:
                     self.VoxelsToPybullet()
             else:
                 self.PointcloudToVoxel()
+                print("[cb Pointcloud to Pybullet time: ]" , time() - start)
+                print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
                 #self.all_frames.append(self.voxel_centers.copy()) # Optional for recording
                 self.VoxelsToPybullet()
         #np.save("./voxels.npy", self.all_frames)
@@ -705,21 +711,56 @@ class listener_node_one:
             self.all_frames = []
             self.start_time = time()
             print("Dumped new frames")"""
-        #print("[cb Pointcloud to Pybullet time: ]" , time() - start)
+        
 
     def PointcloudToVoxel(self):
-        if self.joints is not None:
-            # prefilter data
-            points = self.points_raw
-            colors = self.colors
-            points_norms = np.linalg.norm(points, axis=1)
-            norm_mask = np.logical_and(points_norms <= 3.0, points_norms > 0.6)
-            points = points[norm_mask]  # remove data points that are too far or too close
-            colors = colors[norm_mask]
+        if self.joints is not None and len(self.points_raw) != 0:
+            if not self.use_gpu:
+                ############## CPU #######################
+                # prefilter data 
+                self.data_get_guard = True
+                points = self.points_raw
+                colors = self.colors
+                self.data_get_guard = False
+                points_norms = np.linalg.norm(points, axis=1)
+                norm_mask = np.logical_and(points_norms <= 3.0, points_norms > 0.6)
+                points = points[norm_mask]  # remove data points that are too far or too close
+                colors = colors[norm_mask]
+                
 
-            # rotate and translate the data into the world coordinate system
-            points = np.dot(self.camera_transform_to_pyb_origin, points.T).T.reshape(-1,4)
+                # rotate and translate the data into the world coordinate system
+                points = np.dot(self.camera_transform_to_pyb_origin, points.T).T.reshape(-1,4)
+    
+            else:
+                #################### GPU ####################################
+                # points = backup.astype(np.float32)  # Ensure points are of type float32
+                # colors = colors_backup.astype(np.float32)  # Ensure colors are of type float32
+                # test_matrix = self.camera_transform_to_pyb_origin.astype(np.float32)
+                # Transfer data to the GPU
+                # TODO: guard against overwrite from the gathering callback
+                self.data_get_guard = True
+                points = self.points_raw
+                colors = self.colors
+                self.data_get_guard = False
+                points = torch.from_numpy(points).to('cuda')
+                colors = torch.from_numpy(colors).to('cuda')
+                camera_transform_gpu = torch.from_numpy(self.camera_transform_to_pyb_origin).to('cuda')
+                
+                # Calculate points norms on the GPU
+                points_norms = torch.norm(points, dim=1)
+                
+                # Create norm mask on the GPU
+                norm_mask = torch.logical_and(points_norms <= 3.0, points_norms > 0.6)
+                
+                assert points.shape[0] == colors.shape[0]
+                # Apply mask on the GPU
+                points = points[norm_mask]
+                
+                colors = colors[norm_mask]
 
+                # Perform matrix multiplication to rotate the points
+                points = torch.matmul(camera_transform_gpu, points.T).T.reshape(-1,4)
+                
             points = points[:, :3]  # remove homogeneous component
 
             if not self.camera_calibration:
@@ -733,14 +774,33 @@ class listener_node_one:
                 # filter objects near endeffector
                 ee_pos, _, _, _ = pyb_u.get_link_state(self.virtual_robot.object_id, self.virtual_robot.end_effector_link_id)
                 # TODO may need to be adjusted with KINECT Cam
-                mask_left = self.delete_points_by_circle_center(points, ee_pos + np.array([0.1, -0.1, 0.2]))  # TODO: maybe find a general way to do this
-                mask_above = self.delete_points_by_circle_center(points, ee_pos + np.array([0, 0, 0.15]))
-                delete_mask = np.logical_and(mask_left, mask_above)
+                if self.use_gpu:
+                    mask_offset1 = torch.from_numpy(ee_pos) + torch.tensor([0.1, -0.1, 0.2])
+                    mask_offset1 = mask_offset1.to('cuda')
+                    mask_offset2 = torch.from_numpy(ee_pos) + torch.tensor([0, 0, 0.15])
+                    mask_offset2 = mask_offset2.to('cuda')
+                else:
+                    mask_offset1 = ee_pos + np.array([0.1, -0.1, 0.2])
+                    mask_offset2 = ee_pos + np.array([0, 0, 0.15])
+                mask_left = self.delete_points_by_circle_center(points, mask_offset1)  # TODO: maybe find a general way to do this
+                mask_above = self.delete_points_by_circle_center(points, mask_offset2)
+                if self.use_gpu:
+                    delete_mask = torch.logical_and(mask_left, mask_above)
+                else:
+                    delete_mask = np.logical_and(mask_left, mask_above)
                 # filter by bool_array
                 points = points[delete_mask] 
                 colors = colors[delete_mask]
-            
 
+            # safety escape: the code below will crash in case no points survive the filtering process
+            if len(points) == 0:
+                return
+            
+            #if not self.use_gpu:
+            if self.use_gpu:
+                points = points.cpu().numpy()
+                colors = colors.cpu().numpy()
+            
             # get the offset for the voxel transformation later on
             offset = np.array([np.min(points[:,0]), np.min(points[:,1]), np.min(points[:,2])]) #points.min(axis=0)
 
@@ -750,6 +810,8 @@ class listener_node_one:
             pcd.colors = o3d.utility.Vector3dVector(colors / 255) #einfärben in die farben die wir berechnet haben aus der pointcloud
             
             voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.voxel_size)
+            #else:
+                #ml3d.ops.voxelize(points, [])
             
             voxel_data = [(voxel.grid_index, voxel.color) for voxel in voxel_grid.get_voxels()]
             voxel_centers, voxel_colors = zip(*voxel_data)
@@ -758,6 +820,7 @@ class listener_node_one:
             voxel_centers = np.array(voxel_centers)
             voxel_colors = np.array(voxel_colors)
             voxel_centers = voxel_centers * self.voxel_size + offset
+            
             #print(voxel_centers)
             
 
@@ -839,8 +902,11 @@ class listener_node_one:
             
     
     def delete_points_by_circle_center(self, points, pos):
-        # returns Boolean np.array
-        probe_norm = np.linalg.norm((points - pos), axis=1)
+        # returns Boolean array or tensor
+        if self.use_gpu:
+            probe_norm = torch.norm((points - pos), dim=1)
+        else:
+            probe_norm = np.linalg.norm((points - pos), axis=1)
         return probe_norm > self.robot_voxel_safe_distance
 
 
