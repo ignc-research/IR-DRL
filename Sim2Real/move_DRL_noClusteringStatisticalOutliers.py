@@ -24,6 +24,7 @@ import open3d as o3d
 from time import sleep
 import yaml
 from scipy.spatial.transform import Rotation as R
+from sklearn.neighbors import NearestNeighbors
 
 import pandas as pd
 
@@ -738,8 +739,8 @@ class listener_node_one:
                     self.VoxelsToPybullet()
             else:
                 self.PointcloudToVoxel()
-                #print("[cb Pointcloud to Pybullet time: ]" , time() - start)
-                #print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
+                print("[cb Pointcloud to Pybullet time: ]" , time() - start)
+                print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
                 #self.all_frames.append(self.voxel_centers.copy()) # Optional for recording
                 self.VoxelsToPybullet()
         #np.save("./voxels.npy", self.all_frames)
@@ -838,10 +839,13 @@ class listener_node_one:
             # convert it into open 3d format
             pcd.points = o3d.utility.Vector3dVector(points)
             pcd.colors = o3d.utility.Vector3dVector(colors) # makes voxels have averaged colors of points, colors have to be normalize to between 0 and 1
+            pcd = statistical_outlier_removal(pcd)
          
             #Downsample pointcloud: 
-            pcd = pcd.voxel_down_sample(voxel_size=0.05)
+            #pcd = pcd.voxel_down_sample(voxel_size=0.05)
             
+           
+
             #voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.voxel_size)
             voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud_within_bounds(pcd, voxel_size=self.voxel_size, min_bound=self.points_lower_bound[:3], max_bound=self.points_upper_bound[:3])
 
@@ -899,6 +903,8 @@ class listener_node_one:
 
             self.voxel_centers = voxel_centers
             self.voxel_colors = voxel_colors
+
+            
 
     def VoxelsToPybullet(self):
         if self.voxel_centers is not None:
@@ -1093,9 +1099,36 @@ class listener_node_one:
                             print(entry)
                             print(key)
             #print(self.env.log)
-        
-        
+
+def statistical_outlier_removal(pcd, n_neighbors=20, std_ratio=2.0):
+    points = np.asarray(pcd.points)  # Convert the points to a numpy array
+
+    # Calculate the distances and indices using sklearn's NearestNeighbors
+    neigh = NearestNeighbors(n_neighbors=n_neighbors)
+    neigh.fit(points)
+    distances, indices = neigh.kneighbors(points)
+
+    # Calculate mean and standard deviation
+    mean_distances = np.mean(distances, axis=1)
+    std_distances = np.std(distances, axis=1)
+
+    # Identify points with a distance larger than mean + std_ratio * std_deviation
+    outlier_mask = mean_distances > mean_distances.mean() + std_ratio * mean_distances.std()
+
+    # Remove the outliers
+    filtered_points = points[~outlier_mask]
+
+    # Create a new PointCloud object for the filtered points
+    filtered_pcd = o3d.geometry.PointCloud()
+    filtered_pcd.points = o3d.utility.Vector3dVector(filtered_points)
     
+    if pcd.has_colors():
+        colors = np.asarray(pcd.colors)
+        filtered_colors = colors[~outlier_mask]
+        filtered_pcd.colors = o3d.utility.Vector3dVector(filtered_colors)
+
+    return filtered_pcd
+
 
 
 

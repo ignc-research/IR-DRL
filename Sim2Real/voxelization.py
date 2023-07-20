@@ -52,6 +52,8 @@ def get_voxel_cluster(voxel_centers, neighbourhood_threshold):
 
 
 
+
+
 def set_clusters(initial_voxel_idx, kd_tree, voxel_centers, voxel_cluster, cluster_num, neighbourhood_threshold):
     queue = deque([initial_voxel_idx])
     while queue:
@@ -66,3 +68,6 @@ def get_neighbouring_voxels_idx(kd_tree, voxel, neighbour_threshold):
     _, voxels_in_cluster_idx = kd_tree.query(voxel, k=len(kd_tree.data), distance_upper_bound=neighbour_threshold)    
     valid_neighbors = [idx for idx in voxels_in_cluster_idx if idx != kd_tree.n] # Exclude out-of-range indices
     return valid_neighbors
+
+
+    
