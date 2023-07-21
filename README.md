@@ -1,4 +1,4 @@
-# Modular DLR Gym Env for Robots with PyBullet
+# Modular DRL Gym Env for Robots with PyBullet
 
 
 <p float="left">
