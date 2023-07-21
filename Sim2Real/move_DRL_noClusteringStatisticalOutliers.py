@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-
-
-
 import rospy
 from sensor_msgs.msg import JointState
 from tf2_msgs.msg import TFMessage
@@ -38,7 +35,7 @@ import pybullet as pyb
 
 import pickle
 
-from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx
+from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx, statistical_outlier_removal
 
 # TODO: 
 # farben bug fixen
@@ -47,10 +44,6 @@ from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxel
 # Statistical outlier removal
 # Mutex/Farbenguard um Farbenbug zu ändern (solange er farben ändert, Rendern überspringen)
 
-
-# TODO temporal filter:
-# 1. create numpy array of size temporal horizon x (3D shape of voxel grid)
-# 2. check by index wether position was occupied in the past
 
 JOINT_NAMES = [
     "shoulder_pan_joint",
@@ -109,7 +102,7 @@ class listener_node_one:
         self.inference_done = False
         self.camera_calibration = False
         self.dont_voxelize = False
-        self.use_gpu = True # torch.cuda.is_available()
+        self.use_gpu = self.config['use_gpu'] # torch.cuda.is_available()
         self.data_set_guard = False
 
         # cbGetPointcloud
@@ -120,9 +113,6 @@ class listener_node_one:
         config_rpy = np.array(self.config['camera_transform_to_pyb_origin']['rpy'])
         config_matrix = (R.from_euler('xyz', config_rpy, degrees = True)).as_matrix()
         self.camera_transform_to_pyb_origin[:3, :3] = config_matrix
-        # self.camera_transform_to_pyb_origin[:3, 0] = np.array([-1, 0, 0])      # vektor für Kamera x achse in pybullet
-        # self.camera_transform_to_pyb_origin[:3, 1] = np.array([0, 0, -1])      # vektor für Kamera y achse in pybullet
-        # self.camera_transform_to_pyb_origin[:3, 2] = np.array([0, -1, 0])      # vektor für Kamera z achse in pybullet
         self.camera_transform_to_pyb_origin[:3, 3] = np.array(self.config['camera_transform_to_pyb_origin']['xyz'])
         self.pyb_to_camera = np.eye(4)
         self.pyb_to_camera[:3, :3] = config_matrix.T
@@ -150,19 +140,18 @@ class listener_node_one:
         self.voxel_size = self.config['voxel_size']
         self.robot_voxel_safe_distance = self.config['robot_voxel_safe_distance']
         
-        #change to 5 if dynamic obstacles are there
+        #change to 5 if you want more safety with dynamic obstacles, but also more delay
         self.inference_steps_per_pointcloud_update = 1
         
         
         #part for voxel clustering
-        self.enable_clustering = False #enable or disable clustering for performance reasons
+        self.enable_clustering = self.config['enable_clustering']#enable or disable clustering for performance reasons
         self.robot_voxel_cluster_distance = 0.3 #TODO: optimize this
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
         self.voxel_cluster_threshold = self.config['voxel_cluster_threshold'] #TODO: Variabel an der anzahl von voxeln ändern nicht hardcoden
         self.voxel_centers = None
         #Optional for recording voxels
         #self.all_frames = [] 
-        
         #self.recording_no = 1
 
         #Part for logging Sim2Real csv
@@ -176,8 +165,6 @@ class listener_node_one:
 
          ## Set for saving voxel positons and check
         self.voxel_positions = set()
-
-        ##TODO: Create 5 second average of voxel positions at start, and add these to the voxel_positions set
 
         
         self.trajectory_client = actionlib.SimpleActionClient(
@@ -371,80 +358,7 @@ class listener_node_one:
                         pos_ee_last = pos_ee  
                         print("[cbAction] Action added")
 
-    #Planner for RRT                
-    def cbActionPlanner(self, event):
-        if self.joints is not None:
-            if not self.mode and self.q_goal is not None and self.trajectory is not None and not self.inference_done:  # planner mode activated and a valid goal has been created in cbControl
-                print("[cbAction] starting planner trajectory execution")
-                # set inference mutex such that other callbacks do nothing while new movement is calculated
-                self.running_inference = True
-                # manually reset a few env attributes (we don't want to use env.reset() because that would delete all the voxels)
-                self.env.steps_current_episode = 0
-                self.env.is_success = False
-                self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
-
-                # reset sensors
-                for sensor in self.env.sensors:
-                    # sensor.reset()
-                    sensor.update(0)
-
-                # get one obs to correctly initialize a few values in the env internals
-                _ = self.env._get_obs()
-
-                while True:
-                    if self.sim_step - self.real_step >= self.drl_horizon:
-                        # Waiting for real_step to catch up to sim_step
-                        continue
-
-                    # turn angles into vector between -1 and 1 so that we can properly step the env in order to get logs at the end
-                    action = self.trajectory[self.trajectory_idx]
-                    action = ((action + self.virtual_robot._joints_limits_upper) / (self.virtual_robot._joints_range / 2)) - 1
-
-                    _, _, _, info = self.env.step(action)
-
-                    # loop breaking conditions
-                    if info["collision"]:
-                        self.q_goal = None
-                        self.goal = None
-                        self.trajectory = None
-                        self.mode = True
-                        self.virtual_robot.use_physics_sim = True
-                        self.virtual_robot.control_mode = 2
-                        self.actions = np.ones((100, len(self.virtual_robot.all_joints_ids))) * self.joints
-                        self.sim_step = -1
-                        self.running_inference = False
-                        self.inference_done = True
-                        self.env.episode += 1
-                        # find the voxels that collide with the robot
-                        pyb_u.toggle_rendering(False)
-                        for tup in pyb_u.collisions:
-                            if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
-                                voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
-                                pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
-                        pyb_u.toggle_rendering(True)
-                        print("[cbAction] Found collision during inference! Choose a new goal or try again.")
-                        return
-                    elif np.linalg.norm(self.trajectory[-1] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]) < 8e-2:
-                        self.mode = True
-                        self.virtual_robot.use_physics_sim = True
-                        self.virtual_robot.control_mode = 2
-                        self.drl_success = True
-                        self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
-                        self.sim_step = self.sim_step + 1
-                        self.running_inference = False
-                        self.inference_done = True
-                        self.env.episode += 1
-                        return
-
-                    self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
-                    self.sim_step = self.sim_step + 1
-                    print("[cbAction] Action added")
-                    print("trajectory idx", self.trajectory_idx)
-                    print("feheler", np.linalg.norm(self.trajectory[self.trajectory_idx] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]))
-                    # step up trajectory
-                    if np.linalg.norm(self.trajectory[self.trajectory_idx] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]) < 8e-2:
-                        self.trajectory_idx += 1
-                        
+ 
                         
     
     def cbControl(self, event):  
@@ -1100,36 +1014,82 @@ class listener_node_one:
                             print(key)
             #print(self.env.log)
 
-def statistical_outlier_removal(pcd, n_neighbors=20, std_ratio=2.0):
-    points = np.asarray(pcd.points)  # Convert the points to a numpy array
 
-    # Calculate the distances and indices using sklearn's NearestNeighbors
-    neigh = NearestNeighbors(n_neighbors=n_neighbors)
-    neigh.fit(points)
-    distances, indices = neigh.kneighbors(points)
+#####Not really in use#######
+   #Planner for RRT                
+    def cbActionPlanner(self, event):
+        if self.joints is not None:
+            if not self.mode and self.q_goal is not None and self.trajectory is not None and not self.inference_done:  # planner mode activated and a valid goal has been created in cbControl
+                print("[cbAction] starting planner trajectory execution")
+                # set inference mutex such that other callbacks do nothing while new movement is calculated
+                self.running_inference = True
+                # manually reset a few env attributes (we don't want to use env.reset() because that would delete all the voxels)
+                self.env.steps_current_episode = 0
+                self.env.is_success = False
+                self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
 
-    # Calculate mean and standard deviation
-    mean_distances = np.mean(distances, axis=1)
-    std_distances = np.std(distances, axis=1)
+                # reset sensors
+                for sensor in self.env.sensors:
+                    # sensor.reset()
+                    sensor.update(0)
 
-    # Identify points with a distance larger than mean + std_ratio * std_deviation
-    outlier_mask = mean_distances > mean_distances.mean() + std_ratio * mean_distances.std()
+                # get one obs to correctly initialize a few values in the env internals
+                _ = self.env._get_obs()
 
-    # Remove the outliers
-    filtered_points = points[~outlier_mask]
+                while True:
+                    if self.sim_step - self.real_step >= self.drl_horizon:
+                        # Waiting for real_step to catch up to sim_step
+                        continue
 
-    # Create a new PointCloud object for the filtered points
-    filtered_pcd = o3d.geometry.PointCloud()
-    filtered_pcd.points = o3d.utility.Vector3dVector(filtered_points)
-    
-    if pcd.has_colors():
-        colors = np.asarray(pcd.colors)
-        filtered_colors = colors[~outlier_mask]
-        filtered_pcd.colors = o3d.utility.Vector3dVector(filtered_colors)
+                    # turn angles into vector between -1 and 1 so that we can properly step the env in order to get logs at the end
+                    action = self.trajectory[self.trajectory_idx]
+                    action = ((action + self.virtual_robot._joints_limits_upper) / (self.virtual_robot._joints_range / 2)) - 1
 
-    return filtered_pcd
+                    _, _, _, info = self.env.step(action)
 
+                    # loop breaking conditions
+                    if info["collision"]:
+                        self.q_goal = None
+                        self.goal = None
+                        self.trajectory = None
+                        self.mode = True
+                        self.virtual_robot.use_physics_sim = True
+                        self.virtual_robot.control_mode = 2
+                        self.actions = np.ones((100, len(self.virtual_robot.all_joints_ids))) * self.joints
+                        self.sim_step = -1
+                        self.running_inference = False
+                        self.inference_done = True
+                        self.env.episode += 1
+                        # find the voxels that collide with the robot
+                        pyb_u.toggle_rendering(False)
+                        for tup in pyb_u.collisions:
+                            if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
+                                voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
+                                pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
+                        pyb_u.toggle_rendering(True)
+                        print("[cbAction] Found collision during inference! Choose a new goal or try again.")
+                        return
+                    elif np.linalg.norm(self.trajectory[-1] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]) < 8e-2:
+                        self.mode = True
+                        self.virtual_robot.use_physics_sim = True
+                        self.virtual_robot.control_mode = 2
+                        self.drl_success = True
+                        self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
+                        self.sim_step = self.sim_step + 1
+                        self.running_inference = False
+                        self.inference_done = True
+                        self.env.episode += 1
+                        return
 
+                    self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
+                    self.sim_step = self.sim_step + 1
+                    print("[cbAction] Action added")
+                    print("trajectory idx", self.trajectory_idx)
+                    print("feheler", np.linalg.norm(self.trajectory[self.trajectory_idx] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]))
+                    # step up trajectory
+                    if np.linalg.norm(self.trajectory[self.trajectory_idx] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]) < 8e-2:
+                        self.trajectory_idx += 1
+                        
 
 
 

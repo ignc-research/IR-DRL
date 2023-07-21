@@ -4,6 +4,47 @@ from scipy.spatial import cKDTree
 from collections import deque
 import multiprocessing
 
+import open3d as o3d
+from sklearn.neighbors import NearestNeighbors
+
+### SOR (Stastical Outlier Removal) (Not so resource intensiv and gets rid of most the free floating voxels (not all)) ########
+
+
+def statistical_outlier_removal(pcd, n_neighbors=20, std_ratio=2.0):
+    points = np.asarray(pcd.points)  # Convert the points to a numpy array
+
+    # Calculate the distances and indices using sklearn's NearestNeighbors
+    neigh = NearestNeighbors(n_neighbors=n_neighbors)
+    neigh.fit(points)
+    distances, indices = neigh.kneighbors(points)
+
+    # Calculate mean and standard deviation
+    mean_distances = np.mean(distances, axis=1)
+    std_distances = np.std(distances, axis=1)
+
+    # Identify points with a distance larger than mean + std_ratio * std_deviation
+    outlier_mask = mean_distances > mean_distances.mean() + std_ratio * mean_distances.std()
+
+    # Remove the outliers
+    filtered_points = points[~outlier_mask]
+
+    # Create a new PointCloud object for the filtered points
+    filtered_pcd = o3d.geometry.PointCloud()
+    filtered_pcd.points = o3d.utility.Vector3dVector(filtered_points)
+    
+    if pcd.has_colors():
+        colors = np.asarray(pcd.colors)
+        filtered_colors = colors[~outlier_mask]
+        filtered_pcd.colors = o3d.utility.Vector3dVector(filtered_colors)
+
+    return filtered_pcd
+
+
+
+
+
+
+############# KD- TREE CLUSTERING (Very Resource intensive, but eliminates all free floating voxels) ############################
 #def neighbors_in_bubble(voxel, voxel_centers, neighbourhood_threshold):
 def neighbors_in_bubble(voxel):
     voxel_centers = np.frombuffer(voxel_centers_mp).reshape(voxel_shape_mp)
