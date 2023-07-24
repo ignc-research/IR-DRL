@@ -12,7 +12,7 @@ drl_horizon: 5
 enable_PC: false
 enable_clustering: True
 max_inference_steps: 5000
-robot_voxel_safe_distance: 0.15
+robot_voxel_safe_distance: 0.05
 use_gpu: true
 use_sor: False
 voxel_cluster_threshold: 50
