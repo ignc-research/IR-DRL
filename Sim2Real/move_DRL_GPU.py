@@ -697,8 +697,8 @@ class listener_node_one:
                     self.VoxelsToPybullet()
             else:
                 self.PointcloudToVoxel()
-                print("[cb Pointcloud to Pybullet time: ]" , time() - start)
-                print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
+                #print("[cb Pointcloud to Pybullet time: ]" , time() - start)
+                #print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
                 #self.all_frames.append(self.voxel_centers.copy()) # Optional for recording
                 self.VoxelsToPybullet()
         #np.save("./voxels.npy", self.all_frames)

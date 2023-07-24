@@ -38,6 +38,7 @@ import pickle
 from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx, statistical_outlier_removal
 
 # TODO: 
+# Roboter schneidet voxel weg, 
 # farben bug fixen
 # Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht
 # RGB durch Voxels
@@ -103,7 +104,9 @@ class listener_node_one:
         self.camera_calibration = False
         self.dont_voxelize = False
         self.use_gpu = self.config['use_gpu'] # torch.cuda.is_available()
+        self.use_sor = self.config['use_sor']
         self.data_set_guard = False
+        self.is_moving_voxels = False
 
         # cbGetPointcloud
         self.points_raw = None
@@ -281,7 +284,8 @@ class listener_node_one:
                 self.virtual_robot.goal.on_env_reset(0)
                 pyb_u.toggle_rendering(False)
                 self.virtual_robot.goal.build_visual_aux()
-                pyb_u.toggle_rendering(True)
+                if not self.is_moving_voxels:
+                    pyb_u.toggle_rendering(True)
                 # reset sensors
                 for sensor in self.env.sensors:
                     # sensor.reset()
@@ -326,7 +330,8 @@ class listener_node_one:
                             if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
                                 voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
                                 pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
-                        pyb_u.toggle_rendering(True)
+                        if not self.is_moving_voxels:
+                            pyb_u.toggle_rendering(True)
                         print("[cbAction] Found collision during inference!")
                         self.dont_voxelize = False
                         return
@@ -367,7 +372,8 @@ class listener_node_one:
         if self.goal is None and self.joints is not None:
             pyb_u.toggle_rendering(False)
             self.virtual_robot.goal.delete_visual_aux()
-            pyb_u.toggle_rendering(True)
+            if not self.is_moving_voxels:
+                pyb_u.toggle_rendering(True)
             
             self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #if last argument = none only 5 of the 6 joints get recognized
             print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
@@ -627,9 +633,16 @@ class listener_node_one:
         points[:, 2] = np_data['z']
         color_floats = np_data['rgb']  # float value that compresses color data
         # convert float values into 3-vector with RGB intensities, normalized to between 0 and 1
+
+        # http://docs.ros.org/en/jade/api/ros_numpy/html/namespaceros__numpy_1_1point__cloud2.html#af5dbc38abacf138548d002fb0bc454ef
+        # ref to http://docs.ros.org/en/jade/api/ros_numpy/html/namespaceros__numpy_1_1point__cloud2.html#a83fe725ae892944ced7d5283d5e1c643
+        # color_floats = ros_numpy.point_cloud2.split_rgb_field(np_data)
+        # color_floats = np.vstack([color_floats["r"],color_floats["g"],color_floats["b"]]).reshape((-1, 3)) / 255
+
         color_floats = np.ascontiguousarray(color_floats)
-        color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)) / 255
-        
+        #color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)) / 255
+        #This code reverses the last dimension to change the order of RGB to BGR. This is necessary as the order of our colors is not rgb initially.
+        color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3][..., ::-1].astype(np.float64)) / 255
         # transfer data into class variables where other callbacks can get them
         self.data_set_guard = True
         self.colors = color_floats
@@ -753,7 +766,9 @@ class listener_node_one:
             # convert it into open 3d format
             pcd.points = o3d.utility.Vector3dVector(points)
             pcd.colors = o3d.utility.Vector3dVector(colors) # makes voxels have averaged colors of points, colors have to be normalize to between 0 and 1
-            pcd = statistical_outlier_removal(pcd)
+            if self.use_sor:
+                #print("Using SOR:")
+                pcd = statistical_outlier_removal(pcd)
          
             #Downsample pointcloud: 
             #pcd = pcd.voxel_down_sample(voxel_size=0.05)
@@ -790,7 +805,8 @@ class listener_node_one:
                 voxel_colors = voxel_colors[not_delete_mask]
                 # move robot back to where it was when filtering started
                 self.virtual_robot.moveto_joints(joints_now, False, self.virtual_robot.all_joints_ids)
-                pyb_u.toggle_rendering(True)
+                if not self.is_moving_voxels:
+                    pyb_u.toggle_rendering(True)
             pyb_u.set_base_pos_and_ori(self.probe_voxel.object_id, self.pos_nowhere, np.array([0, 0, 0, 1])) # TODO: Find out why this causes trouble, MOVES away probe voxel
             self.probe_voxel.position = self.pos_nowhere
             
@@ -823,6 +839,7 @@ class listener_node_one:
     def VoxelsToPybullet(self):
         if self.voxel_centers is not None:
             pyb_u.toggle_rendering(False)
+            self.is_moving_voxels = True
             # update voxel positions
             for idx, voxel in enumerate(self.voxels):
                 if idx >= len(self.voxel_centers):
@@ -850,6 +867,7 @@ class listener_node_one:
                     if idx >= len(self.voxel_centers):
                         break
                     pyb.changeVisualShape(pyb_u.to_pb(voxel.object_id), -1, rgbaColor=new_colors[idx])
+            self.is_moving_voxels = False    
             pyb_u.toggle_rendering(True)
             
     
@@ -967,7 +985,8 @@ class listener_node_one:
         self.env.log = []
         pyb_u.toggle_rendering(False)
         self.env.world.reset(0)
-        pyb_u.toggle_rendering(True)
+        if not self.is_moving_voxels:
+            pyb_u.toggle_rendering(True)
         self.env.active_robots = [True for _ in self.env.robots]
         for sensor in self.env.sensors:
             sensor.reset()
@@ -1066,7 +1085,8 @@ class listener_node_one:
                             if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
                                 voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
                                 pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
-                        pyb_u.toggle_rendering(True)
+                        if not self.is_moving_voxels:        
+                            pyb_u.toggle_rendering(True)
                         print("[cbAction] Found collision during inference! Choose a new goal or try again.")
                         return
                     elif np.linalg.norm(self.trajectory[-1] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]) < 8e-2:
