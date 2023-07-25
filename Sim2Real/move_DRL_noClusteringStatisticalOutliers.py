@@ -38,12 +38,13 @@ import pickle
 from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx, statistical_outlier_removal
 
 # TODO: 
-# ignore Probe Voxel box_3 
+# ignore Probe Voxel box_3 (X)
+# Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht (X)
 # RGB Segmentierung Bestimmte Farben NICHT LÖSCHEN
 # RGB TO HSV und farblich weiße/hellblaue voxel entfernen
 # Roboter schneidet voxel weg, 
 # farben bug fixen
-# Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht
+
 # Mutex/Farbenguard um Farbenbug zu ändern (solange er farben ändert, Rendern überspringen)
 
 
@@ -163,6 +164,8 @@ class listener_node_one:
         self.logging = True
         self.additional_info = dict()
         self.log = [] 
+
+        self.min_collisions = self.config['min_collisions']
         
         #test = o3d.geometry.VoxelGrid.create_dense(np.array([0,0,0]), np.array([0,0,0]), 0.05, self.points_upper_bound[0]-self.points_lower_bound[0], self.points_upper_bound[1]-self.points_lower_bound[1], self.points_upper_bound[2]-self.points_lower_bound[2])
         #print("voxel menge", len(test.get_voxels()))
@@ -319,29 +322,32 @@ class listener_node_one:
                     
                     # loop breaking conditions
                     if info["collision"]:
-                        #filter the probe_voxel
-                        if len(pyb_u.collisions) > 1 or ('robot_1', 'box_3') not in pyb_u.collisions:  
-                            self.goal = None
-                            self.actions = np.ones((100, len(self.virtual_robot.all_joints_ids))) * self.joints
-                            self.sim_step = -1
-                            self.running_inference = False
-                            self.inference_done = True
-                            self.env.episode += 1
-                            # find the voxels that collide with the robot
-                            self.dont_voxelize = True
-                            pyb_u.toggle_rendering(False)
-                            for tup in pyb_u.collisions:
-                                if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
-                                    voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
-                                    pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
-                            if not self.is_moving_voxels:
-                                pyb_u.toggle_rendering(True)
-                            
-                            
-                            print("Collision info: ", pyb_u.collisions)
-                            print("[cbAction] Found collision during inference!")
-                            self.dont_voxelize = False
-                            return
+                        #filter the probe_voxel and TODO: only count if there are at least three collisions
+                        if len(pyb_u.collisions) > 1 or ('robot_1', 'box_3') not in pyb_u.collisions:
+                            # check if therere are at least min_collision number of collisions
+                            robot_collisions = [tup for tup in pyb_u.collisions if 'robot_1' in tup]
+                            if len(robot_collisions) >= self.min_collisions:
+                                self.goal = None
+                                self.actions = np.ones((100, len(self.virtual_robot.all_joints_ids))) * self.joints
+                                self.sim_step = -1
+                                self.running_inference = False
+                                self.inference_done = True
+                                self.env.episode += 1
+                                # find the voxels that collide with the robot
+                                self.dont_voxelize = True
+                                pyb_u.toggle_rendering(False)
+                                for tup in pyb_u.collisions:
+                                    if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
+                                        voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
+                                        pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
+                                if not self.is_moving_voxels:
+                                    pyb_u.toggle_rendering(True)
+                                
+                                
+                                print("Collision info: ", pyb_u.collisions)
+                                print("[cbAction] Found collision during inference!")
+                                self.dont_voxelize = False
+                                return
                     elif info["is_success"]:
                         self.drl_success = True
                         self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
