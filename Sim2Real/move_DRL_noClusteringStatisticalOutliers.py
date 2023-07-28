@@ -40,7 +40,8 @@ from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxel
 # TODO: 
 # ignore Probe Voxel box_3 (X)
 # Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht (X)
-# RGB Segmentierung Bestimmte Farben NICHT LÖSCHEN
+# Add multiple Cameras ()
+# RGB Segmentierung Bestimmte Farben NICHT LÖSCHEN ()
 # RGB TO HSV und farblich weiße/hellblaue voxel entfernen
 # Roboter schneidet voxel weg, 
 # farben bug fixen
@@ -123,6 +124,8 @@ class listener_node_one:
         self.pyb_to_camera = np.eye(4)
         self.pyb_to_camera[:3, :3] = config_matrix.T
         self.pyb_to_camera[:3, 3] = np.matmul(-(config_matrix.T), np.array(self.config['camera_transform_to_pyb_origin']['xyz']))
+
+        #self.
         
         # pre-allocate the rotation matrix on the gpu in case we use it
         if self.use_gpu:
@@ -635,6 +638,7 @@ class listener_node_one:
         self.initialize_voxels()
         self.dont_voxelize = False
     
+    #n times for n cameras
     def cbGetPointcloud(self, data):
         np_data = ros_numpy.numpify(data)
         points = np.ones((np_data.shape[0], 4))
@@ -646,6 +650,9 @@ class listener_node_one:
         points[:, 2] = np_data['z']
         color_floats = np_data['rgb']  # float value that compresses color data
         # convert float values into 3-vector with RGB intensities, normalized to between 0 and 1
+
+
+
 
         # http://docs.ros.org/en/jade/api/ros_numpy/html/namespaceros__numpy_1_1point__cloud2.html#af5dbc38abacf138548d002fb0bc454ef
         # ref to http://docs.ros.org/en/jade/api/ros_numpy/html/namespaceros__numpy_1_1point__cloud2.html#a83fe725ae892944ced7d5283d5e1c643
@@ -662,6 +669,8 @@ class listener_node_one:
         self.points_raw = points
         self.data_set_guard = False
 
+      
+                                  
     def cbPointcloudToPybullet(self, event):
         # callback for PointcloudToPybullet
         # static = only one update
@@ -704,6 +713,8 @@ class listener_node_one:
             points = self.points_raw
             colors = self.colors
             
+            
+          
             if self.use_gpu:
                 colors = torch.from_numpy(colors).to('cuda')
                 points = torch.from_numpy(points).to('cuda')
@@ -776,9 +787,11 @@ class listener_node_one:
             #points = np.append(points, [np.array([1, 1, 1]), np.array([0, 0, 0])], axis=0)
 
             pcd = o3d.geometry.PointCloud()
+            
             # convert it into open 3d format
             pcd.points = o3d.utility.Vector3dVector(points)
             pcd.colors = o3d.utility.Vector3dVector(colors) # makes voxels have averaged colors of points, colors have to be normalize to between 0 and 1
+           
             if self.use_sor:
                 #print("Using SOR:")
                 pcd = statistical_outlier_removal(pcd)
