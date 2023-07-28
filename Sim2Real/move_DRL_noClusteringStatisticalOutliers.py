@@ -168,6 +168,7 @@ class listener_node_one:
         self.additional_info = dict()
         self.log = [] 
 
+        # minimum collisions needed to be counted as a real collision
         self.min_collisions = self.config['min_collisions']
         
         #test = o3d.geometry.VoxelGrid.create_dense(np.array([0,0,0]), np.array([0,0,0]), 0.05, self.points_upper_bound[0]-self.points_lower_bound[0], self.points_upper_bound[1]-self.points_lower_bound[1], self.points_upper_bound[2]-self.points_lower_bound[2])
@@ -650,14 +651,6 @@ class listener_node_one:
         points[:, 2] = np_data['z']
         color_floats = np_data['rgb']  # float value that compresses color data
         # convert float values into 3-vector with RGB intensities, normalized to between 0 and 1
-
-
-
-
-        # http://docs.ros.org/en/jade/api/ros_numpy/html/namespaceros__numpy_1_1point__cloud2.html#af5dbc38abacf138548d002fb0bc454ef
-        # ref to http://docs.ros.org/en/jade/api/ros_numpy/html/namespaceros__numpy_1_1point__cloud2.html#a83fe725ae892944ced7d5283d5e1c643
-        # color_floats = ros_numpy.point_cloud2.split_rgb_field(np_data)
-        # color_floats = np.vstack([color_floats["r"],color_floats["g"],color_floats["b"]]).reshape((-1, 3)) / 255
 
         color_floats = np.ascontiguousarray(color_floats)
         #color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)) / 255
