@@ -7,6 +7,9 @@
 #roslaunch realsense2_camera rs_camera.launch camera:=cam_1 serial_no:=028522073665 filters:=pointcloud
 #roslaunch realsense2_camera rs_camera.launch camera:=cam_2 serial_no:=141322251391 filters:=pointcloud
 
+#TODO: 
+# Voxel centers für servet ()
+# Fix weird bug after calibration () 
 
 import rospy
 from sensor_msgs.msg import JointState
@@ -92,7 +95,7 @@ class listener_node_one:
 
         # cbGetPointcloud
         # storage attributes for all the camera data
-        self.num_cameras = 2
+        self.num_cameras = self.config['num_cameras']
         self.points_raw = [None for _ in range(self.num_cameras)]
         self.colors = [None for _ in range(self.num_cameras)]
         self.data_set_guard = [False for _ in range(self.num_cameras)]
@@ -386,8 +389,24 @@ class listener_node_one:
             
             for i in range(self.num_cameras):
                 if not_none_points[i]:
-                    lower_mask = (points[i] >= self.points_lower_bound_camera[i]).all(axis=1)
-                    upper_mask = (points[i] <= self.points_upper_bound_camera[i]).all(axis=1)
+               
+                     # Convert numpy arrays to PyTorch tensors if not already a tensor
+                    if isinstance(self.points_lower_bound_camera[i], np.ndarray):
+                        self.points_lower_bound_camera[i] = torch.from_numpy(self.points_lower_bound_camera[i])
+                    if isinstance(self.points_upper_bound_camera[i], np.ndarray):
+                        self.points_upper_bound_camera[i] = torch.from_numpy(self.points_upper_bound_camera[i])
+
+
+                    points[i]= points[i].to('cuda')
+                    try: 
+                        lower_mask = (points[i] >= self.points_lower_bound_camera[i]).all(axis=1)
+                        upper_mask = (points[i] <= self.points_upper_bound_camera[i]).all(axis=1)
+                    except Exception as e:
+                        print(f"Exception: {e}")
+                        print(f"Type of points[{i}]: {type(points[i])}")
+                        print(f"Type of self.points_lower_bound_camera[{i}]: {type(self.points_lower_bound_camera[i])}")
+                        print(f"Type of self.points_upper_bound_camera[{i}]: {type(self.points_upper_bound_camera[i])}")
+                        raise
                     if self.use_gpu:
                         in_boundary_mask = torch.logical_and(lower_mask, upper_mask)
                     else:
