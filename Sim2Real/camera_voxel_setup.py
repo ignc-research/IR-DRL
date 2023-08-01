@@ -390,14 +390,6 @@ class listener_node_one:
             for i in range(self.num_cameras):
                 if not_none_points[i]:
                
-                     # Convert numpy arrays to PyTorch tensors if not already a tensor
-                    if isinstance(self.points_lower_bound_camera[i], np.ndarray):
-                        self.points_lower_bound_camera[i] = torch.from_numpy(self.points_lower_bound_camera[i])
-                    if isinstance(self.points_upper_bound_camera[i], np.ndarray):
-                        self.points_upper_bound_camera[i] = torch.from_numpy(self.points_upper_bound_camera[i])
-
-
-                    points[i]= points[i].to('cuda')
                     try: 
                         lower_mask = (points[i] >= self.points_lower_bound_camera[i]).all(axis=1)
                         upper_mask = (points[i] <= self.points_upper_bound_camera[i]).all(axis=1)
@@ -407,6 +399,7 @@ class listener_node_one:
                         print(f"Type of self.points_lower_bound_camera[{i}]: {type(self.points_lower_bound_camera[i])}")
                         print(f"Type of self.points_upper_bound_camera[{i}]: {type(self.points_upper_bound_camera[i])}")
                         raise
+                    
                     if self.use_gpu:
                         in_boundary_mask = torch.logical_and(lower_mask, upper_mask)
                     else:
