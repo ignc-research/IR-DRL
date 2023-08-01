@@ -1,4 +1,15 @@
-#!/usr/bin/env python
+## This script is for setting up the camera environment. It only visualises the pointcloud and voxilization part without needing an actual robot connected.
+
+# Serial numbers for lab cameras: 
+# cam_1 (table cam): 028522073665
+# cam_2 (additional cam): 141322251391
+
+#roslaunch realsense2_camera rs_camera.launch camera:=cam_1 serial_no:=028522073665 filters:=pointcloud
+#roslaunch realsense2_camera rs_camera.launch camera:=cam_2 serial_no:=141322251391 filters:=pointcloud
+
+#TODO: 
+# Voxel centers für servet ()
+# Fix weird bug after calibration () 
 
 import rospy
 from sensor_msgs.msg import JointState
@@ -37,17 +48,6 @@ import pickle
 
 from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx, statistical_outlier_removal
 
-# TODO: 
-# ignore Probe Voxel box_3 (X)
-# Custom Collision Check: Mindestens 3 Collisions bevor er wirklich abbricht (X)
-# Add multiple Cameras ()
-# RGB Segmentierung Bestimmte Farben NICHT LÖSCHEN ()
-# RGB TO HSV und farblich weiße/hellblaue voxel entfernen
-# Roboter schneidet voxel weg, 
-# farben bug fixen
-
-# Mutex/Farbenguard um Farbenbug zu ändern (solange er farben ändert, Rendern überspringen)
-
 
 
 JOINT_NAMES = [
@@ -62,12 +62,12 @@ JOINT_NAMES = [
 class listener_node_one:
     def __init__(self, action_rate, control_rate, num_voxels, point_cloud_static):
         # yaml config file
-        self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/configold.yaml'
+        self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/config.yaml'
         self.config = self.load_config(self.config_path)
 
         # variables for logging real clock time
         self.start_sec = None
-        self.current_time = None     
+        self.current_time = None    
 
         # overall mode, True=DRL, False=RRT, default is DRL
         self.mode = True 
@@ -79,10 +79,13 @@ class listener_node_one:
         self.end_effector_rpy = None
         self.end_effector_quat = None
         self.end_effector_xyz_sim = None
+
         #filtered steps in the simulation that are bigger than the distance threshhold
         self.sim_step = 0
-        # filtered steps in the real environment that are bigger than the distance thresshold
+        #filtered steps in the real environment that are bigger than the distance thresshold
         self.real_step = 0
+
+
         self.durations = []  # list of floats
         self.joints = None
         self.velocities = None
@@ -91,7 +94,7 @@ class listener_node_one:
         self.q_goal = None
         self.trajectory = None
         self.drl_horizon = self.config['drl_horizon']
-      
+        
         self.max_inference_steps = self.config['max_inference_steps']
         self.running_inference = False  # flag for interference between DRL and symsinc to prevent both from running parallel
         self.point_cloud_static = point_cloud_static
@@ -102,7 +105,7 @@ class listener_node_one:
         self.startup = True
         self.drl_success = False
         self.dist_threshold = self.config['dist_threshold']
-        # Real steps in the simulation with no filter
+
         self.inference_steps = 0
         self.inference_done = False
         self.camera_calibration = False
@@ -110,26 +113,29 @@ class listener_node_one:
         self.use_gpu = self.config['use_gpu'] # torch.cuda.is_available()
         self.use_sor = self.config['use_sor']
         self.data_set_guard = False
-        self.is_moving_voxels = False
+        self.is_moving_voxels = False       
 
         # cbGetPointcloud
-        self.points_raw = None
+        # storage attributes for all the camera data
+        self.num_cameras = self.config['num_cameras']
+        self.points_raw = [None for _ in range(self.num_cameras)]
+        self.colors = [None for _ in range(self.num_cameras)]
+        self.data_set_guard = [False for _ in range(self.num_cameras)]
 
         # cbPointcloudToPybullet
-        self.camera_transform_to_pyb_origin = np.eye(4)
-        config_rpy = np.array(self.config['camera_transform_to_pyb_origin']['rpy'])
-        config_matrix = (R.from_euler('xyz', config_rpy, degrees = True)).as_matrix()
-        self.camera_transform_to_pyb_origin[:3, :3] = config_matrix
-        self.camera_transform_to_pyb_origin[:3, 3] = np.array(self.config['camera_transform_to_pyb_origin']['xyz'])
-        self.pyb_to_camera = np.eye(4)
-        self.pyb_to_camera[:3, :3] = config_matrix.T
-        self.pyb_to_camera[:3, 3] = np.matmul(-(config_matrix.T), np.array(self.config['camera_transform_to_pyb_origin']['xyz']))
+        self.camera_transform_to_pyb_origin = [np.eye(4) for _ in range(self.num_cameras)]
+        self.pyb_to_camera = [np.eye(4) for _ in range(self.num_cameras)]
+        cam_config = self.config['camera_transform_to_pyb_origin']
+        config_matrix = [(R.from_euler('xyz', np.array(ele["rpy"]), degrees = True)).as_matrix() for ele in cam_config]
+        for i in range(self.num_cameras):
+            self.camera_transform_to_pyb_origin[i][:3, :3] = config_matrix[i]
+            self.camera_transform_to_pyb_origin[i][:3, 3] = np.array(cam_config[i]['xyz'])
+            self.pyb_to_camera[i][:3, :3] = config_matrix[i].T
+            self.pyb_to_camera[i][:3, 3] = np.matmul(-(config_matrix[i].T), np.array(cam_config[i]['xyz']))
 
-        #self.
-        
         # pre-allocate the rotation matrix on the gpu in case we use it
         if self.use_gpu:
-            self.camera_transform_gpu = torch.from_numpy(self.camera_transform_to_pyb_origin).to('cuda')
+            self.camera_transform_gpu = [torch.from_numpy(matrix).to('cuda') for matrix in self.camera_transform_to_pyb_origin]
         
         # boundaries for the point cloud, such that we constrain it into a statically determined box
         # useful for normalized clustering later on
@@ -137,13 +143,16 @@ class listener_node_one:
         self.points_upper_bound = np.array([1.2, 1.25, 1.5, 1])       
 
         # we also rotate the bounds into camera space, such that we can apply them for filtering before rotating the raw point cloud
-        tmp = np.matmul(self.pyb_to_camera, self.points_lower_bound)
-        tmp1 = np.matmul(self.pyb_to_camera, self.points_upper_bound)
-        self.points_lower_bound_camera = np.min([tmp, tmp1], axis=0)
-        self.points_upper_bound_camera = np.max([tmp, tmp1], axis=0)
-        if self.use_gpu:
-            self.points_lower_bound_camera = torch.from_numpy(self.points_lower_bound_camera).to('cuda')
-            self.points_upper_bound_camera = torch.from_numpy(self.points_upper_bound_camera).to('cuda')
+        self.points_lower_bound_camera = [None for _ in range(self.num_cameras)]
+        self.points_upper_bound_camera = [None for _ in range(self.num_cameras)]
+        for i in range(self.num_cameras):
+            tmp = np.matmul(self.pyb_to_camera[i], self.points_lower_bound)
+            tmp1 = np.matmul(self.pyb_to_camera[i], self.points_upper_bound)
+            self.points_lower_bound_camera[i] = np.min([tmp, tmp1], axis=0)
+            self.points_upper_bound_camera[i] = np.max([tmp, tmp1], axis=0)
+            if self.use_gpu:
+                self.points_lower_bound_camera[i] = torch.from_numpy(self.points_lower_bound_camera[i]).to('cuda')
+                self.points_upper_bound_camera[i] = torch.from_numpy(self.points_upper_bound_camera[i]).to('cuda')
 
         # voxelization attributes
         self.voxel_size = self.config['voxel_size']
@@ -159,9 +168,6 @@ class listener_node_one:
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
         self.voxel_cluster_threshold = self.config['voxel_cluster_threshold'] #TODO: Variabel an der anzahl von voxeln ändern nicht hardcoden
         self.voxel_centers = None
-        #Optional for recording voxels
-        #self.all_frames = [] 
-        #self.recording_no = 1
 
         #Part for logging Sim2Real csv
         self.logging = True
@@ -170,12 +176,7 @@ class listener_node_one:
 
         # minimum collisions needed to be counted as a real collision
         self.min_collisions = self.config['min_collisions']
-        
-        #test = o3d.geometry.VoxelGrid.create_dense(np.array([0,0,0]), np.array([0,0,0]), 0.05, self.points_upper_bound[0]-self.points_lower_bound[0], self.points_upper_bound[1]-self.points_lower_bound[1], self.points_upper_bound[2]-self.points_lower_bound[2])
-        #print("voxel menge", len(test.get_voxels()))
-         
 
-        
         self.trajectory_client = actionlib.SimpleActionClient(
             "scaled_pos_joint_traj_controller/follow_joint_trajectory",
             FollowJointTrajectoryAction,
@@ -186,7 +187,7 @@ class listener_node_one:
             sys.exit(-1)
 
         
-        # custom sim2real config parsen
+          # custom sim2real config parsen
         #_, env_config = parse_config("/home/moga/Desktop/IR-DRL/configs/S2R/obstsensor_trajectory_PPO.yaml", False) #False = kein Training
         _, env_config = parse_config("/home/moga/Desktop/IR-DRL/configs/S2R/s2rexperiment_benno_config_voxels.yaml", False)
         env_config["env_id"] = 0
@@ -210,8 +211,8 @@ class listener_node_one:
         # load DRL model
         #self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_interrupt.zip")  # trajectory
         self.model = PPO.load("/home/moga/Desktop/IR-DRL/models/weights/model_trained_voxels.zip")  # no trajectory
-        
-        # load RRT planner
+
+         # load RRT planner
         self.planner = BiRRT(self.virtual_robot, padding=False)
         # info: the next line is necessary because the planner automatically takes into account if a joint has been deactivated in the config
         # however, for sending commands to ros we need all six joints, that's why we manually overwrite the joint ids that the planner can see
@@ -219,41 +220,52 @@ class listener_node_one:
         self.planner.joint_ids = [pyb_u.pybullet_joints_ids[self.virtual_robot.object_id, joint_id] for joint_id in self.virtual_robot.all_joints_ids]
         self.planner.joint_ids_u = self.virtual_robot.all_joints_ids
 
-        #optional: enable to see if there are differences between the env and model
-        """from modular_drl_env.util.misc import analyse_obs_spaces
-        analyse_obs_spaces(self.env.observation_space, self.model.observation_space)"""
+
+        #init ros stuff
         
+        print("[Listener] Started ee position callback")
+        rospy.Subscriber("/tf", TFMessage, self.cbGetPos)
+        sleep(1)
+
+        print("[Listener] Started callback for joint angles")
+        rospy.Subscriber("/joint_states", JointState, self.cbGetJoints)
+        sleep(1)
+
+
+
         print("[Listener] Using GPU support for voxelization." if self.use_gpu else "[Listener] Using CPU for voxelization.")
         print("[Listener] Moving robot into resting pose")
         self._move_to_resting_pose()
         sleep(1)
+        print("[Listener] Started callbacks for raw pointcloud data for default camera.")
+        rospy.Subscriber("/cam_1/depth/color/points", PointCloud2, self.cbGetPointcloud_0)
+        if self.num_cameras == 2:
+            print("[Listener] Started callbacks for raw pointcloud data for second camera.")
+            rospy.Subscriber("/cam_2/depth/color/points", PointCloud2, self.cbGetPointcloud_1)
+        if self.num_cameras == 3:
+            print("[Listener] Started callbacks for raw pointcloud data for third camera.")
+            rospy.Subscriber("/cam_3/depth/color/points", PointCloud2, self.cbGetPointcloud_2)
+        print("[Listener] Started callback for pointcloud voxelization.")
 
-        # init ros stuff
-        print("[Listener] Started ee position callback")
-        rospy.Subscriber("/tf", TFMessage, self.cbGetPos)
-        sleep(1)
-        print("[Listener] Started callback for joint angles")
-        rospy.Subscriber("/joint_states", JointState, self.cbGetJoints)
-        sleep(1)
-        print("[Listener] Started callback for raw pointcloud data")
-        rospy.Subscriber("/camera/depth/color/points", PointCloud2, self.cbGetPointcloud)
-        sleep(1)
-        print("[Listener] Started callback for DRL inference")
-        rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbAction)
-        print("[Listener] Started callback for Planner inference")
-        rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbActionPlanner)
-        sleep(1)
-        # rospy.Timer(rospy.Duration(secs=1/200), self.cbAction)
-        rospy.Timer(rospy.Duration(secs=1/100), self.cbSimSync) # sync der Simulation mit dem echten Roboter so schnell wie möglich
-        print("[Listener] Started callback for pointcloud voxelization")
         self.start_time = time() #for recording voxel purposes
         rospy.Timer(rospy.Duration(secs=1/240), self.cbPointcloudToPybullet)    
+        sleep(1)
+
+        print("[Listener] Started callback for DRL inference")
+        rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbAction)
+        #print("[Listener] Started callback for Planner inference")
+        #rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbActionPlanner)
+        sleep(1)
+
+        rospy.Timer(rospy.Duration(secs=1/100), self.cbSimSync) # sync der Simulation mit dem echten Roboter so schnell wie möglich
+
         sleep(1)
         print("[Listener] Started callback for controlling robot")
         rospy.Timer(rospy.Duration(secs=1/control_rate), self.cbControl)
 
         print("[Listener] initialized node")
         rospy.spin() #Lässt rospy immer weiter laufen
+
 
     def _move_to_resting_pose(self):
         # move robot to start position #TODO: solve through Training
@@ -267,6 +279,605 @@ class listener_node_one:
         goal.trajectory.points.append(point)
         self.trajectory_client.send_goal(goal) 
         self.trajectory_client.wait_for_result()
+
+
+
+    def cbControl(self, event):
+        if self.startup:
+            pass # TODO   
+        if self.goal is None and self.joints is not None:
+            pyb_u.toggle_rendering(False)
+            self.virtual_robot.goal.delete_visual_aux()
+            if not self.is_moving_voxels:
+                pyb_u.toggle_rendering(True)
+
+            self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #if last argument = none only 5 of the 6 joints get recognized
+            print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
+            print("[cbControl] current (virtual) joint angles: " + str(self.joints))               
+            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or \n[cbControl] (c) to calibrate camera position or\n[cbControl] (v) to adjust voxel size or\n[cbControl] (r) to return the robot into the starting configuration (WARNING: does not consider collisions, both real and virtual!) or\n[cbControl] (p) to initialize robot control via a sample based planer: \n")
+            if len(inp) == 1:
+                if inp[0] == "c": # calibrates the camera
+                    self._control_calibrate()
+                if inp[0] == "v": # voxelsize
+                    self._control_voxelsettings()
+                if inp[0] == "r":
+                    print("[cbControl] Moving robot into resting pose")
+                    self._move_to_resting_pose()
+            else: 
+                inp = inp.split(" ")
+                try:
+                    inp = [float(ele) for ele in inp]
+                except ValueError:
+                    print("[cbControl] input in wrong format, try again!")
+                    return
+                # check if inverse kinematics can actually reach the xyz pos
+                tmp_goal = np.array(inp)
+                self.virtual_robot.position_rotation_sensor.update(0)
+                self.virtual_robot.joints_sensor.update(0)
+                # check for collision in starting position
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                if pyb_u.collision:
+                    print("[cbControl] current position of robot is in collision in simulation! Try again or check the camera/voxelization if the problem persists.")
+                    return
+                q_goal = self.virtual_robot._solve_ik(tmp_goal, None)
+                self.virtual_robot.moveto_joints(q_goal, False, self.virtual_robot.all_joints_ids)
+                self.virtual_robot.position_rotation_sensor.update(0)
+                pyb_u.perform_collision_check()
+                pyb_u.get_collisions()
+                if pyb_u.collision:
+                    print("[cbControl] target position is in collision in simulation! Try again or check the camera/voxelization if the problem persists..")
+                    choice = input("[cbControl] Do you still want to go ahead with your chosen target? (y/n)\n")
+                    if choice == "no" or choice == "n":
+                        return
+                tmp_pos = self.virtual_robot.position_rotation_sensor.position
+                self.sim_step = 0
+                self.real_step = 0
+                self.inference_steps = 0
+                self.inference_done = False
+                self.drl_success = False
+                self.static_done = False
+                if np.linalg.norm(tmp_pos - tmp_goal) > 5e-2:
+                    print("[cbControl] could not find solution via inverse kinematics that is close enough, try another position")
+                    choice = input("[cbControl] Do you still want to go ahead with your chosen target? (y/n)\n")
+                    if choice == "no" or choice == "n":
+                        return
+                # safety: reset to actual joint angles before the other callback starts running (even though it does the same thing there too)
+                self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
+                # another safety: let a second pass to avoid bad consequences from concurrent callbacks overlapping
+                sleep(1)
+                self.goal = tmp_goal
+                self.q_goal = q_goal
+                # self.goal_sphere.position = self.goal
+        else:
+            # print("[cbControl] Starting trajectory transmission")
+            goal = FollowJointTrajectoryGoal()
+            goal.trajectory.joint_names = JOINT_NAMES
+            
+            # divide duration through action callback, the entire move should take around as many seconds as simulated
+            fugde_factor = 0.04 # * self.env.sim_step # 0.02
+            # self.durations = [(self.inference_steps * self.env.sim_step)/len(self.actions) + fugde_factor for _ in self.actions]
+            v = 10e-2
+            self.durations = [self.dist_threshold * (1/v) for _ in self.actions]
+            
+                  
+            duration = 2 * self.dist_threshold * (1/v)
+            # act = self.actions.pop(0)
+            # act = self.actions[i]
+            if self.sim_step < 0:
+                return
+            elif self.sim_step > self.real_step:
+                print("[cbControl] Sending action")
+                print("#"*20)
+                # make step
+                act = self.actions[self.real_step % self.actions.shape[0]]
+                print("real_step :", self.real_step,"sim_step :", self.sim_step,  "act :", act, "inference_step: ", self.inference_steps)
+                # TODO next step or sim_step - 1
+                self.real_step = self.real_step + 1
+                #print("[cbControl] joint angle difference:",np.linalg.norm(self.joints - act))
+                point = JointTrajectoryPoint()
+                point.positions = act
+                #print(act)
+                point.time_from_start = rospy.Duration(duration)
+                goal.trajectory.points.append(point)
+                # print("goal: ", goal)
+                self.trajectory_client.send_goal(goal)
+                #TODO: Every time a goal gets send to the real trajectory, data need to be logged for the real csv
+                if self.logging == True: 
+                    self.log_csv()
+
+                # if not self.mode:  # in RRT/planner mode wait until the robot has progressed to the current waypoint
+                #     self.trajectory_client.wait_for_result()
+                # Ersatz für wait_for_result
+                # TODO calibrate how long to wait for waypoint to publish, as these are diff in joint angles and not cartesian
+                while np.linalg.norm(self.joints - act) > 5e-2:
+                    sleep(0.01)
+
+       
+            
+            if self.drl_success and self.sim_step == self.real_step: 
+                self.goal = None
+                self.q_goal = None
+                self.trajectory = None
+                self.drl_success = False
+                self.inference_done = False
+                print("[cbControl] Goal reached, Task completed successfully!")
+
+    def _control_calibrate(self):
+        inp = input("[cbCalibrate] Choose camera number (between 0 and "+ str(self.num_cameras-1) +"): \n")
+        i = int(inp)
+        was_static = self.point_cloud_static
+        self.point_cloud_static = False
+        self.camera_calibration = True                   
+        print("[cbControl] current (virtual) camera position: " + str(self.camera_transform_to_pyb_origin[i][:3, 3]))
+        print("[cbControl] current (virtual) camera rpy: " + str(self.config['camera_transform_to_pyb_origin'][i]['rpy']))  
+        inp = input("[cbControl] Enter a camera position: \n")
+        inp = inp.split(" ")
+        inp2 = input("[cbControl] Enter a camera rotation in extrinsic XYZ Euler format and in degrees: \n")
+        inp2 = inp2.split(" ")
+        try:
+            inp = [float(ele) for ele in inp]
+            inp2 = [float(ele) for ele in inp2]
+        except ValueError:
+            print("[cbControl] Input in wrong format, try again!")
+            self.camera_calibration = False
+            return
+        # Update the config dictionary
+        self.config['camera_transform_to_pyb_origin'][i]['xyz'] = [float(value) for value in inp]
+        self.config['camera_transform_to_pyb_origin'][i]['rpy'] = [float(value) for value in inp2]
+        # Save the updated configuration to the file
+        self.save_config(self.config_path, self.config)
+        # Reload the configuration to get the latest values
+        self.config = self.load_config(self.config_path)
+
+        self.camera_transform_to_pyb_origin[i][:3, :3] = (R.from_euler('xyz', np.array(inp2), degrees = True)).as_matrix()
+        self.camera_transform_to_pyb_origin[i][:3, 3] = np.array(inp)
+        if self.use_gpu:
+            self.camera_transform_gpu[i] = torch.from_numpy(self.camera_transform_to_pyb_origin[i]).to('cuda')
+        self.pyb_to_camera[i][:3, :3] = self.camera_transform_to_pyb_origin[i][:3, :3].T
+        self.pyb_to_camera[i][:3, 3] = np.matmul(-(self.camera_transform_to_pyb_origin[i][:3, :3].T), np.array(inp))
+        tmp = np.matmul(self.pyb_to_camera[i], self.points_lower_bound)
+        tmp1 = np.matmul(self.pyb_to_camera[i], self.points_upper_bound)
+        self.points_lower_bound_camera[i] = np.min([tmp, tmp1], axis=0)
+        self.points_upper_bound_camera[i] = np.max([tmp, tmp1], axis=0)
+        if self.use_gpu:
+            self.points_lower_bound_camera[i] = torch.from_numpy(self.points_lower_bound_camera[i]).to('cuda')
+            self.points_upper_bound_camera[i] = torch.from_numpy(self.points_upper_bound_camera[i]).to('cuda')
+        self.camera_calibration = False
+        self.point_cloud_static = was_static
+        self.static_done = False
+
+    def _control_voxelsettings(self):
+        self.dont_voxelize = True
+        print("[cbControl] Current voxel size: " + str(self.voxel_size))
+        print("[cbControl] Current robot voxel safe distance: " + str(self.robot_voxel_safe_distance))
+        print("[cbControl] Current minimal cluster size: " + str(self.voxel_cluster_threshold))
+        print("[cbControl] Current number of voxels: " + str(self.num_voxels))
+        inp = input("[cbControl] Enter new voxel size as a float:\n")
+        try:
+            val = float(inp)
+        except ValueError:
+            print("[cbControl] Invalid value for voxel size!")
+        self.voxel_size = val
+        self.config['voxel_size'] = val
+        self.save_config(self.config_path, self.config)
+        inp = input("[cbControl] Enter new robot voxel safe distance as a float:\n")
+        try:
+            val = float(inp)
+        except ValueError:
+            print("[cbControl] Invalid value for robot voxel safe distance!")
+        self.robot_voxel_safe_distance = val
+        self.config['robot_voxel_safe_distance'] = val
+        self.save_config(self.config_path, self.config)
+        inp = input("[cbControl] Enter a new minimal cluster size as an int:\n")
+        try: 
+            val = int(inp)
+        except ValueError:
+            print("[cbControl] Invalid value for cluster size!")
+        self.voxel_cluster_threshold = val
+        self.config['voxel_cluster_threshold'] = val
+        self.save_config(self.config_path, self.config)
+        inp = input("[cbControl] Enter a new number of voxels as an int:\n")
+        try: 
+            val = int(inp)
+        except ValueError:
+            print("[cbControl] Invalid value for number of voxels!")
+        self.num_voxels = val
+        self.delete_voxels()
+        self.initialize_voxels()
+        self.dont_voxelize = False
+    
+    # for camera 1
+    def cbGetPointcloud_0(self, data):
+        #print("cbGetPointcloud got called.1")
+        np_data = ros_numpy.numpify(data)
+        points = np.ones((np_data.shape[0], 4))
+        if len(points) == 0:
+            print("[cbGetPointcloud] No point cloud data received, check the camera and its ROS program!")
+            return
+        points[:, 0] = np_data['x']
+        points[:, 1] = np_data['y']
+        points[:, 2] = np_data['z']
+        color_floats = np_data['rgb']  # float value that compresses color data
+        # convert float values into 3-vector with RGB intensities, normalized to between 0 and 1
+        color_floats = np.ascontiguousarray(color_floats)
+        #color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)) / 255
+        #This code reverses the last dimension to change the order of RGB to BGR. This is necessary as the order of our colors is not rgb initially.
+        color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3][..., ::-1].astype(np.float64)) / 255
+        # transfer data into class variables where other callbacks can get them
+        self.data_set_guard[0] = True
+        self.colors[0] = color_floats
+        self.points_raw[0] = points
+        self.data_set_guard[0] = False
+    
+    #for camera 2
+    def cbGetPointcloud_1(self, data):
+        np_data = ros_numpy.numpify(data)
+        points = np.ones((np_data.shape[0], 4))
+        if len(points) == 0:
+            print("[cbGetPointcloud] No point cloud data received, check the camera and its ROS program!")
+            return
+        points[:, 0] = np_data['x']
+        points[:, 1] = np_data['y']
+        points[:, 2] = np_data['z']
+        color_floats = np_data['rgb']  # float value that compresses color data
+        # convert float values into 3-vector with RGB intensities, normalized to between 0 and 1
+        color_floats = np.ascontiguousarray(color_floats)
+        #color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)) / 255
+        #This code reverses the last dimension to change the order of RGB to BGR. This is necessary as the order of our colors is not rgb initially.
+        color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3][..., ::-1].astype(np.float64)) / 255
+        # transfer data into class variables where other callbacks can get them
+        self.data_set_guard[1] = True
+        self.colors[1] = color_floats
+        self.points_raw[1] = points
+        self.data_set_guard[1] = False
+
+    def cbGetPointcloud_2(self, data):    
+        pass
+
+    def cbPointcloudToPybullet(self, event):
+        #print("cbPointcloudToPybullet got called.2")
+    # callback for PointcloudToPybullet
+    # static = only one update
+    # dynamic = based on update frequency        
+        if self.points_raw is not None and not self.dont_voxelize: #and not self.running_inference:  # catch first time execution scheduling problems
+            if self.point_cloud_static:
+                if self.static_done:
+                    return
+                else:
+                    self.static_done = True
+                    self.PointcloudToVoxel()
+                    self.VoxelsToPybullet()
+            else:
+                self.PointcloudToVoxel()
+                self.VoxelsToPybullet()
+          
+        
+    def PointcloudToVoxel(self):
+       # print("PointcloudToVoxel got called 3")
+        # if using GPU, points and colors are torch tensors
+        # if using CPU, points and colors are numpy arrays
+        not_none_points = [(ele is not None) for ele in self.points_raw]
+        points = [None for _ in self.points_raw]
+        colors = [None for _ in self.points_raw]
+        if True in not_none_points:
+            # wait for the data getter callback to finish
+            for i in range(self.num_cameras):
+                if not_none_points[i]:
+                    while self.data_set_guard[i]:
+                        sleep(0.0001)
+                    points[i] = self.points_raw[i]
+                    colors[i] = self.colors[i]       
+
+            if self.use_gpu:
+                for i in range(self.num_cameras):
+                    if not_none_points[i]:
+                        colors[i] = torch.from_numpy(colors[i]).to('cuda')
+                        points[i] = torch.from_numpy(points[i]).to('cuda')
+
+            # cut off all points that are outside of the area of interest as defined by the user
+            # we use the rotated boundaries to do this on the raw point data
+            # this reduces the number of points drastically before we go to the costly rotation of them all
+            
+            for i in range(self.num_cameras):
+                if not_none_points[i]:
+               
+                    try: 
+                        lower_mask = (points[i] >= self.points_lower_bound_camera[i]).all(axis=1)
+                        upper_mask = (points[i] <= self.points_upper_bound_camera[i]).all(axis=1)
+                    except Exception as e:
+                        print(f"Exception: {e}")
+                        print(f"Type of points[{i}]: {type(points[i])}")
+                        print(f"Type of self.points_lower_bound_camera[{i}]: {type(self.points_lower_bound_camera[i])}")
+                        print(f"Type of self.points_upper_bound_camera[{i}]: {type(self.points_upper_bound_camera[i])}")
+                        raise
+
+                    if self.use_gpu:
+                        in_boundary_mask = torch.logical_and(lower_mask, upper_mask)
+                    else:
+                        in_boundary_mask = np.logical_and(lower_mask, upper_mask)
+                    points[i] = points[i][in_boundary_mask]
+                    colors[i] = colors[i][in_boundary_mask]
+
+            # rotate raw points into PyBullet coordinate system
+            if not self.use_gpu:
+                ############## CPU #######################  
+                for i in range(self.num_cameras):
+                    if not_none_points[i]:
+                        points[i] = np.dot(self.camera_transform_to_pyb_origin[i], points[i].T).T.reshape(-1,4)   
+                points = [points[i] for i in range(self.num_cameras) if not_none_points[i]]
+                colors = [colors[i] for i in range(self.num_cameras) if not_none_points[i]]
+                points = np.concatenate(points, axis=0)
+                colors = np.concatenate(colors, axis=0)
+            else:
+                #################### GPU ####################################
+                # points = torch.from_numpy(points).to('cuda')
+                # colors = torch.from_numpy(colors).to('cuda')
+                for i in range(self.num_cameras):
+                    if not_none_points[i]:
+                        points[i] = torch.matmul(self.camera_transform_gpu[i], points[i].T).T.reshape(-1,4)
+                points = [points[i] for i in range(self.num_cameras) if not_none_points[i]]
+                colors = [colors[i] for i in range(self.num_cameras) if not_none_points[i]]
+                points = torch.cat(points, dim=0)
+                colors = torch.cat(colors, dim=0)
+
+            # remove homogeneous component, don't need it anymore after the rotation  
+            points = points[:, :3]  
+
+            if not self.camera_calibration:
+                
+                # filter objects near endeffector
+                ee_pos, _, _, _ = pyb_u.get_link_state(self.virtual_robot.object_id, self.virtual_robot.end_effector_link_id)
+                # TODO may need to be adjusted with KINECT Cam
+                if self.use_gpu:
+                    mask_offset1 = torch.from_numpy(ee_pos) + torch.tensor([0.1, -0.1, 0.2])
+                    mask_offset1 = mask_offset1.to('cuda')
+                    mask_offset2 = torch.from_numpy(ee_pos) + torch.tensor([0, 0, 0.15])
+                    mask_offset2 = mask_offset2.to('cuda')
+                else:
+                    mask_offset1 = ee_pos + np.array([0.1, -0.1, 0.2])
+                    mask_offset2 = ee_pos + np.array([0, 0, 0.15])
+                mask_left = self.delete_points_by_circle_center(points, mask_offset1)  # TODO: maybe find a general way to do this
+                mask_above = self.delete_points_by_circle_center(points, mask_offset2)
+                if self.use_gpu:
+                    not_close_mask = torch.logical_and(mask_left, mask_above)
+                else:
+                    not_close_mask = np.logical_and(mask_left, mask_above)
+                # filter by bool_array
+                points = points[not_close_mask] 
+                colors = colors[not_close_mask]
+
+            # safety escape: the code below this will crash in case no points survive the filtering process
+            if len(points) == 0:
+                return
+            
+            # dump the results until now from the GPU
+            if self.use_gpu:
+                points = points.cpu().numpy()
+                colors = colors.cpu().numpy()
+
+            pcd = o3d.geometry.PointCloud()
+            
+            # convert it into open 3d format
+            pcd.points = o3d.utility.Vector3dVector(points)
+            pcd.colors = o3d.utility.Vector3dVector(colors) # makes voxels have averaged colors of points, colors have to be normalize to between 0 and 1
+
+            #print("PCD",pcd)
+            if self.use_sor:
+                #print("Using SOR:")
+                pcd = statistical_outlier_removal(pcd)
+         
+            
+           
+
+            #voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.voxel_size)
+            voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud_within_bounds(pcd, voxel_size=self.voxel_size, min_bound=self.points_lower_bound[:3], max_bound=self.points_upper_bound[:3])
+
+            
+            voxel_data = [(voxel.grid_index, voxel.color) for voxel in voxel_grid.get_voxels()]
+            voxel_centers, voxel_colors = zip(*voxel_data)
+            
+
+            voxel_centers = np.array(voxel_centers)
+            voxel_colors = np.array(voxel_colors)
+            # Transform Voxel centers into xyz Coordinates            
+            voxel_centers = voxel_centers * self.voxel_size + self.points_lower_bound[:3]# + offset_min
+
+            if not self.camera_calibration:
+                pyb_u.toggle_rendering(False)
+                # move robot to real position, in case it's somewher else due to a planner or else
+                joints_now, _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
+                not_delete_mask = np.zeros(shape=(voxel_centers.shape[0],), dtype=bool)
+     
+                for idx, point in enumerate(voxel_centers):
+                    pyb_u.set_base_pos_and_ori(self.probe_voxel.object_id, point, np.array([0, 0, 0, 1]))
+                    self.probe_voxel.position = point
+                    #checks if point is in close distance of the robot
+                    query = pyb.getClosestPoints(pyb_u.to_pb(self.probe_voxel.object_id), pyb_u.to_pb(self.virtual_robot.object_id), self.robot_voxel_safe_distance)      
+                    not_delete_mask[idx] = False if query else True
+                voxel_centers = voxel_centers[not_delete_mask]
+                voxel_colors = voxel_colors[not_delete_mask]
+                # move robot back to where it was when filtering started
+                self.virtual_robot.moveto_joints(joints_now, False, self.virtual_robot.all_joints_ids)
+                if not self.is_moving_voxels:
+                    pyb_u.toggle_rendering(True)
+            pyb_u.set_base_pos_and_ori(self.probe_voxel.object_id, self.pos_nowhere, np.array([0, 0, 0, 1])) # TODO: Find out why this causes trouble, MOVES away probe voxel
+            self.probe_voxel.position = self.pos_nowhere
+            
+
+            if self.enable_clustering:
+            # get voxel_clusters
+                voxel_clusters = get_voxel_cluster(voxel_centers, self.neighbourhood_threshold)
+                # find clusters below a cluster size
+                cluster_numbers, counts = np.unique(voxel_clusters, return_counts=True)
+           
+                include_cluster = cluster_numbers[np.invert(counts < self.voxel_cluster_threshold)]
+                # remove voxels belonging to small clusters
+                include_cluster_idx = np.isin(voxel_clusters, include_cluster)
+                voxel_centers = voxel_centers[include_cluster_idx] 
+                voxel_colors = voxel_colors[include_cluster_idx]
+                
+
+            self.voxel_centers = voxel_centers
+            self.voxel_colors = voxel_colors
+
+    def VoxelsToPybullet(self):
+        #print("VoxelsToPybullet got called. 4")
+        if self.voxel_centers is not None:
+            pyb_u.toggle_rendering(False)
+            self.is_moving_voxels = True
+            # update voxel positions
+            for idx, voxel in enumerate(self.voxels):
+                if idx >= len(self.voxel_centers):
+                    # set all remaining voxels to nowhere
+                    for i in range(idx, len(self.voxels)):
+                        self.voxels[i].position = self.pos_nowhere
+                        pyb_u.set_base_pos_and_ori(self.voxels[i].object_id, self.pos_nowhere, np.array([0, 0, 0, 1]))
+                    break
+                pyb_u.set_base_pos_and_ori(voxel.object_id, self.voxel_centers[idx], np.array([0, 0, 0, 1]))          
+                voxel.position = self.voxel_centers[idx]
+            # calculate new colors
+            if self.color_voxels and len(self.voxel_centers) != 0:
+                # voxel_norms = np.linalg.norm(self.voxel_centers - self.camera_transform_to_pyb_origin[:3, 3], axis=1)
+                # max_norm, min_norm = np.max(voxel_norms), np.min(voxel_norms)
+                # voxel_norms = (voxel_norms - min_norm) / (max_norm -  min_norm)
+                # colors = np.ones((len(voxel_norms), 4))
+                # colors = np.multiply(colors, voxel_norms.reshape(len(voxel_norms),1))
+                # colors[:,3] = 1
+                # colors[:,2] *= 0.5
+                # colors[:,1] *= 0.333
+                # colors[:,:3] = 1 - colors[:, :3]
+                ones = np.ones((self.voxel_colors.shape[0], 1), dtype=np.float32)
+                new_colors = np.concatenate([self.voxel_colors, ones], axis=1)
+                for idx, voxel in enumerate(self.voxels):
+                    if idx >= len(self.voxel_centers):
+                        break
+                    pyb.changeVisualShape(pyb_u.to_pb(voxel.object_id), -1, rgbaColor=new_colors[idx])
+            self.is_moving_voxels = False    
+            pyb_u.toggle_rendering(True)
+            
+    
+    def delete_points_by_circle_center(self, points, pos):
+        #print("delete_points_by_circle_center got called. 5")
+        # returns Boolean array or tensor
+        if self.use_gpu:
+            probe_norm = torch.norm((points - pos), dim=1)
+        else:
+            probe_norm = np.linalg.norm((points - pos), axis=1)
+        return probe_norm > self.robot_voxel_safe_distance
+    
+    @staticmethod
+    def pybullet_distance_check(voxel_id, qwe):
+        pass
+    #liest aktuelle Joints des real ur5 aus und überträgt sie in die Simulation
+    def cbSimSync(self, event):
+        if self.joints is not None and not self.running_inference:  # only move if joints are not None symsinc wird nur aufgerufen, wenn RRT aktuell nicht läuft
+            self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #False = dont use physics sim 
+        self.virtual_robot.position_rotation_sensor.update(0)
+        self.end_effector_xyz_sim = self.virtual_robot.position_rotation_sensor.position
+
+    # holen Daten, Frequenz: vom Sender (UR5)
+    def cbGetPos(self, data):
+        for entry in data.transforms:
+            parent_frame_id = entry.header.frame_id 
+            frame_id = entry.child_frame_id
+            if parent_frame_id == "base" and frame_id == "tool0_controller":
+                xyz = np.array([entry.transform.translation.x, entry.transform.translation.y, entry.transform.translation.z])
+                quat = np.array([entry.transform.rotation.x, entry.transform.rotation.y, entry.transform.rotation.z, entry.transform.rotation.w])
+                self.end_effector_xyz = xyz
+                self.end_effector_quat = -quat #anpassung an rviz
+                self.end_effector_rpy = pyb.getEulerFromQuaternion(self.end_effector_quat)
+                
+            
+    def cbGetJoints(self, data):
+        # sometimes the robot driver reports joint angles in an order different from the one we need
+        # that's why we need to map the reported angles to our order that is given in JOINT_NAMES
+        
+        if self.start_sec is None:
+            self.start_sec = data.header.stamp.secs + data.header.stamp.nsecs * (10**-9)
+        
+        pos_data = dict()
+        val_data = dict()
+        effort_data = dict()
+        for idx, name in enumerate(data.name):
+            pos_data[name] = data.position[idx]
+            val_data[name] = data.velocity[idx]
+            effort_data[name] = data.effort[idx]
+            
+        output_pos = []
+        output_vel = []
+        output_eff = []
+        for name in JOINT_NAMES:
+            output_pos.append(pos_data[name])
+            output_vel.append(val_data[name])
+            output_eff.append(effort_data[name])
+
+        self.joints = np.array(output_pos, dtype=np.float32)
+
+        #for logging
+        self.current_time = (data.header.stamp.secs + data.header.stamp.nsecs * (10**-9)) - self.start_sec 
+        
+        self.velocities =np.array(output_vel,dtype=np.float32)
+        self.effort = np.array(output_eff,dtype=np.float32)
+        
+    def initialize_voxels(self):
+        # generate probe_voxel and obstacle_voxels
+        pyb_u.toggle_rendering(False)
+        #self.probe_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], move_step=0, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=[1, 1, 1, 0])
+        self.probe_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], sim_step=self.env.sim_step, sim_steps_per_env_step=self.env.sim_steps_per_env_step, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=[1, 1, 1, 0])
+        self.probe_voxel.build()
+        # self.goal_sphere = Sphere(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[],radius = 0.5, move_step=0, color=[1, 1, 1, 0])
+        for i in range(self.num_voxels):
+            #new_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], move_step=0, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=np.concatenate((np.random.uniform(size=(3,)), np.ones(1))))
+            new_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], sim_step=self.env.sim_step, sim_steps_per_env_step=self.env.sim_steps_per_env_step, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=[1, 0, 0, 1])
+            self.voxels.append(new_voxel)
+            new_voxel.build()
+            self.env.world.obstacle_objects.append(new_voxel)
+        self.env.world.active_objects = self.env.world.obstacle_objects
+        pyb_u.toggle_rendering(True)
+
+    def delete_voxels(self):
+        pyb_u.toggle_rendering(False)
+        for voxel in self.voxels:
+            #initialise pybullet again
+            pyb.removeBody(pyb_u.to_pb(voxel.object_id))
+            del voxel
+        self.env.world.obstacle_objects = []
+        self.env.world.active_objects = []
+        self.voxels = []
+        pyb_u.toggle_rendering(True)
+
+    def load_config(self, file_path):
+        with open(file_path, 'r') as file:
+            return yaml.safe_load(file)
+    
+    def save_config(self, file_path, config):
+        with open(file_path, 'w') as file:
+            yaml.safe_dump(config, file)
+
+    def custom_env_reset(self):
+        # replaces a call to env reset
+        # we do this to avoid a few problems that arise when using the env.reset method outside of the context of training
+        # or inference without sim2real functionality
+        self.env.steps_current_episode = 0
+        self.env.sim_time = 0
+        self.env.cpu_time = 0
+        self.env.inference_time = 0
+        self.env.cpu_reset_epoch = process_time()
+        self.env.reward = 0
+        self.env.reward_cumulative = 0
+        self.env.log = []
+        pyb_u.toggle_rendering(False)
+        self.env.world.reset(0)
+        if not self.is_moving_voxels:
+            pyb_u.toggle_rendering(True)
+        self.env.active_robots = [True for _ in self.env.robots]
+        for sensor in self.env.sensors:
+            sensor.reset()
+ 
+        
+
+###### end of Computer Vision Part start of Part for Robotic Movement ##### 
 
     # verwerten Daten, wandeln in das Format vom NN, fragen NN, wandeln Output vom NN in vom
     # UR5 Driver verstandene Commands
@@ -323,7 +934,7 @@ class listener_node_one:
                     
                     # loop breaking conditions
                     if info["collision"]:
-                        #filter the probe_voxel and TODO: only count if there are at least three collisions
+                        #filter the probe_voxel
                         if len(pyb_u.collisions) > 1 or ('robot_1', 'box_3') not in pyb_u.collisions:
                             # check if therere are at least min_collision number of collisions
                             robot_collisions = [tup for tup in pyb_u.collisions if 'robot_1' in tup]
@@ -377,636 +988,6 @@ class listener_node_one:
                         pos_ee_last = pos_ee  
                         print("[cbAction] Action added")
 
- 
-                        
-    
-    def cbControl(self, event):  
-        if self.startup:
-            pass # TODO   
-        if self.goal is None and self.joints is not None:
-            pyb_u.toggle_rendering(False)
-            self.virtual_robot.goal.delete_visual_aux()
-            if not self.is_moving_voxels:
-                pyb_u.toggle_rendering(True)
-            
-            self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #if last argument = none only 5 of the 6 joints get recognized
-            print("[cbControl] current (virtual) position: " + str(self.end_effector_xyz_sim))
-            print("[cbControl] current (virtual) joint angles: " + str(self.joints))  
-            inp = input("[cbControl] Enter a goal by putting three float values (xyz) with a space between or \n[cbControl] (c) to calibrate camera position or\n[cbControl] (v) to adjust voxel size or\n[cbControl] (r) to return the robot into the starting configuration (WARNING: does not consider collisions, both real and virtual!) or\n[cbControl] (p) to initialize robot control via a sample based planer: \n")
-            if len(inp) == 1:
-                if inp == "r": # Resets the robot to the start position
-                    print("[cbControl] Moving robot into resting pose")
-                    self._move_to_resting_pose() 
-                if inp[0] == "c": # calibrates the camera
-                    self._control_calibrate()
-                if inp[0] == "p":
-                    self._control_planner()          # planner control callback ausgelagert  
-                if inp[0] == "v": # voxelsize
-                    self._control_voxelsettings()
-            else:          
-                inp = inp.split(" ")
-
-                try:
-                    inp = [float(ele) for ele in inp]
-                except ValueError:
-                    print("[cbControl] input in wrong format, try again!")
-                    return
-                # check if inverse kinematics can actually reach the xyz pos
-                tmp_goal = np.array(inp)
-                self.virtual_robot.position_rotation_sensor.update(0)
-                self.virtual_robot.joints_sensor.update(0)
-                # check for collision in starting position
-                pyb_u.perform_collision_check()
-                pyb_u.get_collisions()
-                if pyb_u.collision:
-                    print("[cbControl] current position of robot is in collision in simulation! Try again or check the camera/voxelization if the problem persists.")
-                    return
-                q_goal = self.virtual_robot._solve_ik(tmp_goal, None)
-                self.virtual_robot.moveto_joints(q_goal, False, self.virtual_robot.all_joints_ids)
-                self.virtual_robot.position_rotation_sensor.update(0)
-                pyb_u.perform_collision_check()
-                pyb_u.get_collisions()
-                if pyb_u.collision:
-                    print("[cbControl] target position is in collision in simulation! Try again or check the camera/voxelization if the problem persists..")
-                    choice = input("[cbControl] Do you still want to go ahead with your chosen target? (y/n)\n")
-                    if choice == "no" or choice == "n":
-                        return
-                tmp_pos = self.virtual_robot.position_rotation_sensor.position
-                self.sim_step = 0
-                self.real_step = 0
-                self.inference_steps = 0
-                self.inference_done = False
-                self.drl_success = False
-                self.static_done = False
-                if np.linalg.norm(tmp_pos - tmp_goal) > 5e-2:
-                    print("[cbControl] could not find solution via inverse kinematics that is close enough, try another position")
-                    choice = input("[cbControl] Do you still want to go ahead with your chosen target? (y/n)\n")
-                    if choice == "no" or choice == "n":
-                        return
-                # safety: reset to actual joint angles before the other callback starts running (even though it does the same thing there too)
-                self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
-                # another safety: let a second pass to avoid bad consequences from concurrent callbacks overlapping
-                sleep(1)
-                self.goal = tmp_goal
-                self.q_goal = q_goal
-                # self.goal_sphere.position = self.goal
-                
-        else:
-            # print("[cbControl] Starting trajectory transmission")
-            goal = FollowJointTrajectoryGoal()
-            goal.trajectory.joint_names = JOINT_NAMES
-            
-            # divide duration through action callback, the entire move should take around as many seconds as simulated
-            fugde_factor = 0.04 # * self.env.sim_step # 0.02
-            # self.durations = [(self.inference_steps * self.env.sim_step)/len(self.actions) + fugde_factor for _ in self.actions]
-            v = 10e-2
-            self.durations = [self.dist_threshold * (1/v) for _ in self.actions]
-            
-                  
-            duration = 2 * self.dist_threshold * (1/v)
-            # act = self.actions.pop(0)
-            # act = self.actions[i]
-            if self.sim_step < 0:
-                return
-            elif self.sim_step > self.real_step:
-                print("[cbControl] Sending action")
-                print("#"*20)
-                # make step
-                act = self.actions[self.real_step % self.actions.shape[0]]
-                print("real_step :", self.real_step,"sim_step :", self.sim_step,  "act :", act, "inference_step: ", self.inference_steps)
-                # TODO next step or sim_step - 1
-                self.real_step = self.real_step + 1
-                #print("[cbControl] joint angle difference:",np.linalg.norm(self.joints - act))
-                point = JointTrajectoryPoint()
-                point.positions = act
-                #print(act)
-                point.time_from_start = rospy.Duration(duration)
-                goal.trajectory.points.append(point)
-                # print("goal: ", goal)
-                self.trajectory_client.send_goal(goal)
-                #TODO: Every time a goal gets send to the real trajectory, data need to be logged for the real csv
-                if self.logging == True: 
-                    self.log_csv()
-
-                # if not self.mode:  # in RRT/planner mode wait until the robot has progressed to the current waypoint
-                #     self.trajectory_client.wait_for_result()
-                # Ersatz für wait_for_result
-                # TODO calibrate how long to wait for waypoint to publish, as these are diff in joint angles and not cartesian
-                while np.linalg.norm(self.joints - act) > 5e-2:
-                    sleep(0.01)
-
-       
-            
-            if self.drl_success and self.sim_step == self.real_step: 
-                self.goal = None
-                self.q_goal = None
-                self.trajectory = None
-                self.drl_success = False
-                self.inference_done = False
-                print("[cbControl] Goal reached, Task failed successfully!")
-
-    def _control_planner(self):
-        # set mode to planner
-        self.mode = False
-        self.virtual_robot.use_physics_sim = False
-        inp = input("[cbControl] Input six target joint angles with a space between each one: \n")
-        inp = inp.split(" ")
-        try:
-            inp = np.array([float(ele) for ele in inp])
-        except ValueError:
-            print("[cbControl] input in wrong format, try again!")
-            self.mode = True
-            self.virtual_robot.use_physics_sim = True
-            return
-        # check for collision in current position
-        self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
-        pyb_u.perform_collision_check()
-        pyb_u.get_collisions()
-        if pyb_u.collision:
-            print("[cbControl] current position of robot is in collision in simulation! Try again or check the camera/voxelization if the problem persists.")
-            self.mode = True
-            self.virtual_robot.use_physics_sim = True
-            return
-        # check for collision in target position
-        self.virtual_robot.moveto_joints(inp, False, self.virtual_robot.all_joints_ids)
-        pyb_u.perform_collision_check()
-        pyb_u.get_collisions()
-        if pyb_u.collision:
-            print("[cbControl] target position is in collision in simulation! Try again or check the camera/voxelization if the problem persists..")
-            self.mode = True
-            self.virtual_robot.use_physics_sim = True
-            return
-        # call the planner to plan a collision free route to the target
-        self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
-        self.trajectory = self.planner.plan(inp, self.env.world.active_objects)
-        if self.trajectory is None:
-            print("[cbControl] Planner failed, try again!")
-            self.mode = True
-            self.virtual_robot.use_physics_sim = True
-            return
-        print("trajectory:", len(self.trajectory))
-        print("letzter eintrag trajectory:", self.trajectory[-1])
-        self.virtual_robot.control_mode = 1
-        self.sim_step = 0
-        self.real_step = 0
-        self.virtual_robot.world.position_targets[0] = np.array([1,2,3])
-        self.trajectory_idx = 0
-        self.q_goal = inp 
-        self.goal = np.array([1,2,3])  # some nonsense goal to set the mutex 
-
-    def _control_calibrate(self):
-        was_static = self.point_cloud_static
-        self.point_cloud_static = False
-        self.camera_calibration = True                   
-        print("[cbControl] current (virtual) camera position: " + str(self.camera_transform_to_pyb_origin[:3, 3]))
-        print("[cbControl] current (virtual) camera rpy: " + str(self.config['camera_transform_to_pyb_origin']['rpy']))  
-        inp = input("[cbControl] Enter a camera position: \n")
-        inp = inp.split(" ")
-        inp2 = input("[cbControl] Enter a camera rotation in extrinsic XYZ Euler format and in degrees: \n")
-        inp2 = inp2.split(" ")
-        try:
-            inp = [float(ele) for ele in inp]
-            inp2 = [float(ele) for ele in inp2]
-        except ValueError:
-            print("[cbControl] Input in wrong format, try again!")
-            self.camera_calibration = False
-            return
-        # Update the config dictionary
-        self.config['camera_transform_to_pyb_origin']['xyz'] = [float(value) for value in inp]
-        self.config['camera_transform_to_pyb_origin']['rpy'] = [float(value) for value in inp2]
-        # Save the updated configuration to the file
-        self.save_config(self.config_path, self.config)
-        # Reload the configuration to get the latest values
-        self.config = self.load_config(self.config_path)
-
-        self.camera_transform_to_pyb_origin[:3, :3] = (R.from_euler('xyz', np.array(inp2), degrees = True)).as_matrix()
-        self.camera_transform_to_pyb_origin[:3, 3] = np.array(inp)
-        if self.use_gpu:
-            self.camera_transform_gpu = torch.from_numpy(self.camera_transform_to_pyb_origin).to('cuda')
-        self.pyb_to_camera[:3, :3] = self.camera_transform_to_pyb_origin[:3, :3].T
-        self.pyb_to_camera[:3, 3] = np.matmul(-(self.camera_transform_to_pyb_origin[:3, :3].T), np.array(inp))
-        tmp = np.matmul(self.pyb_to_camera, self.points_lower_bound)
-        tmp1 = np.matmul(self.pyb_to_camera, self.points_upper_bound)
-        self.points_lower_bound_camera = np.min([tmp, tmp1], axis=0)
-        self.points_upper_bound_camera = np.max([tmp, tmp1], axis=0)
-        if self.use_gpu:
-            self.points_lower_bound_camera = torch.from_numpy(self.points_lower_bound_camera).to('cuda')
-            self.points_upper_bound_camera = torch.from_numpy(self.points_upper_bound_camera).to('cuda')
-        self.camera_calibration = False
-        self.point_cloud_static = was_static
-        self.static_done = False
-
-    def _control_voxelsettings(self):
-        self.dont_voxelize = True
-        print("[cbControl] Current voxel size: " + str(self.voxel_size))
-        print("[cbControl] Current robot voxel safe distance: " + str(self.robot_voxel_safe_distance))
-        print("[cbControl] Current minimal cluster size: " + str(self.voxel_cluster_threshold))
-        print("[cbControl] Current number of voxels: " + str(self.num_voxels))
-        inp = input("[cbControl] Enter new voxel size as a float:\n")
-        try:
-            val = float(inp)
-        except ValueError:
-            print("[cbControl] Invalid value for voxel size!")
-        self.voxel_size = val
-        self.config['voxel_size'] = val
-        self.save_config(self.config_path, self.config)
-        inp = input("[cbControl] Enter new robot voxel safe distance as a float:\n")
-        try:
-            val = float(inp)
-        except ValueError:
-            print("[cbControl] Invalid value for robot voxel safe distance!")
-        self.robot_voxel_safe_distance = val
-        self.config['robot_voxel_safe_distance'] = val
-        self.save_config(self.config_path, self.config)
-        inp = input("[cbControl] Enter a new minimal cluster size as an int:\n")
-        try: 
-            val = int(inp)
-        except ValueError:
-            print("[cbControl] Invalid value for cluster size!")
-        self.voxel_cluster_threshold = val
-        self.config['voxel_cluster_threshold'] = val
-        self.save_config(self.config_path, self.config)
-        inp = input("[cbControl] Enter a new number of voxels as an int:\n")
-        try: 
-            val = int(inp)
-        except ValueError:
-            print("[cbControl] Invalid value for number of voxels!")
-        self.num_voxels = val
-        self.delete_voxels()
-        self.initialize_voxels()
-        self.dont_voxelize = False
-    
-    #n times for n cameras
-    def cbGetPointcloud(self, data):
-        np_data = ros_numpy.numpify(data)
-        points = np.ones((np_data.shape[0], 4))
-        if len(points) == 0:
-            print("[cbGetPointcloud] No point cloud data received, check the camera and its ROS program!")
-            return
-        points[:, 0] = np_data['x']
-        points[:, 1] = np_data['y']
-        points[:, 2] = np_data['z']
-        color_floats = np_data['rgb']  # float value that compresses color data
-        # convert float values into 3-vector with RGB intensities, normalized to between 0 and 1
-
-        color_floats = np.ascontiguousarray(color_floats)
-        #color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3].astype(np.float64)) / 255
-        #This code reverses the last dimension to change the order of RGB to BGR. This is necessary as the order of our colors is not rgb initially.
-        color_floats = (color_floats.view(dtype=np.uint8).reshape(color_floats.shape + (4,))[:,:3][..., ::-1].astype(np.float64)) / 255
-        # transfer data into class variables where other callbacks can get them
-        self.data_set_guard = True
-        self.colors = color_floats
-        self.points_raw = points
-        self.data_set_guard = False
-
-      
-                                  
-    def cbPointcloudToPybullet(self, event):
-        # callback for PointcloudToPybullet
-        # static = only one update
-        # dynamic = based on update frequency
-
-        start = time()
-        if self.points_raw is not None and not self.dont_voxelize: #and not self.running_inference:  # catch first time execution scheduling problems
-            if self.point_cloud_static:
-                if self.static_done:
-                    return
-                else:
-                    self.static_done = True
-                    self.PointcloudToVoxel()
-                    #self.all_frames.append(self.voxel_centers.copy()) # Optional for recording
-                    self.VoxelsToPybullet()
-            else:
-                self.PointcloudToVoxel()
-                #print("[cb Pointcloud to Pybullet time: ]" , time() - start)
-                #print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
-                #self.all_frames.append(self.voxel_centers.copy()) # Optional for recording
-                self.VoxelsToPybullet()
-        #np.save("./voxels.npy", self.all_frames)
-        #Optional for recording:
-        """if time() - self.start_time > 20:
-            with open('./voxels_' + str(self.recording_no) + '.pkl', 'wb') as outfile:
-                pickle.dump(self.all_frames, outfile)
-                
-            self.recording_no += 1
-            self.all_frames = []
-            self.start_time = time()
-            print("Dumped new frames")"""
-        
-
-    def PointcloudToVoxel(self):
-        # if using GPU, points and colors are torch tensors
-        # if using CPU, points and colors are numpy arrays
-        if self.joints is not None and len(self.points_raw) != 0:
-            while self.data_set_guard:
-                sleep(0.0001)
-            points = self.points_raw
-            colors = self.colors
-            
-            
-          
-            if self.use_gpu:
-                colors = torch.from_numpy(colors).to('cuda')
-                points = torch.from_numpy(points).to('cuda')
-
-            # cut off all points that are outside of the area of interest as defined by the user
-            # we use the rotated boundaries to do this on the raw point data
-            # this reduces the number of points drastically before we go to the costly rotation of them all
-            lower_mask = (points >= self.points_lower_bound_camera).all(axis=1)
-            upper_mask = (points <= self.points_upper_bound_camera).all(axis=1)
-            if self.use_gpu:
-                in_boundary_mask = torch.logical_and(lower_mask, upper_mask)
-            else:
-                in_boundary_mask = np.logical_and(lower_mask, upper_mask)
-            points = points[in_boundary_mask]
-            colors = colors[in_boundary_mask]
-
-            # rotate raw points into PyBullet coordinate system
-            if not self.use_gpu:
-                ############## CPU #######################  
-                points = np.dot(self.camera_transform_to_pyb_origin, points.T).T.reshape(-1,4)   
-            else:
-                #################### GPU ####################################
-                # points = torch.from_numpy(points).to('cuda')
-                # colors = torch.from_numpy(colors).to('cuda')
-
-                points = torch.matmul(self.camera_transform_gpu, points.T).T.reshape(-1,4)
-
-            # remove homogeneous component, don't need it anymore after the rotation  
-            points = points[:, :3]  
-
-            if not self.camera_calibration:
-                
-                # filter objects near endeffector
-                ee_pos, _, _, _ = pyb_u.get_link_state(self.virtual_robot.object_id, self.virtual_robot.end_effector_link_id)
-                # TODO may need to be adjusted with KINECT Cam
-                if self.use_gpu:
-                    mask_offset1 = torch.from_numpy(ee_pos) + torch.tensor([0.1, -0.1, 0.2])
-                    mask_offset1 = mask_offset1.to('cuda')
-                    mask_offset2 = torch.from_numpy(ee_pos) + torch.tensor([0, 0, 0.15])
-                    mask_offset2 = mask_offset2.to('cuda')
-                else:
-                    mask_offset1 = ee_pos + np.array([0.1, -0.1, 0.2])
-                    mask_offset2 = ee_pos + np.array([0, 0, 0.15])
-                mask_left = self.delete_points_by_circle_center(points, mask_offset1)  # TODO: maybe find a general way to do this
-                mask_above = self.delete_points_by_circle_center(points, mask_offset2)
-                if self.use_gpu:
-                    not_close_mask = torch.logical_and(mask_left, mask_above)
-                else:
-                    not_close_mask = np.logical_and(mask_left, mask_above)
-                # filter by bool_array
-                points = points[not_close_mask] 
-                colors = colors[not_close_mask]
-
-            # safety escape: the code below this will crash in case no points survive the filtering process
-            if len(points) == 0:
-                return
-            
-            # dump the results until now from the GPU
-            if self.use_gpu:
-                points = points.cpu().numpy()
-                colors = colors.cpu().numpy()
-            
-            # get the offset for the voxel transformation later on
-
-            # #scale all values for all axis between 0-1 to be able to determine static number of grids
-            # points = points - self.points_lower_bound[:3]
-            # points_range = self.points_upper_bound[:3] - self.points_lower_bound[:3]
-            # points = points / (points_range)
-
-            #points = np.append(points, [np.array([1, 1, 1]), np.array([0, 0, 0])], axis=0)
-
-            pcd = o3d.geometry.PointCloud()
-            
-            # convert it into open 3d format
-            pcd.points = o3d.utility.Vector3dVector(points)
-            pcd.colors = o3d.utility.Vector3dVector(colors) # makes voxels have averaged colors of points, colors have to be normalize to between 0 and 1
-           
-            if self.use_sor:
-                #print("Using SOR:")
-                pcd = statistical_outlier_removal(pcd)
-         
-            #Downsample pointcloud: 
-            #pcd = pcd.voxel_down_sample(voxel_size=0.05)
-            
-           
-
-            #voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.voxel_size)
-            voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud_within_bounds(pcd, voxel_size=self.voxel_size, min_bound=self.points_lower_bound[:3], max_bound=self.points_upper_bound[:3])
-
-            
-            voxel_data = [(voxel.grid_index, voxel.color) for voxel in voxel_grid.get_voxels()]
-            voxel_centers, voxel_colors = zip(*voxel_data)
-            
-
-            voxel_centers = np.array(voxel_centers)
-            voxel_colors = np.array(voxel_colors)
-            # Transform Voxel centers into xyz Coordinates            
-            voxel_centers = voxel_centers * self.voxel_size + self.points_lower_bound[:3]# + offset_min
-
-            if not self.camera_calibration:
-                pyb_u.toggle_rendering(False)
-                # move robot to real position, in case it's somewher else due to a planner or else
-                joints_now, _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
-                self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
-                not_delete_mask = np.zeros(shape=(voxel_centers.shape[0],), dtype=bool)
-                # TODO: parallelize this
-                for idx, point in enumerate(voxel_centers):
-                    pyb_u.set_base_pos_and_ori(self.probe_voxel.object_id, point, np.array([0, 0, 0, 1]))
-                    self.probe_voxel.position = point
-                    #checks if point is in close distance of the robot
-                    query = pyb.getClosestPoints(pyb_u.to_pb(self.probe_voxel.object_id), pyb_u.to_pb(self.virtual_robot.object_id), self.robot_voxel_safe_distance)      
-                    not_delete_mask[idx] = False if query else True
-                voxel_centers = voxel_centers[not_delete_mask]
-                voxel_colors = voxel_colors[not_delete_mask]
-                # move robot back to where it was when filtering started
-                self.virtual_robot.moveto_joints(joints_now, False, self.virtual_robot.all_joints_ids)
-                if not self.is_moving_voxels:
-                    pyb_u.toggle_rendering(True)
-            pyb_u.set_base_pos_and_ori(self.probe_voxel.object_id, self.pos_nowhere, np.array([0, 0, 0, 1])) # TODO: Find out why this causes trouble, MOVES away probe voxel
-            self.probe_voxel.position = self.pos_nowhere
-            
-            # Save voxels.npy
-            #np.save("./voxels.npy",voxel_centers)
-            #pickle.
-
-
-            if self.enable_clustering:
-            # get voxel_clusters
-                voxel_clusters = get_voxel_cluster(voxel_centers, self.neighbourhood_threshold)
-                # find clusters below a cluster size
-                cluster_numbers, counts = np.unique(voxel_clusters, return_counts=True)
-                # remove_cluster = []
-                # for idx, clus in enumerate(cluster_numbers):
-                #     if counts[idx] < self.voxel_cluster_threshold:
-                #         remove_cluster.append(clus)
-                include_cluster = cluster_numbers[np.invert(counts < self.voxel_cluster_threshold)]
-                # remove voxels belonging to small clusters
-                include_cluster_idx = np.isin(voxel_clusters, include_cluster)
-                voxel_centers = voxel_centers[include_cluster_idx] 
-                voxel_colors = voxel_colors[include_cluster_idx]
-                
-
-            self.voxel_centers = voxel_centers
-            self.voxel_colors = voxel_colors
-
-            
-
-    def VoxelsToPybullet(self):
-        if self.voxel_centers is not None:
-            pyb_u.toggle_rendering(False)
-            self.is_moving_voxels = True
-            # update voxel positions
-            for idx, voxel in enumerate(self.voxels):
-                if idx >= len(self.voxel_centers):
-                    # set all remaining voxels to nowhere
-                    for i in range(idx, len(self.voxels)):
-                        self.voxels[i].position = self.pos_nowhere
-                        pyb_u.set_base_pos_and_ori(self.voxels[i].object_id, self.pos_nowhere, np.array([0, 0, 0, 1]))
-                    break
-                pyb_u.set_base_pos_and_ori(voxel.object_id, self.voxel_centers[idx], np.array([0, 0, 0, 1]))          
-                voxel.position = self.voxel_centers[idx]
-            # calculate new colors
-            if self.color_voxels and len(self.voxel_centers) != 0:
-                # voxel_norms = np.linalg.norm(self.voxel_centers - self.camera_transform_to_pyb_origin[:3, 3], axis=1)
-                # max_norm, min_norm = np.max(voxel_norms), np.min(voxel_norms)
-                # voxel_norms = (voxel_norms - min_norm) / (max_norm -  min_norm)
-                # colors = np.ones((len(voxel_norms), 4))
-                # colors = np.multiply(colors, voxel_norms.reshape(len(voxel_norms),1))
-                # colors[:,3] = 1
-                # colors[:,2] *= 0.5
-                # colors[:,1] *= 0.333
-                # colors[:,:3] = 1 - colors[:, :3]
-                ones = np.ones((self.voxel_colors.shape[0], 1), dtype=np.float32)
-                new_colors = np.concatenate([self.voxel_colors, ones], axis=1)
-                for idx, voxel in enumerate(self.voxels):
-                    if idx >= len(self.voxel_centers):
-                        break
-                    pyb.changeVisualShape(pyb_u.to_pb(voxel.object_id), -1, rgbaColor=new_colors[idx])
-            self.is_moving_voxels = False    
-            pyb_u.toggle_rendering(True)
-            
-    
-    def delete_points_by_circle_center(self, points, pos):
-        # returns Boolean array or tensor
-        if self.use_gpu:
-            probe_norm = torch.norm((points - pos), dim=1)
-        else:
-            probe_norm = np.linalg.norm((points - pos), axis=1)
-        return probe_norm > self.robot_voxel_safe_distance
-    
-    @staticmethod
-    def pybullet_distance_check(voxel_id, qwe):
-        pass
-
-
-    #liest aktuelle Joints des real ur5 aus und überträgt sie in die Simulation
-    def cbSimSync(self, event):
-        if self.joints is not None and not self.running_inference:  # only move if joints are not None symsinc wird nur aufgerufen, wenn RRT aktuell nicht läuft
-            self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids) #False = dont use physics sim 
-        self.virtual_robot.position_rotation_sensor.update(0)
-        self.end_effector_xyz_sim = self.virtual_robot.position_rotation_sensor.position
-
-    # holen Daten, Frequenz: vom Sender (UR5)
-    def cbGetPos(self, data):
-        for entry in data.transforms:
-            parent_frame_id = entry.header.frame_id 
-            frame_id = entry.child_frame_id
-            if parent_frame_id == "base" and frame_id == "tool0_controller":
-                xyz = np.array([entry.transform.translation.x, entry.transform.translation.y, entry.transform.translation.z])
-                quat = np.array([entry.transform.rotation.x, entry.transform.rotation.y, entry.transform.rotation.z, entry.transform.rotation.w])
-                self.end_effector_xyz = xyz
-                self.end_effector_quat = -quat #anpassung an rviz
-                self.end_effector_rpy = pyb.getEulerFromQuaternion(self.end_effector_quat)
-                
-            
-    def cbGetJoints(self, data):
-        # sometimes the robot driver reports joint angles in an order different from the one we need
-        # that's why we need to map the reported angles to our order that is given in JOINT_NAMES
-        
-        if self.start_sec is None:
-            self.start_sec = data.header.stamp.secs + data.header.stamp.nsecs * (10**-9)
-        
-        pos_data = dict()
-        val_data = dict()
-        effort_data = dict()
-        for idx, name in enumerate(data.name):
-            pos_data[name] = data.position[idx]
-            val_data[name] = data.velocity[idx]
-            effort_data[name] = data.effort[idx]
-            
-        output_pos = []
-        output_vel = []
-        output_eff = []
-        for name in JOINT_NAMES:
-            output_pos.append(pos_data[name])
-            output_vel.append(val_data[name])
-            output_eff.append(effort_data[name])
-
-        self.joints = np.array(output_pos, dtype=np.float32)
-
-        #for logging
-        self.current_time = (data.header.stamp.secs + data.header.stamp.nsecs * (10**-9)) - self.start_sec 
-        
-        self.velocities =np.array(output_vel,dtype=np.float32)
-        self.effort = np.array(output_eff,dtype=np.float32)
-        
-    
-    def initialize_voxels(self):
-        # generate probe_voxel and obstacle_voxels
-        pyb_u.toggle_rendering(False)
-        #self.probe_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], move_step=0, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=[1, 1, 1, 0])
-        self.probe_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], sim_step=self.env.sim_step, sim_steps_per_env_step=self.env.sim_steps_per_env_step, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=[1, 1, 1, 0])
-        self.probe_voxel.build()
-        # self.goal_sphere = Sphere(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[],radius = 0.5, move_step=0, color=[1, 1, 1, 0])
-        for i in range(self.num_voxels):
-            #new_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], move_step=0, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=np.concatenate((np.random.uniform(size=(3,)), np.ones(1))))
-            new_voxel = Box(position=self.pos_nowhere, rotation=[0,0,0,1], trajectory=[], sim_step=self.env.sim_step, sim_steps_per_env_step=self.env.sim_steps_per_env_step, halfExtents=[self.voxel_size/2, self.voxel_size/2, self.voxel_size/2], color=[1, 0, 0, 1])
-            self.voxels.append(new_voxel)
-            new_voxel.build()
-            self.env.world.obstacle_objects.append(new_voxel)
-        self.env.world.active_objects = self.env.world.obstacle_objects
-        pyb_u.toggle_rendering(True)
-
-    def delete_voxels(self):
-        pyb_u.toggle_rendering(False)
-        for voxel in self.voxels:
-            #initialise pybullet again
-            pyb.removeBody(pyb_u.to_pb(voxel.object_id))
-            del voxel
-        self.env.world.obstacle_objects = []
-        self.env.world.active_objects = []
-        self.voxels = []
-        pyb_u.toggle_rendering(True)
-
-    def load_config(self, file_path):
-        with open(file_path, 'r') as file:
-            return yaml.safe_load(file)
-    
-    def save_config(self, file_path, config):
-        with open(file_path, 'w') as file:
-            yaml.safe_dump(config, file)
-
-    def custom_env_reset(self):
-        # replaces a call to env reset
-        # we do this to avoid a few problems that arise when using the env.reset method outside of the context of training
-        # or inference without sim2real functionality
-        self.env.steps_current_episode = 0
-        self.env.sim_time = 0
-        self.env.cpu_time = 0
-        self.env.inference_time = 0
-        self.env.cpu_reset_epoch = process_time()
-        self.env.reward = 0
-        self.env.reward_cumulative = 0
-        self.env.log = []
-        pyb_u.toggle_rendering(False)
-        self.env.world.reset(0)
-        if not self.is_moving_voxels:
-            pyb_u.toggle_rendering(True)
-        self.env.active_robots = [True for _ in self.env.robots]
-        for sensor in self.env.sensors:
-            sensor.reset()
-
     #This logs all the important data, call at every real step
     def log_csv(self):
         #print("look here:", self.env.log[-1])
@@ -1049,91 +1030,10 @@ class listener_node_one:
                             print(key)
             #print(self.env.log)
 
-
-#####Not really in use#######
-   #Planner for RRT                
-    def cbActionPlanner(self, event):
-        if self.joints is not None:
-            if not self.mode and self.q_goal is not None and self.trajectory is not None and not self.inference_done:  # planner mode activated and a valid goal has been created in cbControl
-                print("[cbAction] starting planner trajectory execution")
-                # set inference mutex such that other callbacks do nothing while new movement is calculated
-                self.running_inference = True
-                # manually reset a few env attributes (we don't want to use env.reset() because that would delete all the voxels)
-                self.env.steps_current_episode = 0
-                self.env.is_success = False
-                self.virtual_robot.moveto_joints(self.joints, False, self.virtual_robot.all_joints_ids)
-
-                # reset sensors
-                for sensor in self.env.sensors:
-                    # sensor.reset()
-                    sensor.update(0)
-
-                # get one obs to correctly initialize a few values in the env internals
-                _ = self.env._get_obs()
-
-                while True:
-                    if self.sim_step - self.real_step >= self.drl_horizon:
-                        # Waiting for real_step to catch up to sim_step
-                        continue
-
-                    # turn angles into vector between -1 and 1 so that we can properly step the env in order to get logs at the end
-                    action = self.trajectory[self.trajectory_idx]
-                    action = ((action + self.virtual_robot._joints_limits_upper) / (self.virtual_robot._joints_range / 2)) - 1
-
-                    _, _, _, info = self.env.step(action)
-
-                    # loop breaking conditions
-                    if info["collision"]:
-                        self.q_goal = None
-                        self.goal = None
-                        self.trajectory = None
-                        self.mode = True
-                        self.virtual_robot.use_physics_sim = True
-                        self.virtual_robot.control_mode = 2
-                        self.actions = np.ones((100, len(self.virtual_robot.all_joints_ids))) * self.joints
-                        self.sim_step = -1
-                        self.running_inference = False
-                        self.inference_done = True
-                        self.env.episode += 1
-                        # find the voxels that collide with the robot
-                        pyb_u.toggle_rendering(False)
-                        for tup in pyb_u.collisions:
-                            if self.virtual_robot.object_id in tup and not self.probe_voxel.object_id in tup:
-                                voxel_id = tup[0] if tup[0]!=self.virtual_robot.object_id else tup[1]
-                                pyb.changeVisualShape(pyb_u.to_pb(voxel_id), -1, rgbaColor=[1, 0, 0, 1])
-                        if not self.is_moving_voxels:        
-                            pyb_u.toggle_rendering(True)
-                        print("[cbAction] Found collision during inference! Choose a new goal or try again.")
-                        return
-                    elif np.linalg.norm(self.trajectory[-1] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]) < 8e-2:
-                        self.mode = True
-                        self.virtual_robot.use_physics_sim = True
-                        self.virtual_robot.control_mode = 2
-                        self.drl_success = True
-                        self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
-                        self.sim_step = self.sim_step + 1
-                        self.running_inference = False
-                        self.inference_done = True
-                        self.env.episode += 1
-                        return
-
-                    self.actions[self.sim_step % self.actions.shape[0]], _ = pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)
-                    self.sim_step = self.sim_step + 1
-                    print("[cbAction] Action added")
-                    print("trajectory idx", self.trajectory_idx)
-                    print("feheler", np.linalg.norm(self.trajectory[self.trajectory_idx] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]))
-                    # step up trajectory
-                    if np.linalg.norm(self.trajectory[self.trajectory_idx] - pyb_u.get_joint_states(self.virtual_robot.object_id, self.virtual_robot.all_joints_ids)[0]) < 8e-2:
-                        self.trajectory_idx += 1
-                        
-
-
+ 
+            
 
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True, disable_signals=True) 
-    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=2000, point_cloud_static=False)
-
-
-
-
+    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=5000, point_cloud_static=False)

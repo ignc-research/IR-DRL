@@ -29,9 +29,9 @@ enable_PC: true
 enable_clustering: false
 max_inference_steps: 5000
 min_collisions: 3
-num_cameras: 2
+num_cameras: 1
 robot_voxel_safe_distance: 0.15
-use_gpu: true
-use_sor: false
+use_gpu: True
+use_sor: False
 voxel_cluster_threshold: 50
 voxel_size: 0.035
