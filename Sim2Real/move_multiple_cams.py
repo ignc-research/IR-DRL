@@ -10,7 +10,8 @@
 #TODO: 
 # Voxel centers für servet ()
 # Fix weird bug after calibration () 
-
+import csv 
+import os
 import rospy
 from sensor_msgs.msg import JointState
 from tf2_msgs.msg import TFMessage
@@ -60,7 +61,7 @@ JOINT_NAMES = [
 ]
 
 class listener_node_one:
-    def __init__(self, action_rate, control_rate, num_voxels, point_cloud_static):
+    def __init__(self, num_voxels, point_cloud_static):
         # yaml config file
         self.config_path = '/home/moga/Desktop/IR-DRL/Sim2Real/config_data/config.yaml'
         self.config = self.load_config(self.config_path)
@@ -174,6 +175,9 @@ class listener_node_one:
         self.additional_info = dict()
         self.log = [] 
 
+        # Arrays to log the time of each callback
+        self.cbcontrol_list = []
+
         # minimum collisions needed to be counted as a real collision
         self.min_collisions = self.config['min_collisions']
 
@@ -252,7 +256,7 @@ class listener_node_one:
         sleep(1)
 
         print("[Listener] Started callback for DRL inference")
-        rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbAction)
+        rospy.Timer(rospy.Duration(secs=1/60), self.cbAction)
         #print("[Listener] Started callback for Planner inference")
         #rospy.Timer(rospy.Duration(secs=1/action_rate), self.cbActionPlanner)
         sleep(1)
@@ -261,7 +265,7 @@ class listener_node_one:
 
         sleep(1)
         print("[Listener] Started callback for controlling robot")
-        rospy.Timer(rospy.Duration(secs=1/control_rate), self.cbControl)
+        rospy.Timer(rospy.Duration(secs=1/120), self.cbControl)
 
         print("[Listener] initialized node")
         rospy.spin() #Lässt rospy immer weiter laufen
@@ -283,6 +287,7 @@ class listener_node_one:
 
 
     def cbControl(self, event):
+        
         if self.startup:
             pass # TODO   
         if self.goal is None and self.joints is not None:
@@ -392,6 +397,7 @@ class listener_node_one:
                 # TODO calibrate how long to wait for waypoint to publish, as these are diff in joint angles and not cartesian
                 while np.linalg.norm(self.joints - act) > 5e-2:
                     sleep(0.01)
+               
 
        
             
@@ -402,6 +408,8 @@ class listener_node_one:
                 self.drl_success = False
                 self.inference_done = False
                 print("[cbControl] Goal reached, Task completed successfully!")
+                    
+
 
     def _control_calibrate(self):
         inp = input("[cbCalibrate] Choose camera number (between 0 and "+ str(self.num_cameras-1) +"): \n")
@@ -539,7 +547,8 @@ class listener_node_one:
         #print("cbPointcloudToPybullet got called.2")
     # callback for PointcloudToPybullet
     # static = only one update
-    # dynamic = based on update frequency        
+    # dynamic = based on update frequency
+        start = time()        
         if self.points_raw is not None and not self.dont_voxelize: #and not self.running_inference:  # catch first time execution scheduling problems
             if self.point_cloud_static:
                 if self.static_done:
@@ -550,6 +559,8 @@ class listener_node_one:
                     self.VoxelsToPybullet()
             else:
                 self.PointcloudToVoxel()
+                #print("[cb Pointcloud to Pybullet time: ]" , time() - start)
+                #print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
                 self.VoxelsToPybullet()
           
         
@@ -738,15 +749,7 @@ class listener_node_one:
                 voxel.position = self.voxel_centers[idx]
             # calculate new colors
             if self.color_voxels and len(self.voxel_centers) != 0:
-                # voxel_norms = np.linalg.norm(self.voxel_centers - self.camera_transform_to_pyb_origin[:3, 3], axis=1)
-                # max_norm, min_norm = np.max(voxel_norms), np.min(voxel_norms)
-                # voxel_norms = (voxel_norms - min_norm) / (max_norm -  min_norm)
-                # colors = np.ones((len(voxel_norms), 4))
-                # colors = np.multiply(colors, voxel_norms.reshape(len(voxel_norms),1))
-                # colors[:,3] = 1
-                # colors[:,2] *= 0.5
-                # colors[:,1] *= 0.333
-                # colors[:,:3] = 1 - colors[:, :3]
+
                 ones = np.ones((self.voxel_colors.shape[0], 1), dtype=np.float32)
                 new_colors = np.concatenate([self.voxel_colors, ones], axis=1)
                 for idx, voxel in enumerate(self.voxels):
@@ -874,10 +877,6 @@ class listener_node_one:
         self.env.active_robots = [True for _ in self.env.robots]
         for sensor in self.env.sensors:
             sensor.reset()
- 
-        
-
-###### end of Computer Vision Part start of Part for Robotic Movement ##### 
 
     # verwerten Daten, wandeln in das Format vom NN, fragen NN, wandeln Output vom NN in vom
     # UR5 Driver verstandene Commands
@@ -1031,9 +1030,23 @@ class listener_node_one:
             #print(self.env.log)
 
  
-            
+    def update_csv(self,filename, my_list):
+    # Check if file is empty or doesn't exist
+        file_is_empty = not os.path.isfile(filename) or os.stat(filename).st_size == 0
 
+        with open(filename, 'a', newline='') as csvfile:
+            fieldnames = ['cbControl_time']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+            if file_is_empty:
+                # Write header if the file is empty
+                writer.writeheader()
+
+            # Append the latest entry from my_list
+            writer.writerow({'cbControl_time': my_list[-1]})
+
+        
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True, disable_signals=True) 
-    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=5000, point_cloud_static=False)
+    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=5000, point_cloud_static=True)
