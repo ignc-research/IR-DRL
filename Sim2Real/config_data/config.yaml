@@ -4,9 +4,9 @@ camera_transform_to_pyb_origin:
   - 0.0
   - 180.0
   xyz:
-  - 0.4
-  - 1.5
-  - 0.25
+  - 0.59
+  - 1.8
+  - 0.13
 - rpy:
   - 90.0
   - -90.0
@@ -32,6 +32,6 @@ min_collisions: 3
 num_cameras: 1
 robot_voxel_safe_distance: 0.15
 use_gpu: true
-use_sor: False
+use_sor: false
 voxel_cluster_threshold: 50
 voxel_size: 0.035

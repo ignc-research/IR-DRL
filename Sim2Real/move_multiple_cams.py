@@ -8,8 +8,10 @@
 #roslaunch realsense2_camera rs_camera.launch camera:=cam_2 serial_no:=141322251391 filters:=pointcloud
 
 #TODO: 
+# TODO: Pointcloud abgleichen mit Pointcloud vorher
 # Voxel centers für servet ()
 # Fix weird bug after calibration () 
+# Rausfinden was genau es verzögert. Mit weniger Voxel wird es anscheinend schneller
 import csv 
 import os
 import rospy
@@ -20,7 +22,7 @@ from time import process_time, time
 import actionlib
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
 from trajectory_msgs.msg import JointTrajectoryPoint
-from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import PointCloud2, Image
 import sys
 from modular_drl_env.gym_env.environment import ModularDRLEnv
 from modular_drl_env.util.configparser import parse_config
@@ -34,6 +36,8 @@ from time import sleep
 import yaml
 from scipy.spatial.transform import Rotation as R
 from sklearn.neighbors import NearestNeighbors
+from PIL import Image as PILImage
+import io
 
 import pandas as pd
 
@@ -116,6 +120,8 @@ class listener_node_one:
         self.data_set_guard = False
         self.is_moving_voxels = False       
 
+        self.first_time_voxelization = True
+
         # cbGetPointcloud
         # storage attributes for all the camera data
         self.num_cameras = self.config['num_cameras']
@@ -168,7 +174,11 @@ class listener_node_one:
         self.robot_voxel_cluster_distance = 0.3 #TODO: optimize this
         self.neighbourhood_threshold = np.sqrt(2)*self.voxel_size + self.voxel_size/10
         self.voxel_cluster_threshold = self.config['voxel_cluster_threshold'] #TODO: Variabel an der anzahl von voxeln ändern nicht hardcoden
-        self.voxel_centers = None
+        self.voxel_centers_pyb = None
+        self.voxel_centers_indices = None
+        self.last_voxel_centers = None
+        self.voxel_grid = dict()  # dictionary with voxel grid indices as keys and pybullet box objects as values
+        self.voxel_reserve_queue = []
 
         #Part for logging Sim2Real csv
         self.logging = True
@@ -176,7 +186,10 @@ class listener_node_one:
         self.log = [] 
 
         # Arrays to log the time of each callback
-        self.cbcontrol_list = []
+        self.cbcontrol_time = []
+        self.cbaction_time = []
+        self.cbsimsync_time = []
+        self.cbpointcloudpybullet_time = []
 
         # minimum collisions needed to be counted as a real collision
         self.min_collisions = self.config['min_collisions']
@@ -308,7 +321,11 @@ class listener_node_one:
                 if inp[0] == "r":
                     print("[cbControl] Moving robot into resting pose")
                     self._move_to_resting_pose()
-            else: 
+            else:
+                #with open("output_PointcloudtoPybullet.txt", "a") as f:
+                   # f.write("---MOVEMENT STARTED-----]")
+               # with open("output_Action.txt", "a") as f:
+                  #  f.write("---MOVEMENT STARTED-----]")
                 inp = inp.split(" ")
                 try:
                     inp = [float(ele) for ele in inp]
@@ -353,6 +370,7 @@ class listener_node_one:
                 sleep(1)
                 self.goal = tmp_goal
                 self.q_goal = q_goal
+                self.first_time_voxelization = True
                 # self.goal_sphere.position = self.goal
         else:
             # print("[cbControl] Starting trajectory transmission")
@@ -517,7 +535,7 @@ class listener_node_one:
         self.colors[0] = color_floats
         self.points_raw[0] = points
         self.data_set_guard[0] = False
-    
+
     #for camera 2
     def cbGetPointcloud_1(self, data):
         np_data = ros_numpy.numpify(data)
@@ -561,7 +579,11 @@ class listener_node_one:
                 self.PointcloudToVoxel()
                 #print("[cb Pointcloud to Pybullet time: ]" , time() - start)
                 #print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
+                
                 self.VoxelsToPybullet()
+                #with open("output_PointcloudtoPybullet.txt", "a") as f:
+                    #f.write("[cb Pointcloud to Pybullet time: ]" + str(time() - start) + "\n")
+                    #f.write("[cb Pointcloud to Pybullet FPS: ]" + str(1/(time() - start)) + "\n")
           
         
     def PointcloudToVoxel(self):
@@ -671,7 +693,19 @@ class listener_node_one:
             
             # convert it into open 3d format
             pcd.points = o3d.utility.Vector3dVector(points)
+            
+        
             pcd.colors = o3d.utility.Vector3dVector(colors) # makes voxels have averaged colors of points, colors have to be normalize to between 0 and 1
+            #o3d.visualization.draw_geometries([pcd],
+             #                      zoom=0.3412,
+              #                     front=[0.4257, -0.2125, -0.8795],
+               #                    lookat=[2.6172, 2.0475, 1.532],
+                #                   up=[-0.0694, -0.9768, 0.2024])
+            
+            
+
+            #Downsample pointcloud: 
+            #pcd = pcd.voxel_down_sample(voxel_size=0.035)
 
             #print("PCD",pcd)
             if self.use_sor:
@@ -691,6 +725,7 @@ class listener_node_one:
 
             voxel_centers = np.array(voxel_centers)
             voxel_colors = np.array(voxel_colors)
+            self.voxel_centers_indices = voxel_centers
             # Transform Voxel centers into xyz Coordinates            
             voxel_centers = voxel_centers * self.voxel_size + self.points_lower_bound[:3]# + offset_min
 
@@ -706,9 +741,11 @@ class listener_node_one:
                     #checks if point is in close distance of the robot
                     query = pyb.getClosestPoints(pyb_u.to_pb(self.probe_voxel.object_id), pyb_u.to_pb(self.virtual_robot.object_id), self.robot_voxel_safe_distance)      
                     not_delete_mask[idx] = False if query else True
+                
                 voxel_centers = voxel_centers[not_delete_mask]
                 voxel_colors = voxel_colors[not_delete_mask]
-                # move robot back to where it was when filtering started
+                self.voxel_centers_indices = self.voxel_centers_indices[not_delete_mask]
+              
                 self.virtual_robot.moveto_joints(joints_now, False, self.virtual_robot.all_joints_ids)
                 if not self.is_moving_voxels:
                     pyb_u.toggle_rendering(True)
@@ -727,37 +764,69 @@ class listener_node_one:
                 include_cluster_idx = np.isin(voxel_clusters, include_cluster)
                 voxel_centers = voxel_centers[include_cluster_idx] 
                 voxel_colors = voxel_colors[include_cluster_idx]
+                self.voxel_centers_indices = self.voxel_centers_indices[include_cluster_idx]
                 
-
-            self.voxel_centers = voxel_centers
+            self.voxel_centers_indices = [tuple(ele) for ele in self.voxel_centers_indices]      
+            if self.last_voxel_centers is not None:
+                voxel_centers_indices = set(self.voxel_centers_indices)
+                self.to_create_voxels = voxel_centers_indices - self.last_voxel_centers
+                self.to_delete_voxels = self.last_voxel_centers - voxel_centers_indices
+                self.first_time_voxelization = False
+            self.voxel_centers_pyb = voxel_centers
+            self.last_voxel_centers = set(self.voxel_centers_indices)
             self.voxel_colors = voxel_colors
 
     def VoxelsToPybullet(self):
         #print("VoxelsToPybullet got called. 4")
-        if self.voxel_centers is not None:
-            pyb_u.toggle_rendering(False)
-            self.is_moving_voxels = True
-            # update voxel positions
-            for idx, voxel in enumerate(self.voxels):
-                if idx >= len(self.voxel_centers):
-                    # set all remaining voxels to nowhere
-                    for i in range(idx, len(self.voxels)):
-                        self.voxels[i].position = self.pos_nowhere
-                        pyb_u.set_base_pos_and_ori(self.voxels[i].object_id, self.pos_nowhere, np.array([0, 0, 0, 1]))
-                    break
-                pyb_u.set_base_pos_and_ori(voxel.object_id, self.voxel_centers[idx], np.array([0, 0, 0, 1]))          
-                voxel.position = self.voxel_centers[idx]
-            # calculate new colors
-            if self.color_voxels and len(self.voxel_centers) != 0:
-
-                ones = np.ones((self.voxel_colors.shape[0], 1), dtype=np.float32)
-                new_colors = np.concatenate([self.voxel_colors, ones], axis=1)
-                for idx, voxel in enumerate(self.voxels):
-                    if idx >= len(self.voxel_centers):
+        #if self.first_time_voxelization:
+        if True: # set if spatial mode not wanted
+            if self.voxel_centers_pyb is not None:
+                self.is_moving_voxels = True
+                pyb_u.toggle_rendering(False)
+                # update voxel positions
+                for idx, voxel_idx in enumerate(self.voxels):
+                    if idx >= len(self.voxel_centers_pyb):
+                        # set all remaining voxels to nowhere
+                        for i in range(idx, len(self.voxels)):
+                            self.voxels[i].position = self.pos_nowhere
+                            pyb_u.set_base_pos_and_ori(self.voxels[i].object_id, self.pos_nowhere, np.array([0, 0, 0, 1]))
+                            self.voxel_reserve_queue.append(self.voxels[i])
                         break
-                    pyb.changeVisualShape(pyb_u.to_pb(voxel.object_id), -1, rgbaColor=new_colors[idx])
-            self.is_moving_voxels = False    
-            pyb_u.toggle_rendering(True)
+                    pyb_u.set_base_pos_and_ori(voxel_idx.object_id, self.voxel_centers_pyb[idx], np.array([0, 0, 0, 1]))  
+                    self.voxel_grid[self.voxel_centers_indices[idx]] = voxel_idx        
+                    voxel_idx.position = self.voxel_centers_pyb[idx]
+                # calculate new colors
+                if self.color_voxels and len(self.voxel_centers_pyb) != 0:
+
+                    ones = np.ones((self.voxel_colors.shape[0], 1), dtype=np.float32)
+                    new_colors = np.concatenate([self.voxel_colors, ones], axis=1)
+                    for idx, voxel_idx in enumerate(self.voxels):
+                        if idx >= len(self.voxel_centers_pyb):
+                            break
+                        pyb.changeVisualShape(pyb_u.to_pb(voxel_idx.object_id), -1, rgbaColor=new_colors[idx])  
+                pyb_u.toggle_rendering(True)
+                self.is_moving_voxels = False  
+        else:
+            with open("output_voxel.txt", "a") as f:
+                f.write("[move vorher" + str(len(self.voxel_centers_pyb)))
+                f.write("[move nachher" + str(len(self.to_create_voxels) + len(self.to_delete_voxels)))
+            #print("move vorher", len(self.voxel_centers_pyb))
+            #print("move jetzt", len(self.to_create_voxels) + len(self.to_delete_voxels))
+            if self.to_create_voxels is not None:
+                self.is_moving_voxels = True
+                pyb_u.toggle_rendering(False)              
+                for voxel_idx in self.to_delete_voxels:
+                    box = self.voxel_grid[voxel_idx]
+                    pyb_u.set_base_pos_and_ori(box.object_id, self.pos_nowhere, np.array([0, 0, 0, 1]))
+                    self.voxel_reserve_queue.append(box)
+                    self.voxel_grid[voxel_idx] = None
+                for voxel_idx in self.to_create_voxels:
+                    move_voxel = self.voxel_reserve_queue.pop(0)
+                    pyb_u.set_base_pos_and_ori(move_voxel.object_id, np.array(voxel_idx) * self.voxel_size + self.points_lower_bound[:3], np.array([0, 0, 0, 1])) 
+                    self.voxel_grid[voxel_idx] = move_voxel
+                pyb_u.toggle_rendering(True)
+                self.is_moving_voxels = False 
+
             
     
     def delete_points_by_circle_center(self, points, pos):
@@ -912,6 +981,7 @@ class listener_node_one:
                 self.inference_steps = 0
                 
                 while True:
+                    start_action = time()
                     # do nothing if an additional sim step would override parts of the trajectory that haven't been executed yet
                     if self.sim_step - self.real_step >= self.drl_horizon:
                         # Waiting for real_step to catch up to sim_step
@@ -986,6 +1056,10 @@ class listener_node_one:
                         self.sim_step = self.sim_step + 1
                         pos_ee_last = pos_ee  
                         print("[cbAction] Action added")
+                    #TODO: write into output 
+                    #with open("output_Action.txt", "a") as f:
+                     #   f.write("[cb Pointcloud to Pybullet time: ]" + str(time() - start_action) + "\n")
+                      #  f.write("[cb Pointcloud to Pybullet FPS: ]" + str(1/(time() - start_action)) + "\n")
 
     #This logs all the important data, call at every real step
     def log_csv(self):
@@ -1029,24 +1103,12 @@ class listener_node_one:
                             print(key)
             #print(self.env.log)
 
- 
-    def update_csv(self,filename, my_list):
-    # Check if file is empty or doesn't exist
-        file_is_empty = not os.path.isfile(filename) or os.stat(filename).st_size == 0
 
-        with open(filename, 'a', newline='') as csvfile:
-            fieldnames = ['cbControl_time']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-            if file_is_empty:
-                # Write header if the file is empty
-                writer.writeheader()
-
-            # Append the latest entry from my_list
-            writer.writerow({'cbControl_time': my_list[-1]})
 
         
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True, disable_signals=True) 
-    listener = listener_node_one(action_rate=60, control_rate=120, num_voxels=5000, point_cloud_static=True)
+    listener = listener_node_one(num_voxels=2000, point_cloud_static=False)
+
+#TODO: num_voxels on the fly reinladen
