@@ -134,4 +134,40 @@ def get_neighbouring_voxels_idx(kd_tree, voxel, neighbour_threshold):
     valid_neighbors = [idx for idx in voxels_in_cluster_idx if idx != kd_tree.n] # Exclude out-of-range indices
     return valid_neighbors
 
+#Experimental mix approach with KD-tree Clustering and Multiprocessing
+"""
+# This will run in a separate process
+def parallel_kdtree_query(voxel_chunk):
+    # Each process will have its own k-d tree built from its chunk of voxel_centers
+    kd_tree = cKDTree(voxel_chunk)
+    return [kd_tree.query_ball_point(voxel, neighbourhood_threshold_mp) for voxel in voxel_chunk]
 
+def get_voxel_cluster(voxel_centers, neighbourhood_threshold):
+    global neighbourhood_threshold_mp
+    neighbourhood_threshold_mp = neighbourhood_threshold
+    
+    num_processes = 4
+    # Split voxel_centers into chunks for each process
+    chunks = np.array_split(voxel_centers, num_processes)
+    
+    # Use a pool of processes to compute the neighboring voxels for each chunk of voxel_centers
+    with multiprocessing.Pool(num_processes) as pool:
+        results = pool.map(parallel_kdtree_query, chunks)
+        
+    # Flatten the results to get a single list
+    res = [item for sublist in results for item in sublist]
+
+    # The rest of the clustering remains the same
+    voxel_cluster = np.repeat(-1, voxel_centers.shape[0])
+    max_cluster_num = 0
+    for i in range(len(voxel_centers)):
+        if voxel_cluster[i] < 0:
+            queue = deque([i])
+            while queue:
+                idx = queue.popleft()
+                if voxel_cluster[idx] < 0:
+                    voxel_cluster[idx] = max_cluster_num
+                    queue.extend(res[idx])
+            max_cluster_num += 1
+    return voxel_cluster
+"""
