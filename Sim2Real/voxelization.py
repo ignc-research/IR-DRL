@@ -40,8 +40,32 @@ def statistical_outlier_removal(pcd, n_neighbors=20, std_ratio=2.0):
     return filtered_pcd
 
 
+#new kdtree 
+"""
+def get_neighbouring_voxels_idx(kd_tree, current_voxel, neighbourhood_threshold):
+    return kd_tree.query_ball_point(current_voxel, neighbourhood_threshold)
 
+def get_voxel_cluster(voxel_centers, neighbourhood_threshold):
+    # Build k-d tree for efficient distance calculation
+    kd_tree = cKDTree(voxel_centers)
+    
+    # Use k-d tree to find neighboring voxels for each voxel
+    res = [get_neighbouring_voxels_idx(kd_tree, voxel, neighbourhood_threshold) for voxel in voxel_centers]
 
+    # Cluster voxels
+    voxel_cluster = np.repeat(-1, voxel_centers.shape[0])
+    max_cluster_num = 0
+    for i in range(len(voxel_centers)):
+        if voxel_cluster[i] < 0:
+            queue = deque([i])
+            while queue:
+                idx = queue.popleft()
+                if voxel_cluster[idx] < 0:
+                    voxel_cluster[idx] = max_cluster_num
+                    queue.extend(res[idx])
+            max_cluster_num += 1
+    return voxel_cluster
+"""
 
 
 ############# KD- TREE CLUSTERING (Very Resource intensive, but eliminates all free floating voxels) ############################
@@ -111,4 +135,3 @@ def get_neighbouring_voxels_idx(kd_tree, voxel, neighbour_threshold):
     return valid_neighbors
 
 
-    

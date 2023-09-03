@@ -51,7 +51,7 @@ import pybullet as pyb
 
 import pickle
 
-from voxelization import get_voxel_cluster, set_clusters, get_neighbouring_voxels_idx, statistical_outlier_removal
+from voxelization import get_voxel_cluster ,get_neighbouring_voxels_idx, statistical_outlier_removal
 
 
 
@@ -1109,6 +1109,6 @@ class listener_node_one:
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True, disable_signals=True) 
-    listener = listener_node_one(num_voxels=2000, point_cloud_static=False)
+    listener = listener_node_one(num_voxels=500, point_cloud_static=False)
 
 #TODO: num_voxels on the fly reinladen
