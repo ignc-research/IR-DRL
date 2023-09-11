@@ -27,7 +27,7 @@ run:
     save_name: "s2rexperiment_exp0_1"
   eval:
     max_episodes: -1
-    logging: 1 #1 = nach jeder episode eine zeile in die console, 2 = jeder step als zeile in der csv, 3 = das selbe wie 2 aber mit obstacles
+    logging: 2 #1 = nach jeder episode eine zeile in die console, 2 = jeder step als zeile in der csv, 3 = das selbe wie 2 aber mit obstacles
     display_delay: 0.00816666666  
     show_world_aux: True
     show_goal_aux: True

@@ -38,6 +38,7 @@ from scipy.spatial.transform import Rotation as R
 from sklearn.neighbors import NearestNeighbors
 from PIL import Image as PILImage
 import io
+from datetime import datetime
 
 import pandas as pd
 
@@ -193,6 +194,17 @@ class listener_node_one:
 
         # minimum collisions needed to be counted as a real collision
         self.min_collisions = self.config['min_collisions']
+
+        # FPS for logging with no robotic movement:
+        self.fps_logging_no_movement_enabled = True
+        self.fps_logging_data = None
+        self.used_voxel_count = None
+        # Clean the data in the CSV file by opening it in write mode and writing the headers
+        
+        if self.fps_logging_no_movement_enabled:
+            with open('./models/env_logs/fps_no_movement_data.csv', 'w', newline='') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow(['Time','FPS Logging Data','Number of Voxels Used', 'Maximal Number of Voxels allowed'])  # Replace with other column headers if needed
 
         self.trajectory_client = actionlib.SimpleActionClient(
             "scaled_pos_joint_traj_controller/follow_joint_trajectory",
@@ -577,13 +589,24 @@ class listener_node_one:
                     self.VoxelsToPybullet()
             else:
                 self.PointcloudToVoxel()
-                #print("[cb Pointcloud to Pybullet time: ]" , time() - start)
-                #print("[cb Pointcloud to Pybullet FPS: ]" , 1/(time() - start))
+                #print("[cb Pointcloud_pointcloudvoxel to Pybullet time: ]" , time() - start)
+                #print("[cb Pointcloud_pointcloudvoxel to Pybullet FPS: ]" , 1/(time() - start))
                 
                 self.VoxelsToPybullet()
-                #with open("output_PointcloudtoPybullet.txt", "a") as f:
-                    #f.write("[cb Pointcloud to Pybullet time: ]" + str(time() - start) + "\n")
-                    #f.write("[cb Pointcloud to Pybullet FPS: ]" + str(1/(time() - start)) + "\n")
+                #print("[cb Pointcloud_voxeltopybullet to Pybullet time: ]" , time() - start)
+                #print("[cb Pointcloud_voxeltopybullet to Pybullet FPS: ]" , 1/(time() - start))
+                
+                self.fps_logging_data = 1/(time()-start)
+                
+
+                #Part for logging without any robotic movement happening
+                current_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+                if self.fps_logging_no_movement_enabled:
+                    # Append data to CSV file
+                    with open('./models/env_logs/fps_no_movement_data.csv', 'a', newline='') as csvfile:
+                        csv_writer = csv.writer(csvfile)
+                        csv_writer.writerow([current_timestamp,self.fps_logging_data,self.used_voxel_count,self.num_voxels])
+
           
         
     def PointcloudToVoxel(self):
@@ -785,6 +808,7 @@ class listener_node_one:
                 pyb_u.toggle_rendering(False)
                 # update voxel positions
                 for idx, voxel_idx in enumerate(self.voxels):
+                    self.used_voxel_count = len(self.voxel_centers_pyb)
                     if idx >= len(self.voxel_centers_pyb):
                         # set all remaining voxels to nowhere
                         for i in range(idx, len(self.voxels)):
@@ -792,9 +816,10 @@ class listener_node_one:
                             pyb_u.set_base_pos_and_ori(self.voxels[i].object_id, self.pos_nowhere, np.array([0, 0, 0, 1]))
                             self.voxel_reserve_queue.append(self.voxels[i])
                         break
-                    pyb_u.set_base_pos_and_ori(voxel_idx.object_id, self.voxel_centers_pyb[idx], np.array([0, 0, 0, 1]))  
+                    pyb_u.set_base_pos_and_ori(voxel_idx.object_id, self.voxel_centers_pyb[idx], np.array([0, 0, 0, 1]))
                     self.voxel_grid[self.voxel_centers_indices[idx]] = voxel_idx        
                     voxel_idx.position = self.voxel_centers_pyb[idx]
+
                 # calculate new colors
                 if self.color_voxels and len(self.voxel_centers_pyb) != 0:
 
@@ -954,7 +979,7 @@ class listener_node_one:
         if self.joints is not None:  # wait until self.joints is written to for the first time
             if self.goal is not None and not self.inference_done and self.mode: # only do inference if there is a goal given by user and we're not already done with inference and we're not using a planner
                 print("[cbAction] starting DRL inference")
-                
+                start = time() 
                 # set inference mutex such that other callbacks do nothing while new movement is calculated
                 self.running_inference = True
                 # manually reset a few env attributes (we don't want to use env.reset() because that would delete all the voxels)
@@ -1056,7 +1081,10 @@ class listener_node_one:
                         self.sim_step = self.sim_step + 1
                         pos_ee_last = pos_ee  
                         print("[cbAction] Action added")
-                    #TODO: write into output 
+                        #print("[cb Pointcloud_voxeltopybullet to Pybullet time: ]" , time() - start)
+                        #print("[cb Pointcloud_voxeltopybullet to Pybullet FPS: ]" , 1/(time() - start))
+                    #TODO: write into output
+                    
                     #with open("output_Action.txt", "a") as f:
                      #   f.write("[cb Pointcloud to Pybullet time: ]" + str(time() - start_action) + "\n")
                       #  f.write("[cb Pointcloud to Pybullet FPS: ]" + str(1/(time() - start_action)) + "\n")
@@ -1074,7 +1102,8 @@ class listener_node_one:
             "real_joint_velocities": self.velocities,
             "real_effort": self.effort,
             "real_joint_positions": self.joints,
-            "current_time" : self.current_time
+            "current_time" : self.current_time,
+            "real_fps" : self.fps_logging_data,
         }
 
         #print("________________________ADD_INFO_______________")
@@ -1109,6 +1138,5 @@ class listener_node_one:
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True, disable_signals=True) 
-    listener = listener_node_one(num_voxels=500, point_cloud_static=False)
+    listener = listener_node_one(num_voxels=5000, point_cloud_static=False)
 
-#TODO: num_voxels on the fly reinladen
