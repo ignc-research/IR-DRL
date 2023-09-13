@@ -196,7 +196,7 @@ class listener_node_one:
         self.min_collisions = self.config['min_collisions']
 
         # FPS for logging with no robotic movement:
-        self.fps_logging_no_movement_enabled = True
+        self.fps_logging_no_movement_enabled = False
         self.fps_logging_data = None
         self.used_voxel_count = None
         # Clean the data in the CSV file by opening it in write mode and writing the headers
@@ -309,7 +309,62 @@ class listener_node_one:
         self.trajectory_client.send_goal(goal) 
         self.trajectory_client.wait_for_result()
 
+    # This function is there to prevent cutting of certain colors if the colors of the obstacles are known. It can be modified to any color
+    """  
+  def is_violet(self,color):
+    # The average RGB for lilac/violet
+        violet_rgb = np.array([0.4, 0.15, 0.25])
+        
+        # Calculate the Euclidean distance in the RGB space
+        distance = np.linalg.norm(color - violet_rgb)
+        
+        # Define a threshold for the distance to consider a color as lilac; 
+        threshold = 0.2
+    
+        return distance < threshold
+"""
+    def is_violet(self, color):
+        # Average RGB values derived from the dataset you've provided
+        violet_rgb = np.array([0.75, 0.45, 0.55])
+        
+        # Calculate the Euclidean distance in the RGB space
+        distance = np.linalg.norm(color - violet_rgb)
+        
+        # Define a threshold for the distance to consider a color as lilac or violet
+        threshold = 0.1
+        
+        # Condition to exclude nearly black colors (sum of RGB components is small)
+        is_not_black = np.sum(color) > 0.3
+        
+        # Condition to exclude white colors (sum of RGB components is very large)
+        is_not_white = np.sum(color) < 2.7
+        
+        # Condition to exclude blue colors (blue component is not the dominant component)
+        is_not_blue = color[2] < max(color[0], color[1])
+        
+        return distance < threshold and is_not_black and is_not_white and is_not_blue
 
+    def filter_colors(self, color):
+        # Threshold values to identify light blue, light grey, and dark grey
+        light_blue_rgb = np.array([0.6, 0.8, 1.0])
+        light_grey_rgb = np.array([0.8, 0.8, 0.8])
+        dark_grey_rgb = np.array([0.3, 0.3, 0.3])
+
+        # Calculate the Euclidean distances in the RGB space for each color
+        distance_light_blue = np.linalg.norm(color - light_blue_rgb)
+        distance_light_grey = np.linalg.norm(color - light_grey_rgb)
+        distance_dark_grey = np.linalg.norm(color - dark_grey_rgb)
+
+        # Define a threshold for the distances to identify the colors
+        threshold = 0.2
+
+        # Conditions to identify each color based on Euclidean distance
+        is_light_blue = distance_light_blue < threshold
+        is_light_grey = distance_light_grey < threshold
+        is_dark_grey = distance_dark_grey < threshold
+
+        # Return True if the color is identified as one of the unwanted colors
+        return is_light_blue or is_light_grey or is_dark_grey
 
     def cbControl(self, event):
         
@@ -764,9 +819,16 @@ class listener_node_one:
                     #checks if point is in close distance of the robot
                     query = pyb.getClosestPoints(pyb_u.to_pb(self.probe_voxel.object_id), pyb_u.to_pb(self.virtual_robot.object_id), self.robot_voxel_safe_distance)      
                     not_delete_mask[idx] = False if query else True
-                
+                    #Add RGB integration, do not delete the voxels if they have a certain color, no matter how close they are to the robot
+                    #print(voxel_colors[idx])
+                    if self.is_violet(voxel_colors[idx]):
+                        not_delete_mask[idx] = True
+                    #if self.filter_colors(voxel_centers[idx]):
+                     #   not_delete_mask[idx] = False
+                    
                 voxel_centers = voxel_centers[not_delete_mask]
                 voxel_colors = voxel_colors[not_delete_mask]
+                
                 self.voxel_centers_indices = self.voxel_centers_indices[not_delete_mask]
               
                 self.virtual_robot.moveto_joints(joints_now, False, self.virtual_robot.all_joints_ids)
@@ -1089,6 +1151,8 @@ class listener_node_one:
                      #   f.write("[cb Pointcloud to Pybullet time: ]" + str(time() - start_action) + "\n")
                       #  f.write("[cb Pointcloud to Pybullet FPS: ]" + str(1/(time() - start_action)) + "\n")
 
+
+    
     #This logs all the important data, call at every real step
     def log_csv(self):
         #print("look here:", self.env.log[-1])
@@ -1138,5 +1202,5 @@ class listener_node_one:
 
 if __name__ == '__main__':
     rospy.init_node('listener', anonymous=True, disable_signals=True) 
-    listener = listener_node_one(num_voxels=5000, point_cloud_static=False)
+    listener = listener_node_one(num_voxels=600, point_cloud_static=False)
 

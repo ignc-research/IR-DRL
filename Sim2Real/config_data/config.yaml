@@ -4,9 +4,9 @@ camera_transform_to_pyb_origin:
   - 0.0
   - 180.0
   xyz:
-  - 0.5
-  - 2.0
-  - 0.15
+  - 0.6
+  - 2.1
+  - 0.2
 - rpy:
   - 90.0
   - -90.0
@@ -26,12 +26,12 @@ camera_transform_to_pyb_origin:
 dist_threshold: 0.03
 drl_horizon: 5
 enable_PC: true
-enable_clustering: false
+enable_clustering: False
 max_inference_steps: 5000
 min_collisions: 3
 num_cameras: 1
-robot_voxel_safe_distance: 0.08
+robot_voxel_safe_distance: 0.13
 use_gpu: true
 use_sor: false
-voxel_cluster_threshold: 20
-voxel_size: 0.02
+voxel_cluster_threshold: 50
+voxel_size: 0.05
